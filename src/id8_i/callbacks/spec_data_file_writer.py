@@ -65,7 +65,9 @@ def init_specwriter_with_RE(RE):
     """Initialize specwriter with the run engine."""
 
     # make the SPEC file in current working directory (assumes is writable)
-    specwriter.newfile(specwriter.spec_filename)
+    home_path = pathlib.Path.home()
+    new_path = home_path / "/gdata/dm/8ID/8IDI/$cycle_name/$experiment_name/analysis/Scan"
+    specwriter.newfile(new_path / specwriter.spec_filename)
 
     if iconfig.get("SPEC_DATA_FILES", {}).get("ENABLE", False):
         RE.subscribe(specwriter.receiver)  # write data to SPEC files
