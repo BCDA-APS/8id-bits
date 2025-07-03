@@ -12,7 +12,7 @@ from .util_8idi import get_machine_name
 pv_registers = oregistry["pv_registers"]
 
 
-def dm_setup(process: bool) -> tuple:
+def dm_setup() -> tuple:
     """Set up the Data Management workflow API.
 
     Args:
@@ -22,19 +22,18 @@ def dm_setup(process: bool) -> tuple:
         Tuple containing (workflowProcApi, dmuser) if process is True,
         otherwise (None, None)
     """
-    if process:
-        # Object that tracks beamline-specific configuration
-        configManager = ConfigurationManager.getInstance()
-        dmuser, password = configManager.parseLoginFile()
-        serviceUrl = configManager.getProcWebServiceUrl()
-        # user/password/url info passed to DM API
-        workflowProcApi = WorkflowProcApi(dmuser, password, serviceUrl)
+    # Object that tracks beamline-specific configuration
+    configManager = ConfigurationManager.getInstance()
+    dmuser, password = configManager.parseLoginFile()
+    serviceUrl = configManager.getProcWebServiceUrl()
+    # user/password/url info passed to DM API
+    workflowProcApi = WorkflowProcApi(dmuser, password, serviceUrl)
+
     return workflowProcApi, dmuser
 
 
 def dm_run_job(
     det_name: str,
-    process: bool,
     workflowProcApi: WorkflowProcApi,
     dmuser: str,
     filename: str,
@@ -48,13 +47,16 @@ def dm_run_job(
         dmuser: DM username
         filename: Base name of the data file
     """
-    if process:
+    analysis_machine = pv_registers.analysis_machine.get()
+
+    if analysis_machine == "none":
+        pass
+    else:
         exp_name = pv_registers.experiment_name.get()
         qmap_file = pv_registers.qmap_file.get()
         workflow_name = pv_registers.workflow_name.get()
         analysis_machine = pv_registers.analysis_machine.get()
         analysis_type = pv_registers.analysis_type.get()
-        cycle_name = pv_registers.cycle_name.get()
 
         if det_name == "rigaku":
             filepath = f"{filename}.bin.000"
@@ -81,10 +83,13 @@ def dm_run_job(
             "gpuID": gpuID,
             "demand": "True",
             "type": analysis_type,
-            "downloadDirectory": f"/home/8-id-i/{cycle_name}/{exp_name}/{analysis_type}/" 
+            "saveG2": "True",
+            "download": "True"
+            # "downloadDirectory": f"/home/8-id-i/{cycle_name}/{exp_name}/analysis/{analysis_type}/" 
         }
 
         job = workflowProcApi.startProcessingJob(
             dmuser, f"{workflow_name}", argsDict=argsDict
         )
         print(f"Job {job['id']} processing {filename}")
+

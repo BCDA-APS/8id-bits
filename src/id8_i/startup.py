@@ -143,4 +143,8 @@ from .plans.shutter_logic import showbeam, blockbeam, shutteron, shutteroff, pre
 from .plans.pv_break_test import break_pv
 from .plans.rheometer_wait import wait_for_mcr
 
+from .plans.qnw_plans import set_qnw, find_qnw_index, set_temperature 
+from .plans.qnw_plans import set_ramp_rate, set_temperature_with_ramp
+from .plans.qnw_plans import set_temperature_env, set_ramp_rate_env
+
 from id8_user_plans.write_measurement_info import write_measurement_info

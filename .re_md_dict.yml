@@ -1,5 +1,5 @@
 # Written by StoredDict.
-# Dictionary contents written: 2025-06-20 13:47:08.534388
+# Dictionary contents written: 2025-07-03 11:26:39.232188
 
 beamline_id: demo_instrument
 conda_prefix: /home/beams/8IDIUSER/.conda/envs/8idi_bits
@@ -39,9 +39,9 @@ iconfig:
   XMODE_DEBUG_LEVEL: Plain
 instrument_name: Most Glorious Scientific Instrument
 login_id: 8idiuser@amber.xray.aps.anl.gov
-pid: 3068670
+pid: 59676
 proposal_id: commissioning
-scan_id: 128
+scan_id: 299
 versions:
   apsbits: 1.0.3
   apstools: 1.7.3

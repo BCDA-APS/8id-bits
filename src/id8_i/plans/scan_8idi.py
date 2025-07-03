@@ -18,7 +18,7 @@ from .shutter_logic import showbeam
 
 rheometer = oregistry["rheometer"]
 sample = oregistry["sample"]
-filter = oregistry["filter_8ide"]
+filter_beam = oregistry["filter_8ide"]
 tetramm1 = oregistry["tetramm1"]
 
 
@@ -28,7 +28,11 @@ def att(att_ratio: Optional[float] = None):
     Args:
         att_ratio: Attenuation ratio to set (0-15)
     """
-    yield from bps.mv(filter.attenuation, att_ratio)
+    if att_ratio < 1.0:
+        att_ratio = 1.0
+    else:
+        pass
+    yield from bps.mv(filter_beam.attenuation, att_ratio)
     yield from bps.sleep(0.5)
 
 
@@ -49,7 +53,7 @@ def x_lup(
         det: Detector to use for the scan
     """
     yield from pre_align()
-    yield from bps.mv(filter.attenuation, att_ratio)
+    yield from att(att_ratio)
 
     yield from showbeam()
     yield from bp.rel_scan([det], sample.x, rel_begin, rel_end, num_pts)
@@ -73,7 +77,7 @@ def y_lup(
         det: Detector to use for the scan
     """
     yield from pre_align()
-    yield from bps.mv(filter.attenuation, att_ratio)
+    yield from att(att_ratio)
 
     yield from showbeam()
     yield from bp.rel_scan([det], sample.y, rel_begin, rel_end, num_pts)
@@ -97,7 +101,7 @@ def rheo_x_lup(
         det: Detector to use for the scan
     """
     yield from pre_align()
-    yield from bps.mv(filter.attenuation, att_ratio)
+    yield from att(att_ratio)
 
     yield from showbeam()
     yield from bp.rel_scan([det], rheometer.x, rel_begin, rel_end, num_pts)
@@ -121,7 +125,7 @@ def rheo_y_lup(
         det: Detector to use for the scan
     """
     yield from pre_align()
-    yield from bps.mv(filter.attenuation, att_ratio)
+    yield from att(att_ratio)
 
     yield from showbeam()
     yield from bp.rel_scan([det], rheometer.y, rel_begin, rel_end, num_pts)
@@ -142,7 +146,7 @@ def rheo_set_x_lup(
         det: Detector to use for the scan
     """
     yield from pre_align()
-    yield from bps.mv(filter.attenuation, att_ratio)
+    yield from att(att_ratio)
 
     yield from bps.mv(rheometer.x, -14.0)
     yield from showbeam()

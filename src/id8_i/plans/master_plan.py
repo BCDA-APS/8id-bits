@@ -31,7 +31,6 @@ def run_measurement_info(file_name='measurement_info.json'):
             acq_period_list = block_value.get("acq_period_list")
             num_frames_list = block_value.get("num_frames_list")
             num_reps_list = block_value.get("num_reps_list")
-            num_reps_list = block_value.get("num_reps_list")
             # fly_scan_yes_list = block_value.get("fly_scan_yes_list")
             sample_move_yes_list = block_value.get("sample_move_yes_list")
 
@@ -70,7 +69,7 @@ def run_measurement_info(file_name='measurement_info.json'):
                                                                 acq_time=acq_time,
                                                                 num_frames=num_frames,
                                                                 num_rep=num_reps,
-                                                                wait_time=0,
+                                                                wait_time=30,
                                                                 process=True,
                                                                 sample_move=sample_move_yes,
                                                             )

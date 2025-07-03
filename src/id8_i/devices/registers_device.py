@@ -15,19 +15,22 @@ class EpicsPvStorageRegisters(Device):
     and parameters during beamline operation.
     """
 
-    file_name = Component(EpicsSignal, "StrReg1", string=True)
-    file_path = Component(EpicsSignal, "StrReg2", string=True)
-    metadata_full_path = Component(EpicsSignal, "StrReg3", string=True)
-    qmap_file = Component(EpicsSignal, "StrReg4", string=True)
-    analysis_machine = Component(EpicsSignal, "StrReg5", string=True)
-    workflow_name = Component(EpicsSignal, "StrReg6", string=True)
-    experiment_name = Component(EpicsSignal, "StrReg7", string=True)
-    cycle_name = Component(EpicsSignal, "StrReg8", string=True)
-    sample_name = Component(EpicsSignal, "StrReg9", string=True)
-    spec_file = Component(EpicsSignal, "StrReg10", string=True)
-    analysis_type = Component(EpicsSignal, "StrReg11", string=True)
-    start_bluesky = Component(EpicsSignal, "StrReg12", string=True)
-    det_name = Component(EpicsSignal, "StrReg13", string=True)
+    sample_name = Component(EpicsSignal, "StrReg1", string=True)
+    det_name = Component(EpicsSignal, "StrReg2", string=True)
+    file_name = Component(EpicsSignal, "StrReg3", string=True)
+    metadata_full_path = Component(EpicsSignal, "StrReg4", string=True)
+    analysis_type = Component(EpicsSignal, "StrReg5", string=True)
+
+    experiment_name = Component(EpicsSignal, "StrReg6", string=True)
+    spec_file = Component(EpicsSignal, "StrReg7", string=True)
+    mount_point = Component(EpicsSignal, "StrReg8", string=True)
+    cycle_name = Component(EpicsSignal, "StrReg9", string=True)
+    qmap_file = Component(EpicsSignal, "StrReg10", string=True)
+
+    analysis_machine = Component(EpicsSignal, "StrReg11", string=True)
+    workflow_name = Component(EpicsSignal, "StrReg12", string=True)
+
+    start_bluesky = Component(EpicsSignal, "StrReg20", string=True)
 
     measurement_num = Component(EpicsSignal, "Reg1")
     qnw_index = Component(EpicsSignal, "Reg2")

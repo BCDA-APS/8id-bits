@@ -44,8 +44,10 @@ def select_sample_env(env: Literal["qnw", "rheometer", "robot"]):
     yield from bps.sleep(2)
 
     if env == "qnw":
+        yield from bps.mv(sample.x, 0.5)
         yield from bps.mv(granite.x, choices["qnw"])
     if env == "rheometer":
+        yield from bps.mv(sample.x, 0.5)
         yield from bps.mv(granite.x, choices["rheometer"])
     elif env == "robot":
         yield from bps.mv(granite.x, choices["robot"])

@@ -5,6 +5,7 @@ Simple, modular Bluesky plans for users.
 from apsbits.core.instrument_init import oregistry
 from bluesky import plan_stubs as bps
 from bluesky import plans as bp
+from datetime import datetime
 
 from ..utils.dm_util import dm_run_job
 from ..utils.dm_util import dm_setup
@@ -33,8 +34,9 @@ def setup_eiger_int_series(acq_time, num_frames, file_name):
     """
     cycle_name = pv_registers.cycle_name.get()
     exp_name = pv_registers.experiment_name.get()
+    mount_point = pv_registers.mount_point.get()
 
-    file_path = f"/gdata/dm/8ID/8IDI/{cycle_name}/{exp_name}/data/{file_name}"
+    file_path = f"{mount_point}{cycle_name}/{exp_name}/data/{file_name}"
 
     acq_period = acq_time
     yield from bps.mv(eiger4M.cam.trigger_mode, "Internal Series")  # 0
@@ -49,7 +51,6 @@ def setup_eiger_int_series(acq_time, num_frames, file_name):
     yield from bps.mv(eiger4M.hdf1.num_capture, num_frames)
 
     yield from bps.mv(pv_registers.file_name, file_name)
-    yield from bps.mv(pv_registers.file_path, file_path)
     yield from bps.mv(
         pv_registers.metadata_full_path, f"{file_path}/{file_name}_metadata.hdf"
     )
@@ -63,7 +64,7 @@ def eiger_acquire():
     yield from bps.mv(eiger4M.cam.acquire, 1)
         
     while True:
-        det_status = eiger4M.cam.acquire_busy.get()
+        det_status = eiger4M.cam.acquire.get()
         if det_status == 1:
             yield from bps.sleep(0.1)
         if det_status == 0:
@@ -88,7 +89,6 @@ def eiger_acq_int_series(
     num_frames=10,
     num_rep=3,
     wait_time=0,
-    process=True,
     sample_move=False,
 ):
     """Run internal series acquisition with the Eiger detector.
@@ -104,7 +104,7 @@ def eiger_acq_int_series(
     # try:
     yield from post_align()
     yield from shutteroff()
-    workflowProcApi, dmuser = dm_setup(process)
+    workflowProcApi, dmuser = dm_setup()
     folder_prefix = gen_folder_prefix()
 
     for ii in range(num_rep):
@@ -116,14 +116,18 @@ def eiger_acq_int_series(
         file_name = f"{folder_prefix}_f{num_frames:06d}_r{ii+1:05d}"
         yield from setup_eiger_int_series(acq_time, num_frames, file_name)
 
-        print(f"\nStarting Measurement {file_name}")
+        _ = datetime.now()
+        time_now = _.strftime("%Y-%m-%d %H:%M:%S")
+        print(f"\n{time_now}, Starting measurement {file_name}")
         yield from eiger_acquire()
-        print(f"Measurement {file_name} Complete")
+        _= datetime.now()
+        time_now = _.strftime("%Y-%m-%d %H:%M:%S")
+        print(f"{time_now}, Complete measurement {file_name}")
 
         metadata_fname = pv_registers.metadata_full_path.get()
         create_nexus_format_metadata(metadata_fname, det=eiger4M)
 
-        dm_run_job("eiger", process, workflowProcApi, dmuser, file_name)
+        dm_run_job("eiger", workflowProcApi, dmuser, file_name)
     # except KeyboardInterrupt:
     #     raise RuntimeError("\n Bluesky plan stopped by user (Ctrl+C).")
     # except Exception as e:

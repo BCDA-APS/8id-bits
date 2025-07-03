@@ -292,6 +292,12 @@ id8_i.devices.idt_mono.IDTMono:
   pitch_piezo: "LJT703:Ao2"
   roll_piezo: "LJT703:Ao3"
 
+apstools.devices.aps_undulator.Revolver_Undulator:
+- name: undulator_upstream
+  prefix: "S08ID:USID:"
+- name: undulator_downstream
+  prefix: "S08ID:DSID:"
+
 ############################### THESE ARE EXAMPLES OF OTHER DEVICES THAT YOU CAN USE
 # ophyd.Signal:
 # - name: test
