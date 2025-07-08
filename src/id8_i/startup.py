@@ -131,6 +131,18 @@ else:
         f"  Using {specwriter.spec_filename}."
             )
 
+flag1ad = oregistry["flag1ad"]
+flag1ad.stats1.kind = "hinted"
+flag1ad.stats1.total.kind = "hinted"
+
+flag2ad = oregistry["flag2ad"]
+flag2ad.stats1.kind = "hinted"
+flag2ad.stats1.total.kind = "hinted"
+
+flag3ad = oregistry["flag3ad"]
+flag3ad.stats1.kind = "hinted"
+flag3ad.stats1.total.kind = "hinted"
+
 from .plans.master_plan import run_measurement_info
 from .plans.nexus_acq_eiger_int import setup_eiger_int_series, eiger_acq_int_series
 from .plans.nexus_acq_eiger_ext import setup_eiger_ext_trig, eiger_acq_ext_trig
