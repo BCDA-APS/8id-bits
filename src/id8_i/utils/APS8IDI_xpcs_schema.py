@@ -296,6 +296,13 @@ xpcs_schema = {
                     "description": "Undulator energy",
                     "data": 1.0,
                 },
+                "taper": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "Undulator taper",
+                    "data": 1.0,
+                },
             },
             "undulator_2": {
                 "type": "NXinsertion_device",
@@ -313,6 +320,13 @@ xpcs_schema = {
                     "units": "NX_ENERGY",
                     "required": False,
                     "description": "Undulator energy",
+                    "data": 1.0,
+                },
+                "taper": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "Undulator taper",
                     "data": 1.0,
                 },
             },

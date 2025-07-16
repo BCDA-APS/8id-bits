@@ -36,17 +36,9 @@ def dm_run_job(
     det_name: str,
     workflowProcApi: WorkflowProcApi,
     dmuser: str,
-    filename: str,
+    # filename: str,
 ):
-    """Submit a data processing job to the Data Management system.
 
-    Args:
-        det_name: Name of the detector ("rigaku" or "eiger")
-        process: Whether to submit the job
-        workflowProcApi: Workflow API instance
-        dmuser: DM username
-        filename: Base name of the data file
-    """
     analysis_machine = pv_registers.analysis_machine.get()
 
     if analysis_machine == "none":
@@ -57,11 +49,12 @@ def dm_run_job(
         workflow_name = pv_registers.workflow_name.get()
         analysis_machine = pv_registers.analysis_machine.get()
         analysis_type = pv_registers.analysis_type.get()
+        file_name = pv_registers.file_name.get()
 
         if det_name == "rigaku":
-            filepath = f"{filename}.bin.000"
+            filepath = f"{file_name}.bin.000"
         elif det_name == "eiger":
-            filepath = f"{filename}.h5"
+            filepath = f"{file_name}.h5"
         else:
             pass
 
@@ -91,5 +84,5 @@ def dm_run_job(
         job = workflowProcApi.startProcessingJob(
             dmuser, f"{workflow_name}", argsDict=argsDict
         )
-        print(f"Job {job['id']} processing {filename}")
+        print(f"Job {job['id']} processing {file_name}")
 

@@ -102,8 +102,8 @@ def eiger_acq_int_series(
         sample_move: Whether to move sample between repetitions
     """
     # try:
-    yield from post_align()
-    yield from shutteroff()
+    # yield from post_align()
+    # yield from shutteroff()
     workflowProcApi, dmuser = dm_setup()
     folder_prefix = gen_folder_prefix()
 
@@ -127,7 +127,7 @@ def eiger_acq_int_series(
         metadata_fname = pv_registers.metadata_full_path.get()
         create_nexus_format_metadata(metadata_fname, det=eiger4M)
 
-        dm_run_job("eiger", workflowProcApi, dmuser, file_name)
+        dm_run_job("eiger", workflowProcApi, dmuser)
     # except KeyboardInterrupt:
     #     raise RuntimeError("\n Bluesky plan stopped by user (Ctrl+C).")
     # except Exception as e:

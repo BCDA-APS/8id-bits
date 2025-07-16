@@ -12,7 +12,7 @@ from ..utils.dm_util import dm_run_job
 from ..utils.dm_util import dm_setup
 from ..utils.nexus_utils import create_nexus_format_metadata
 
-eiger4M = oregistry["eiger4M"]
+lambda750k = oregistry["lambda750k"]
 pv_registers = oregistry["pv_registers"]
 
 
@@ -30,11 +30,12 @@ def submit_Nexus_DM():
     while True:
         bluesky_start = pv_registers.start_bluesky.get()
         if bluesky_start == "Yes":
+            # DM workflow setup.
+            workflowProcApi, dmuser = dm_setup()
 
             metadata_fname = pv_registers.metadata_full_path.get()
-            create_nexus_format_metadata(metadata_fname, det=eiger4M)
+            create_nexus_format_metadata(metadata_fname, det=lambda750k)
 
-            # workflowProcApi, dmuser = dm_setup()
             # dm_run_job("eiger", workflowProcApi, dmuser)
             pv_registers.start_bluesky.put("No")
 

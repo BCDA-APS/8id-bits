@@ -30,6 +30,9 @@ qnw_env2 = oregistry["qnw_env2"]
 qnw_env3 = oregistry["qnw_env3"]
 tetramm1 = oregistry["tetramm1"]
 pv_registers = oregistry["pv_registers"]
+undulator_upstream = oregistry["undulator_upstream"]
+undulator_downstream = oregistry["undulator_downstream"]
+huber = oregistry["huber"]
 
 default_units_keymap = {
     "NX_COUNT": "one",  # Used for frame_sum, frame_average, delay_difference
@@ -169,10 +172,22 @@ def create_runtime_metadata_dict(
         "/entry/instrument/incident_beam/incident_energy": (
             mono_8id.energy_readback.get()
         ),
+        "/entry/instrument/monochromator/energy": (
+            mono_8id.energy_readback.get()
+        ),
+        "/entry/instrument/monochromator/wavelength": (
+            mono_8id.energy_readback.get()/12.4
+        ),
         "/entry/instrument/incident_beam/incident_energy_spread": 0.0001,
         "/entry/instrument/incident_beam/incident_beam_intensity": (
             tetramm1.current1.mean_value.get()
         ),
+        "/entry/instrument/undulator_1/gap": undulator_upstream.gap.position,
+        "/entry/instrument/undulator_1/energy": undulator_upstream.energy.position,
+        "/entry/instrument/undulator_1/taper": undulator_upstream.gap_taper.position,
+        "/entry/instrument/undulator_2/gap": undulator_downstream.gap.position,
+        "/entry/instrument/undulator_2/energy": undulator_downstream.energy.position,
+        "/entry/instrument/undulator_1/taper": undulator_downstream.gap_taper.position,
         "/entry/instrument/attenuator_1/attenuator_transmission": (
             filter_8ide.transmission.readback.get()
         ),
@@ -185,6 +200,16 @@ def create_runtime_metadata_dict(
         "/entry/instrument/attenuator_2/attenuator_index": (
             0
         ),
+        "/entry/instrument/diffractometer/nu": huber.nu.position,
+        "/entry/instrument/diffractometer/delta": huber.delta.position,
+        "/entry/instrument/diffractometer/mu": huber.mu.position,
+        "/entry/instrument/diffractometer/eta": huber.eta.position,
+        "/entry/instrument/diffractometer/chi": huber.chi.position,
+        "/entry/instrument/diffractometer/phi": huber.phi.position,
+        "/entry/instrument/diffractometer/sample_y": huber.sample_y.position,
+        "/entry/instrument/diffractometer/sample_z": huber.sample_z.position,
+        "/entry/instrument/diffractometer/sample_x": huber.sample_x.position,
+
         "/entry/sample/position_x": sample.x.position,
         "/entry/sample/position_y": sample.y.position,
         "/entry/sample/position_z": sample.z.position,
@@ -199,7 +224,7 @@ def create_runtime_metadata_dict(
         "/entry/sample/qnw3_temperature": qnw_env3.readback.get(),
         "/entry/sample/qnw3_temperature_set": qnw_env3.setpoint.get(),
         "/entry/instrument/bluesky/parent_folder": (
-            f"/gdata/dm/8IDI/{pv_registers.cycle_name.get()}/"
+            f"{pv_registers.mount_point.get()}/{pv_registers.cycle_name.get()}/"
             f"{pv_registers.experiment_name.get()}/data/"
         ),
         "/entry/instrument/bluesky/spec_file": pv_registers.spec_file.get(),

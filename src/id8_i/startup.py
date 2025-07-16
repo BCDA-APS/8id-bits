@@ -131,29 +131,31 @@ else:
         f"  Using {specwriter.spec_filename}."
             )
 
-flag1ad = oregistry["flag1ad"]
-flag1ad.stats1.kind = "hinted"
-flag1ad.stats1.total.kind = "hinted"
+# flag1ad = oregistry["flag1ad"]
+# flag1ad.stats1.kind = "hinted"
+# flag1ad.stats1.total.kind = "hinted"
 
-flag2ad = oregistry["flag2ad"]
-flag2ad.stats1.kind = "hinted"
-flag2ad.stats1.total.kind = "hinted"
+# flag2ad = oregistry["flag2ad"]
+# flag2ad.stats1.kind = "hinted"
+# flag2ad.stats1.total.kind = "hinted"
 
-flag3ad = oregistry["flag3ad"]
-flag3ad.stats1.kind = "hinted"
-flag3ad.stats1.total.kind = "hinted"
+# flag3ad = oregistry["flag3ad"]
+# flag3ad.stats1.kind = "hinted"
+# flag3ad.stats1.total.kind = "hinted"
 
 from .plans.master_plan import run_measurement_info
 from .plans.nexus_acq_eiger_int import setup_eiger_int_series, eiger_acq_int_series
 from .plans.nexus_acq_eiger_ext import setup_eiger_ext_trig, eiger_acq_ext_trig
 from .plans.nexus_acq_rigaku_zdt import setup_rigaku_ZDT_series, rigaku_acq_ZDT_series, rigaku_zdt_acquire
+from .plans.pv_break_test import break_pv
+from .plans.rheometer_wait import wait_for_mcr
 from .plans.sample_info_unpack import select_sample, gen_folder_prefix
 from .plans.scan_8idi import att, x_lup, y_lup, rheo_x_lup, rheo_y_lup, rheo_set_x_lup
 from .plans.select_detector import select_detector
 from .plans.select_sample_env import select_sample_env
 from .plans.shutter_logic import showbeam, blockbeam, shutteron, shutteroff, pre_align, post_align 
-from .plans.pv_break_test import break_pv
-from .plans.rheometer_wait import wait_for_mcr
+# from .plans.spec_8IDE_eiger4M import submit_Nexus_DM
+from .plans.spec_8IDE_lambda750kdp import submit_Nexus_DM
 
 from .plans.qnw_plans import set_qnw, find_qnw_index, set_temperature 
 from .plans.qnw_plans import set_ramp_rate, set_temperature_with_ramp

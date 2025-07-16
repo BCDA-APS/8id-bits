@@ -45,7 +45,7 @@ def run_measurement_info(file_name='measurement_info.json'):
             for ii in range(len(att_list)):
 
                 print(f'\n At Attenuation Ratio {att_list[ii]}:\n')
-                yield from att(att_list[ii])
+                # yield from att(att_list[ii])
 
                 for jj in range(len(acq_time_list[ii])):
 
@@ -69,8 +69,7 @@ def run_measurement_info(file_name='measurement_info.json'):
                                                                 acq_time=acq_time,
                                                                 num_frames=num_frames,
                                                                 num_rep=num_reps,
-                                                                wait_time=30,
-                                                                process=True,
+                                                                wait_time=0,
                                                                 sample_move=sample_move_yes,
                                                             )
                         else:
