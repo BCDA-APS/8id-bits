@@ -55,6 +55,8 @@ def dm_run_job(
             filepath = f"{file_name}.bin.000"
         elif det_name == "eiger":
             filepath = f"{file_name}.h5"
+        elif det_name == "tempus":
+            filepath = f"{file_name}.bin"
         else:
             pass
 
@@ -76,8 +78,8 @@ def dm_run_job(
             "gpuID": gpuID,
             "demand": "True",
             "type": analysis_type,
-            "saveG2": "True",
-            "download": "True"
+            "saveG2": "False",
+            "download": "False"
             # "downloadDirectory": f"/home/8-id-i/{cycle_name}/{exp_name}/analysis/{analysis_type}/" 
         }
 

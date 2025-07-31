@@ -16,7 +16,7 @@ lambda750k = oregistry["lambda750k"]
 pv_registers = oregistry["pv_registers"]
 
 
-def submit_Nexus_DM():
+def submit_Nexus_DM_lambda():
     """Submit data processing jobs to DM when triggered by SPEC.
 
     This plan monitors a trigger PV from SPEC and, when activated, submits

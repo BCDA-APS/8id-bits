@@ -16,7 +16,7 @@ eiger4M = oregistry["eiger4M"]
 pv_registers = oregistry["pv_registers"]
 
 
-def submit_Nexus_DM():
+def submit_Nexus_DM(det=None):
     """Submit data processing jobs to DM when triggered by SPEC.
 
     This plan monitors a trigger PV from SPEC and, when activated, submits
@@ -32,7 +32,7 @@ def submit_Nexus_DM():
         if bluesky_start == "Yes":
 
             metadata_fname = pv_registers.metadata_full_path.get()
-            create_nexus_format_metadata(metadata_fname, det=eiger4M)
+            create_nexus_format_metadata(metadata_fname, det)
 
             # workflowProcApi, dmuser = dm_setup()
             # dm_run_job("eiger", workflowProcApi, dmuser)

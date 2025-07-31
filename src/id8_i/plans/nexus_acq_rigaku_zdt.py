@@ -47,7 +47,7 @@ def setup_rigaku_ZDT_series(acq_time, num_frames, file_name):
 
     yield from bps.mv(pv_registers.file_name, file_name)
     yield from bps.mv(
-        pv_registers.file_path, f"/gdata/dm/8ID/8IDI/{cycle_name}/{file_path}"
+        pv_registers.metadata_full_path, f"/gdata/dm/8ID/8IDI/{cycle_name}/{file_path}"
     )
     yield from bps.mv(
         pv_registers.metadata_full_path,
@@ -84,7 +84,7 @@ def rigaku_zdt_acquire():
 
 def rigaku_acq_ZDT_series(
     acq_time=2e-5,
-    num_frame=100000,
+    num_frames=100000,
     num_rep=2,
     wait_time=0,
     process=True,
@@ -103,16 +103,16 @@ def rigaku_acq_ZDT_series(
     # try:
     yield from post_align()
     yield from shutteroff()
-    workflowProcApi, dmuser = dm_setup(process)
+    workflowProcApi, dmuser = dm_setup()
     folder_prefix = gen_folder_prefix()
 
     for ii in range(num_rep):
         if sample_move:
             yield from mesh_grid_move()
 
-        file_name = f"{folder_prefix}_f{num_frame:06d}_r{ii+1:05d}"
+        file_name = f"{folder_prefix}_f{num_frames:06d}_r{ii+1:05d}"
         print(file_name)
-        yield from setup_rigaku_ZDT_series(acq_time, num_frame, file_name)
+        yield from setup_rigaku_ZDT_series(acq_time, num_frames, file_name)
 
         print(f"\nStarting Measurement {file_name}")
         yield from rigaku_zdt_acquire()
@@ -121,7 +121,7 @@ def rigaku_acq_ZDT_series(
         metadata_fname = pv_registers.metadata_full_path.get()
         create_nexus_format_metadata(metadata_fname, det=rigaku3M)
 
-        dm_run_job("rigaku", process, workflowProcApi, dmuser, file_name)
+        dm_run_job("rigaku", workflowProcApi, dmuser)
 
         yield from bps.sleep(wait_time)
 

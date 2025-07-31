@@ -162,7 +162,7 @@ def create_runtime_metadata_dict(
         "/entry/instrument/detector_1/position_y": detector.y.position / 1000.0,
         "/entry/instrument/detector_1/count_time": det.cam.acquire_time.get(),
         "/entry/instrument/detector_1/frame_time": det.cam.acquire_period.get(),
-        "/entry/instrument/detector_1/detector_name": det.name,
+        "/entry/instrument/detector_1/detector_name": pv_registers.det_name.get(),
         "/entry/instrument/detector_1/distance": (
             flight_path_8idi.length.position / 1000.0  # Not calibrated
         ),
@@ -200,22 +200,23 @@ def create_runtime_metadata_dict(
         "/entry/instrument/attenuator_2/attenuator_index": (
             0
         ),
-        "/entry/instrument/diffractometer/nu": huber.nu.position,
-        "/entry/instrument/diffractometer/delta": huber.delta.position,
-        "/entry/instrument/diffractometer/mu": huber.mu.position,
-        "/entry/instrument/diffractometer/eta": huber.eta.position,
-        "/entry/instrument/diffractometer/chi": huber.chi.position,
-        "/entry/instrument/diffractometer/phi": huber.phi.position,
-        "/entry/instrument/diffractometer/sample_y": huber.sample_y.position,
-        "/entry/instrument/diffractometer/sample_z": huber.sample_z.position,
-        "/entry/instrument/diffractometer/sample_x": huber.sample_x.position,
-
         "/entry/sample/position_x": sample.x.position,
         "/entry/sample/position_y": sample.y.position,
         "/entry/sample/position_z": sample.z.position,
         "/entry/sample/position_rheo_x": rheometer.x.position,
         "/entry/sample/position_rheo_y": rheometer.y.position,
         "/entry/sample/position_rheo_z": rheometer.z.position,
+
+        "/entry/sample/huber_nu": huber.nu.position,
+        "/entry/sample/huber_delta": huber.delta.position,
+        "/entry/sample/huber_mu": huber.mu.position,
+        "/entry/sample/huber_eta": huber.eta.position,
+        "/entry/sample/huber_chi": huber.chi.position,
+        "/entry/sample/huber_phi": huber.phi.position,
+        "/entry/sample/huber_y": huber.sample_y.position,
+        "/entry/sample/huber_z": huber.sample_z.position,
+        "/entry/sample/huber_x": huber.sample_x.position,
+        
         "/entry/sample/qnw_lakeshore": lakeshore1.readback_ch3.get(),
         "/entry/sample/qnw1_temperature": qnw_env1.readback.get(),  # Air QNW
         "/entry/sample/qnw1_temperature_set": qnw_env1.setpoint.get(),

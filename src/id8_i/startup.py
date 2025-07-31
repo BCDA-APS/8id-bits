@@ -154,11 +154,12 @@ from .plans.scan_8idi import att, x_lup, y_lup, rheo_x_lup, rheo_y_lup, rheo_set
 from .plans.select_detector import select_detector
 from .plans.select_sample_env import select_sample_env
 from .plans.shutter_logic import showbeam, blockbeam, shutteron, shutteroff, pre_align, post_align 
-# from .plans.spec_8IDE_eiger4M import submit_Nexus_DM
-from .plans.spec_8IDE_lambda750kdp import submit_Nexus_DM
+from .plans.spec_8IDE import submit_Nexus_DM
 
 from .plans.qnw_plans import set_qnw, find_qnw_index, set_temperature 
 from .plans.qnw_plans import set_ramp_rate, set_temperature_with_ramp
 from .plans.qnw_plans import set_temperature_env, set_ramp_rate_env
+
+from .plans.nexus_acq_tempus import setup_tempus_int_series, tempus_acquire, tempus_acq_int_series
 
 from id8_user_plans.write_measurement_info import write_measurement_info

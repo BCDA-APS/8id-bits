@@ -10,6 +10,8 @@ from id8_i.plans.nexus_acq_eiger_ext import eiger_acq_ext_trig
 
 from id8_i.plans.nexus_acq_rigaku_zdt import rigaku_acq_ZDT_series
 
+from id8_i.plans.nexus_acq_tempus import tempus_acq_int_series
+
 from id8_i.plans.sample_info_unpack import select_sample
 from id8_i.plans.scan_8idi import att
 from id8_i.plans.select_detector import select_detector
@@ -45,7 +47,7 @@ def run_measurement_info(file_name='measurement_info.json'):
             for ii in range(len(att_list)):
 
                 print(f'\n At Attenuation Ratio {att_list[ii]}:\n')
-                # yield from att(att_list[ii])
+                yield from att(att_list[ii])
 
                 for jj in range(len(acq_time_list[ii])):
 
@@ -86,14 +88,21 @@ def run_measurement_info(file_name='measurement_info.json'):
                     elif det_name == 'rigaku3M':
                         yield from  rigaku_acq_ZDT_series(
                                                             acq_time=2e-5,
-                                                            num_frame=100000,
+                                                            num_frames=100000,
                                                             num_rep=num_reps,
                                                             wait_time=0,
                                                             process=True,
                                                             sample_move=sample_move_yes,
                                                         )
+                    elif det_name == 'tempus':
+                        yield from  tempus_acq_int_series(
+                                                            num_frames=2000000,
+                                                            num_rep=num_reps,
+                                                            wait_time=0,
+                                                            sample_move=sample_move_yes,
+                                                        )
                     else:
-                        print('Detector name must be eiger4M or rigaku3M')
+                        print('Detector name must be eiger4M, rigaku3M, or tempus')
 
     except KeyboardInterrupt:
         raise RuntimeError("\n Bluesky plan stopped by user (Ctrl+C).")
