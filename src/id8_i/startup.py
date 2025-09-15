@@ -131,22 +131,10 @@ else:
         f"  Using {specwriter.spec_filename}."
             )
 
-# flag1ad = oregistry["flag1ad"]
-# flag1ad.stats1.kind = "hinted"
-# flag1ad.stats1.total.kind = "hinted"
-
-# flag2ad = oregistry["flag2ad"]
-# flag2ad.stats1.kind = "hinted"
-# flag2ad.stats1.total.kind = "hinted"
-
-# flag3ad = oregistry["flag3ad"]
-# flag3ad.stats1.kind = "hinted"
-# flag3ad.stats1.total.kind = "hinted"
-
 from .plans.master_plan import run_measurement_info
 from .plans.nexus_acq_eiger_int import setup_eiger_int_series, eiger_acq_int_series
 from .plans.nexus_acq_eiger_ext import setup_eiger_ext_trig, eiger_acq_ext_trig
-from .plans.nexus_acq_rigaku_zdt import setup_rigaku_ZDT_series, rigaku_acq_ZDT_series, rigaku_zdt_acquire
+# from .plans.nexus_acq_rigaku_zdt import setup_rigaku_ZDT_series, rigaku_acq_ZDT_series, rigaku_zdt_acquire
 from .plans.pv_break_test import break_pv
 from .plans.rheometer_wait import wait_for_mcr
 from .plans.sample_info_unpack import select_sample, gen_folder_prefix
@@ -160,7 +148,7 @@ from .plans.qnw_plans import set_qnw, find_qnw_index, set_temperature
 from .plans.qnw_plans import set_ramp_rate, set_temperature_with_ramp
 from .plans.qnw_plans import set_temperature_env, set_ramp_rate_env
 
-from .plans.nexus_acq_tempus import setup_tempus_int_series, tempus_acquire, tempus_acq_int_series
+# from .plans.nexus_acq_tempus import setup_tempus_int_series, tempus_acquire, tempus_acq_int_series
 
 from id8_user_plans.write_measurement_info import write_measurement_info
 
