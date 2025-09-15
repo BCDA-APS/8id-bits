@@ -31,11 +31,19 @@ def select_sample_env(env: Literal["qnw", "rheometer", "robot"]):
     Yields:
         Generator: Bluesky plan messages
     """
+    # choices = {
+    #     "qnw": 923.0,
+    #     "rheometer": 65,
+    #     "robot": 62,
+    # }
+
+    ## QZ changed on 08/01 for Naomi's horizontal capillary setup
     choices = {
         "qnw": 923.0,
-        "rheometer": 65,
+        "rheometer": 88,
         "robot": 62,
     }
+
     target = choices.get(env)
     if target is None:
         raise KeyError(f"Unknown environment {env=!r}")
@@ -44,14 +52,14 @@ def select_sample_env(env: Literal["qnw", "rheometer", "robot"]):
     yield from bps.sleep(2)
 
     if env == "qnw":
-        yield from bps.mv(sample.x, 0.5)
+        # yield from bps.mv(sample.x, 0.5)
         yield from bps.mv(granite.x, choices["qnw"])
     if env == "rheometer":
-        yield from bps.mv(sample.x, 0.5)
+        # yield from bps.mv(sample.x, 0.5)
         yield from bps.mv(granite.x, choices["rheometer"])
     elif env == "robot":
         yield from bps.mv(granite.x, choices["robot"])
-        yield from bps.mv(sample.x, 298)
+        # yield from bps.mv(sample.x, 298)
 
     yield from bps.mv(granite_8idi_valve.enable, 0)
     yield from bps.sleep(2)

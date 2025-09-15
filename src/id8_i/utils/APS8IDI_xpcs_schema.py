@@ -479,10 +479,10 @@ xpcs_schema = {
                     "data": "/path/to/this/spec_file_name",
                 },
             },
-            "slits_1": {
+            "slits_4": {
                 "type": "NXslit",
                 "required": False,
-                "description": "Slits 1",
+                "description": "Slits 4",
                 "horizontal_gap": {
                     "type": "NX_FLOAT",
                     "units": "NX_LENGTH",

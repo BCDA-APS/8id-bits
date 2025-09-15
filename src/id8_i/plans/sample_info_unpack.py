@@ -46,6 +46,8 @@ def select_sample(env: int):
         yield from bps.mv(rheometer.x, x_cen, rheometer.y, y_cen)
     elif 1 <= env <= 27:
         yield from bps.mv(sample.x, x_cen, sample.y, y_cen)
+    elif 31 <= env <= 38:
+        yield from bps.mv(rheometer.x, x_cen, rheometer.y, y_cen)
     else:
         pass
 
@@ -150,6 +152,8 @@ def mesh_grid_move():
         yield from bps.mv(rheometer.x, x_pos, rheometer.y, y_pos)
     elif sam_dict["qnw_index"] >= 1 and sam_dict["qnw_index"] <= 27:
         yield from bps.mv(sample.x, x_pos, sample.y, y_pos)
+    elif sam_dict["qnw_index"] >= 31 and sam_dict["qnw_index"] <= 38:
+        yield from bps.mv(rheometer.x, x_pos, rheometer.y, y_pos)
     else:
         pass
 

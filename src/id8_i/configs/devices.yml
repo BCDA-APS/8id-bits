@@ -274,9 +274,9 @@ id8_i.devices.tetramm_picoammeter.MyTetrAMM:
   prefix: "8idTetra:QUAD4:"
   port_name: "QUAD4"
 
-id8_i.devices.sydor_tp4u.SydorTP4U: # Does not connect off beamline; Aps only
-- name: xbpm2
-  prefix: "8idiSoft:T4U_BPM:"
+id8_i.devices.sydor_tp4u.SydorTP4U:
+- name: xbpm1
+  prefix: "8ideSoft:T4U_BPM:"
 
 id8_i.devices.idt_mono.IDTMono:
 - name: idt_mono

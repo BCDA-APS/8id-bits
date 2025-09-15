@@ -59,20 +59,27 @@ def tempus_acquire(file_name):
     file_path = f"{mount_point}{cycle_name}/{exp_name}/data_tempus/{file_name}"
     file_full_path = os.path.join(file_path, file_name)
 
-    # yield from showbeam()
+    yield from showbeam()
     yield from bps.sleep(0.1)
     subprocess.run(["/local/tempus/tempus-receiver-split/target/debug/tempus-receiver", "-b", file_full_path, "-t", "2", "-r"])
-    # yield from blockbeam()
+    yield from blockbeam()
 
     # --MC-- 
     # convert the timepix format to rigaku format
     target_folder = str(file_path)
-    output_dir = "/gdata/dm/8ID/8IDI/2025-2/tempus202507/data/timepix"
+    output_dir = "/gdata/dm/8ID/8IDI/2025-2/tempus202507d/data/timepix/"        # This line is ignored
     time_total = "1"   # total time in seconds for all frames
-    time_bin = "1e-6"  # delta_t in seconds; time bin size\
+    time_bin = "383e-9"  # delta_t in seconds; time bin size\                   # This line is ignored
     assert int(float(time_total) / float(time_bin)) <= 2**24, "It will overflow with this configuration. increase time-bin or decrease acquisition time"
-    subprocess.run(["bash", "/home/beams4/MQICHU/bin/launch_timepix_converter_remote",
-                    target_folder, output_dir, time_total, time_bin])
+    # subprocess.run(["bash", "/home/beams4/MQICHU/bin/launch_timepix_converter_remote",
+    #                 target_folder, output_dir, time_total, time_bin])
+    # subprocess.run(["bash", "/home/beams4/MQICHU/bin/launch_timepix_converter_remote_background",
+    #                 target_folder, output_dir, time_total, time_bin])
+
+    subprocess.run(["bash", "/home/beams/8IDIUSER/bin/launch_timepix_converter_remote_fixed",
+                target_folder, output_dir, time_total, time_bin])
+
+
 
 
 ############# Homebrew acquisition plan ends #############
@@ -85,10 +92,10 @@ def tempus_acq_int_series(
     sample_move=False,
 ):
 
-    # try:
+    # try:home/beams4
     yield from post_align()
     yield from shutteroff()
-    workflowProcApi, dmuser = dm_setup()
+    # workflowProcApi, dmuser = dm_setup()
     folder_prefix = gen_folder_prefix()
 
     for ii in range(num_rep):
@@ -103,6 +110,7 @@ def tempus_acq_int_series(
         metadata_fname = pv_registers.metadata_full_path.get()
         metadata_fname_path = pathlib.Path(metadata_fname)
         metadata_fname_path.parent.mkdir(parents=True, exist_ok=True)
+        create_nexus_format_metadata(metadata_fname, det=rigaku3M)
 
         _ = datetime.now()
         time_now = _.strftime("%Y-%m-%d %H:%M:%S")
@@ -112,9 +120,7 @@ def tempus_acq_int_series(
         time_now = _.strftime("%Y-%m-%d %H:%M:%S")
         print(f"{time_now}, Complete measurement {file_name}")
 
-        create_nexus_format_metadata(metadata_fname, det=rigaku3M)
-
-        dm_run_job("tempus", workflowProcApi, dmuser)
+        # dm_run_job("tempus", workflowProcApi, dmuser)
     # except KeyboardInterrupt:
     #     raise RuntimeError("\n Bluesky plan stopped by user (Ctrl+C).")
     # except Exception as e:

@@ -17,3 +17,7 @@ class FlightPath(Device):
 
     length = Component(EpicsMotor, "m1", name="length")
     swing = Component(EpicsMotor, "m2", name="swing")
+
+    ds_x = Component(EpicsMotor, "m5")
+    ds_y = Component(EpicsMotor, "m6")
+    us = Component(EpicsMotor, "m7")

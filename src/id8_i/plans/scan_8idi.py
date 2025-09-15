@@ -87,8 +87,8 @@ def y_lup(
 def rheo_x_lup(
     rel_begin: float = -3,
     rel_end: float = 3,
-    num_pts: int = 30,
-    att_ratio: int = 10,
+    num_pts: int = 60,
+    att_ratio: int = 7,
     det: Device = tetramm1,
 ):
     """Perform a relative scan along the rheometer X axis.
@@ -111,8 +111,8 @@ def rheo_x_lup(
 def rheo_y_lup(
     rel_begin: float = -3,
     rel_end: float = 3,
-    num_pts: int = 30,
-    att_ratio: int = 10,
+    num_pts: int = 60,
+    att_ratio: int = 7,
     det: Device = tetramm1,
 ):
     """Perform a relative scan along the rheometer Y axis.
@@ -133,7 +133,7 @@ def rheo_y_lup(
 
 
 def rheo_set_x_lup(
-    att_ratio: int = 10,
+    att_ratio: int = 7,
     det: Device = tetramm1,
 ):
     """Perform a series of scans at specific rheometer X positions.

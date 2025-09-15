@@ -90,6 +90,8 @@ class EpicsPvStorageRegisters(Device):
     current_db_x0 = Component(EpicsSignal, "Reg41")
     current_db_y0 = Component(EpicsSignal, "Reg42")
 
+    det_pixel_size = Component(EpicsSignal, "Reg60")
+
     def sample_position_register(self, qnw_index):
         """
         Return the indexed sample position register signal.

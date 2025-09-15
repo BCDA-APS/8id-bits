@@ -12,7 +12,10 @@ from ..utils.dm_util import dm_run_job
 from ..utils.dm_util import dm_setup
 from ..utils.nexus_utils import create_nexus_format_metadata
 
+# Add more detectors if needed
 eiger4M = oregistry["eiger4M"]
+lambda2M = oregistry["lambda2M"]
+# rigaku3M = oregistry["rigaku3M"]
 pv_registers = oregistry["pv_registers"]
 
 
@@ -34,8 +37,8 @@ def submit_Nexus_DM(det=None):
             metadata_fname = pv_registers.metadata_full_path.get()
             create_nexus_format_metadata(metadata_fname, det)
 
-            # workflowProcApi, dmuser = dm_setup()
-            # dm_run_job("eiger", workflowProcApi, dmuser)
+            workflowProcApi, dmuser = dm_setup()
+            dm_run_job("eiger", workflowProcApi, dmuser)
             pv_registers.start_bluesky.put("No")
 
         else:
