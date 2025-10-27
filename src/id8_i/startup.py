@@ -23,7 +23,7 @@ from apsbits.utils.config_loaders import get_config
 from apsbits.utils.config_loaders import load_config
 from apsbits.utils.helper_functions import register_bluesky_magics
 from apsbits.utils.helper_functions import running_in_queueserver
-from id8_i.plans.ad_setup_plans import ad_initial_setup
+# from id8_i.plans.ad_setup_plans import ad_initial_setup
 
 logger = logging.getLogger(__name__)
 logger.bsdev(__file__)
@@ -96,7 +96,7 @@ def _startup_create_devices_plan():
     if host_on_aps_subnet():
         yield from make_devices(clear=False, file="devices_aps_only.yml")
         yield from make_devices(clear=False, file="ad_devices.yml")
-        yield from ad_initial_setup()
+        # yield from ad_initial_setup()
 
     ############################
     # These device files can fail gracefully.  Startup will continue.

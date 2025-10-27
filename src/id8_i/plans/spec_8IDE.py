@@ -16,7 +16,7 @@ from ..utils.nexus_utils import create_nexus_format_metadata
 eiger4M = oregistry["eiger4M"]
 # lambda2M = oregistry["lambda2M"]
 # lambda750k = oregistry["lambda750k"]
-rigaku3M = oregistry["rigaku3M"]
+# rigaku3M = oregistry["rigaku3M"]
 pv_registers = oregistry["pv_registers"]
 
 def submit_Nexus_DM():

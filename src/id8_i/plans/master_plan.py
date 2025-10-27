@@ -8,7 +8,7 @@ import re
 from id8_i.plans.nexus_acq_eiger_int import eiger_acq_int_series 
 from id8_i.plans.nexus_acq_eiger_ext import eiger_acq_ext_trig
 
-from id8_i.plans.nexus_acq_rigaku_zdt import rigaku_acq_ZDT_series
+# from id8_i.plans.nexus_acq_rigaku_zdt import rigaku_acq_ZDT_series
 
 # from id8_i.plans.nexus_acq_tempus import tempus_acq_int_series
 
