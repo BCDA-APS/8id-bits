@@ -33,13 +33,12 @@ def dm_setup() -> tuple:
 
 
 def dm_run_job(
-    det_name: str,
     workflowProcApi: WorkflowProcApi,
-    dmuser: str,
-    # filename: str,
+    dmuser: str
 ):
 
     analysis_machine = pv_registers.analysis_machine.get()
+    det_name = pv_registers.det_name.get()
 
     if analysis_machine == "none":
         pass
@@ -51,9 +50,9 @@ def dm_run_job(
         analysis_type = pv_registers.analysis_type.get()
         file_name = pv_registers.file_name.get()
 
-        if det_name == "rigaku":
+        if det_name == "rigaku3M":
             filepath = f"{file_name}.bin.000"
-        elif det_name == "eiger":
+        elif det_name == "eiger4M":
             filepath = f"{file_name}.h5"
         elif det_name == "tempus":
             filepath = f"{file_name}.bin"

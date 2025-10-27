@@ -2,7 +2,7 @@
 
 # Objects only available at APS
 
-apstools.devices.ApsMachineParametersDevice:
+id8_i.devices.patched_aps.PatchedApsMachineParametersDevice:
   - name: aps
 
 # id8_i.devices.sydor_tp4u.SydorTP4U: # Does not connect off beamline; Aps only

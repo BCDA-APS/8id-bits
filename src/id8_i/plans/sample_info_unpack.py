@@ -16,6 +16,7 @@ sample = oregistry["sample"]
 rheometer = oregistry["rheometer"]
 filter = oregistry["filter_8ide"]
 pv_registers = oregistry["pv_registers"]
+huber = oregistry["huber"]
 
 SAMPLE_INFO_PATH = Path("/home/beams/8IDIUSER/bluesky/src/user_plans/sample_info.json")
 
@@ -46,8 +47,10 @@ def select_sample(env: int):
         yield from bps.mv(rheometer.x, x_cen, rheometer.y, y_cen)
     elif 1 <= env <= 27:
         yield from bps.mv(sample.x, x_cen, sample.y, y_cen)
-    elif 31 <= env <= 38:
-        yield from bps.mv(rheometer.x, x_cen, rheometer.y, y_cen)
+    elif env == 31:
+        yield from bps.mv(huber.sample_x, x_cen, huber.sample_y, y_cen)
+    # elif 31 <= env <= 38:
+    #     yield from bps.mv(rheometer.x, x_cen, rheometer.y, y_cen)
     else:
         pass
 
@@ -152,8 +155,10 @@ def mesh_grid_move():
         yield from bps.mv(rheometer.x, x_pos, rheometer.y, y_pos)
     elif sam_dict["qnw_index"] >= 1 and sam_dict["qnw_index"] <= 27:
         yield from bps.mv(sample.x, x_pos, sample.y, y_pos)
-    elif sam_dict["qnw_index"] >= 31 and sam_dict["qnw_index"] <= 38:
-        yield from bps.mv(rheometer.x, x_pos, rheometer.y, y_pos)
+    # elif sam_dict["qnw_index"] >= 31 and sam_dict["qnw_index"] <= 38:
+    #     yield from bps.mv(rheometer.x, x_pos, rheometer.y, y_pos)
+    elif sam_dict["qnw_index"] == 31:
+        yield from bps.mv(huber.sample_x, x_pos, huber.sample_y, y_pos)
     else:
         pass
 

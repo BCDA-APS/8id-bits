@@ -21,7 +21,7 @@ eiger4M = oregistry["eiger4M"]
 pv_registers = oregistry["pv_registers"]
 
 
-def setup_eiger_int_series(acq_time, num_frames, file_name):
+def setup_eiger_int_series(acq_time, num_frames, file_header, file_name):
     """Setup the Eiger4M for internal series acquisition.
 
     Configure the detector's cam module for internal acquisition mode and
@@ -36,7 +36,7 @@ def setup_eiger_int_series(acq_time, num_frames, file_name):
     exp_name = pv_registers.experiment_name.get()
     mount_point = pv_registers.mount_point.get()
 
-    file_path = f"{mount_point}{cycle_name}/{exp_name}/data/{file_name}"
+    file_path = f"{mount_point}{cycle_name}/{exp_name}/data/{file_header}/{file_name}"
 
     acq_period = acq_time
     yield from bps.mv(eiger4M.cam.trigger_mode, "Internal Series")  # 0
@@ -113,8 +113,9 @@ def eiger_acq_int_series(
         if sample_move:
             yield from mesh_grid_move()
 
+        file_header = f"{folder_prefix}_f{num_frames:06d}"
         file_name = f"{folder_prefix}_f{num_frames:06d}_r{ii+1:05d}"
-        yield from setup_eiger_int_series(acq_time, num_frames, file_name)
+        yield from setup_eiger_int_series(acq_time, num_frames, file_header, file_name)
 
         _ = datetime.now()
         time_now = _.strftime("%Y-%m-%d %H:%M:%S")
@@ -127,7 +128,7 @@ def eiger_acq_int_series(
         metadata_fname = pv_registers.metadata_full_path.get()
         create_nexus_format_metadata(metadata_fname, det=eiger4M)
 
-        dm_run_job("eiger", workflowProcApi, dmuser)
+        dm_run_job(workflowProcApi, dmuser)
     # except KeyboardInterrupt:
     #     raise RuntimeError("\n Bluesky plan stopped by user (Ctrl+C).")
     # except Exception as e:

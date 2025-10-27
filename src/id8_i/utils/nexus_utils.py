@@ -164,8 +164,11 @@ def create_runtime_metadata_dict(
         "/entry/instrument/detector_1/count_time": det.cam.acquire_time.get(),
         "/entry/instrument/detector_1/frame_time": det.cam.acquire_period.get(),
         "/entry/instrument/detector_1/detector_name": pv_registers.det_name.get(),
-        "/entry/instrument/detector_1/distance": flight_path_8idi.length.position / 1000.0,  # Not calibrated
-        "/entry/instrument/detector_1/flightpath_swing": flight_path_8idi.swing.position,
+        "/entry/instrument/detector_1/qmap_file": pv_registers.qmap_file.get(),
+        "/entry/instrument/detector_1/distance": 2.02,
+        # "/entry/instrument/detector_1/distance": flight_path_8idi.length.position / 1000.0,  # Not calibrated
+        # "/entry/instrument/detector_1/flightpath_swing": flight_path_8idi.swing.position,
+        "/entry/instrument/detector_1/flightpath_swing": -huber.delta.position,
         "/entry/instrument/detector_1/x_pixel_size": pv_registers.det_pixel_size.get(),
         "/entry/instrument/detector_1/y_pixel_size": pv_registers.det_pixel_size.get(),
 

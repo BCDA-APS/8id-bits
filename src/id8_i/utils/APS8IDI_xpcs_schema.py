@@ -177,6 +177,12 @@ xpcs_schema = {
                     "description": "Detector name",
                     "data": "Eiger4m",
                 },
+                "qmap_file": {
+                    "type": "NX_CHAR",
+                    "required": False,
+                    "description": "Qmap name",
+                    "data": "eiger4M_qmap_default.hdf",
+                },
                 "distance": {
                     "type": "NX_NUMBER",
                     "units": "NX_LENGTH",

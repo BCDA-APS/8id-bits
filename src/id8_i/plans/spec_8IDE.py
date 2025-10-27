@@ -14,12 +14,12 @@ from ..utils.nexus_utils import create_nexus_format_metadata
 
 # Add more detectors if needed
 eiger4M = oregistry["eiger4M"]
-lambda2M = oregistry["lambda2M"]
-# rigaku3M = oregistry["rigaku3M"]
+# lambda2M = oregistry["lambda2M"]
+# lambda750k = oregistry["lambda750k"]
+rigaku3M = oregistry["rigaku3M"]
 pv_registers = oregistry["pv_registers"]
 
-
-def submit_Nexus_DM(det=None):
+def submit_Nexus_DM():
     """Submit data processing jobs to DM when triggered by SPEC.
 
     This plan monitors a trigger PV from SPEC and, when activated, submits
@@ -30,16 +30,41 @@ def submit_Nexus_DM(det=None):
     Yields:
         Generator: Bluesky plan messages
     """
+
     while True:
+
+        metadata_fname = pv_registers.metadata_full_path.get()
+
+        # Convert detector name to detector Ophyd object
+        det_name = pv_registers.det_name.get()
+        if det_name == "eiger4M":
+            det = eiger4M
+        # elif det_name == "lambda2M":
+        #     det = lambda2M
+        # elif det_name == "lambda750k":
+        #     det = lambda750k
+        elif det_name == "rigaku3M":
+            det = rigaku3M
+        else:
+            det = None
+            print("Detector name not found")
+        # Convert detector name to detector Ophyd object
+        
         bluesky_start = pv_registers.start_bluesky.get()
         if bluesky_start == "Yes":
-
-            metadata_fname = pv_registers.metadata_full_path.get()
+            # Create metadata
             create_nexus_format_metadata(metadata_fname, det)
 
-            workflowProcApi, dmuser = dm_setup()
-            dm_run_job("eiger", workflowProcApi, dmuser)
+            # Submit analysis via DM workflow
+            # workflowProcApi, dmuser = dm_setup()
+            # dm_run_job(workflowProcApi, dmuser)
+
+            # Flip Bluesky PV back to No
+            print(f"Metadata written at {metadata_fname} \n")
             pv_registers.start_bluesky.put("No")
 
         else:
-            yield from bps.sleep(0.1)
+            yield from bps.sleep(0.5)
+
+        # Delay time between every execution in the While loop
+        yield from bps.sleep(0.5)

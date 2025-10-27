@@ -121,7 +121,7 @@ def rigaku_acq_ZDT_series(
         metadata_fname = pv_registers.metadata_full_path.get()
         create_nexus_format_metadata(metadata_fname, det=rigaku3M)
 
-        dm_run_job("rigaku", workflowProcApi, dmuser)
+        dm_run_job(workflowProcApi, dmuser)
 
         yield from bps.sleep(wait_time)
 

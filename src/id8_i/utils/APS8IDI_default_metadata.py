@@ -21,6 +21,7 @@ default_metadata = {
     "/entry/instrument/detector_1/position_y": 1.0,
     "/entry/instrument/detector_1/count_time": 1.0,
     "/entry/instrument/detector_1/detector_name": "Eiger4m",
+    "/entry/instrument/detector_1/qmap_file": "eiger4M_qmap_default",
     "/entry/instrument/detector_1/distance": 12.0,
     "/entry/instrument/detector_1/frame_time": 1.0,
     "/entry/instrument/detector_1/x_pixel_size": 7.5e-05,
