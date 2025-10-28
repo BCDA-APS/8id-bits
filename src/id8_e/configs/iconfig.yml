@@ -1,0 +1,75 @@
+# Configuration for the Bluesky instrument package.
+
+# identify the version of this iconfig.yml file
+ICONFIG_VERSION: 2.0.1
+
+# Add additional configuration for use with your instrument.
+
+### The short name for the databroker catalog.
+DATABROKER_CATALOG: temp
+
+### RunEngine configuration
+RUN_ENGINE:
+    DEFAULT_METADATA:
+        beamline_id: demo_instrument
+        instrument_name: Most Glorious Scientific Instrument
+        proposal_id: commissioning
+
+    ### EPICS PV to use for the `scan_id`.
+    ### Default: `RE.md["scan_id"]` (not using an EPICS PV)
+    # SCAN_ID_PV: "IOC:bluesky_scan_id"
+
+    ### Where to "autosave" the RE.md dictionary.
+    ### Defaults:
+    MD_PATH: .re_md_dict.yml
+
+    ### The progress bar is nice to see,
+    ### except when it clutters the output in Jupyter notebooks.
+    ### Default: False
+    USE_PROGRESS_BAR: false
+
+### Baseline stream
+### When ENABLE=true, all ophyd objects with a "baseline" label
+### will be added to the baseline stream.
+BASELINE_LABEL:
+    ENABLE: true
+
+### Best Effort Callback Configurations
+### Defaults: all true
+### except no plots in queueserver
+BEC:
+    BASELINE: true
+    HEADING: true
+    PLOTS: false
+    TABLE: true
+
+### Support for known output file formats.
+### Uncomment to use.  If undefined, will not write that type of file.
+### Each callback should apply its configuration from here.
+NEXUS_DATA_FILES:
+    ENABLE: false
+    FILE_EXTENSION: hdf
+
+SPEC_DATA_FILES:
+    ENABLE: true
+    FILE_EXTENSION: dat
+
+### APS Data Management
+### Learn environment variables for Data Management from this file:
+DM_SETUP_FILE: "/home/dm/etc/dm.setup.sh"
+
+# ----------------------------------
+
+OPHYD:
+    ### Control layer for ophyd to communicate with EPICS.
+    ### Default: PyEpics
+    ### Choices: "PyEpics" or "caproto"
+    CONTROL_LAYER: PyEpics
+
+    ### default timeouts (seconds)
+    TIMEOUTS:
+        PV_READ: &TIMEOUT 5
+        PV_WRITE: *TIMEOUT
+        PV_CONNECTION: *TIMEOUT
+
+XMODE_DEBUG_LEVEL: Plain
