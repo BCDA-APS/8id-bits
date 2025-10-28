@@ -9,50 +9,68 @@ Includes:
 * Bluesky queueserver
 """
 
+# Standard Library Imports
 import logging
 from pathlib import Path
 
 from apsbits.core.best_effort_init import init_bec_peaks
 from apsbits.core.catalog_init import init_catalog
+from apsbits.core.instrument_init import init_instrument
 from apsbits.core.instrument_init import make_devices
-from apsbits.core.instrument_init import oregistry
 from apsbits.core.run_engine_init import init_RE
+
+# Utility functions
 from apsbits.utils.aps_functions import host_on_aps_subnet
-from apsbits.utils.config_loaders import get_config
+from apsbits.utils.baseline_setup import setup_baseline_stream
+
+# Configuration functions
 from apsbits.utils.config_loaders import load_config
 from apsbits.utils.helper_functions import register_bluesky_magics
 from apsbits.utils.helper_functions import running_in_queueserver
+from apsbits.utils.logging_setup import configure_logging
 
-# from id8_i.plans.ad_setup_plans import ad_initial_setup
+# Core Functions
+from tiled.client import from_profile
+
+# Configuration block
+# Get the path to the instrument package
+# Load configuration to be used by the instrument.
+instrument_path = Path(__file__).parent
+iconfig_path = instrument_path / "configs" / "iconfig.yml"
+iconfig = load_config(iconfig_path)
+
+# Additional logging configuration
+# only needed if using different logging setup
+# from the one in the apsbits package
+extra_logging_configs_path = instrument_path / "configs" / "extra_logging.yml"
+configure_logging(extra_logging_configs_path=extra_logging_configs_path)
+
 
 logger = logging.getLogger(__name__)
-logger.bsdev(__file__)
-
-# Get the path to the instrument package
-instrument_path = Path(__file__).parent
-
-# Load configuration to be used by the instrument.
-iconfig_path = instrument_path / "configs" / "iconfig.yml"
-load_config(iconfig_path)
-
-# Get the configuration
-iconfig = get_config()
-
 logger.info("Starting Instrument with iconfig: %s", iconfig_path)
+
+# initialize instrument
+instrument, oregistry = init_instrument("guarneri")
 
 # Discard oregistry items loaded above.
 oregistry.clear()
 
 # Configure the session with callbacks, devices, and plans.
-# aps_dm_setup(iconfig.get("DM_SETUP_FILE")) #TODO: This line is broken
+# aps_dm_setup(iconfig.get("DM_SETUP_FILE"))
 
 # Command-line tools, such as %wa, %ct, ...
 register_bluesky_magics()
 
+# Bluesky initialization block
+
+if iconfig.get("TILED_PROFILE_NAME", {}):
+    profile_name = iconfig.get("TILED_PROFILE_NAME")
+    tiled_client = from_profile(profile_name)
+
 # Initialize core bluesky components
 bec, peaks = init_bec_peaks(iconfig)
 cat = init_catalog(iconfig)
-RE, sd = init_RE(iconfig, bec_instance=bec, cat_instance=cat)
+RE, sd = init_RE(iconfig, subscribers=[bec, cat])
 
 # Import optional components based on configuration
 if iconfig.get("NEXUS_DATA_FILES", {}).get("ENABLE", False):
@@ -70,12 +88,12 @@ if iconfig.get("SPEC_DATA_FILES", {}).get("ENABLE", False):
     init_specwriter_with_RE(RE)
 
 # These imports must come after the above setup.
+# Queue server block
 if running_in_queueserver():
     ### To make all the standard plans available in QS, import by '*', otherwise import
     ### plan by plan.
     from apstools.plans import lineup2  # noqa: F401
     from bluesky.plans import *  # noqa: F403
-
 else:
     # Import bluesky plans and stubs with prefixes set by common conventions.
     # The apstools plans and utils are imported by '*'.
@@ -84,18 +102,14 @@ else:
     from bluesky import plan_stubs as bps  # noqa: F401
     from bluesky import plans as bp  # noqa: F401
 
-
-def _startup_create_devices_plan():
-    """Create ALL devices using a single call to RE on startup."""
-
     ############################
     # These device files MUST load or startup will stop.
-    yield from make_devices(clear=False, file="devices.yml")
-    yield from make_devices(clear=False, file="transfocator.yml")
+    make_devices(clear=False, file="devices.yml", device_manager=instrument)
+    make_devices(clear=False, file="transfocator.yml", device_manager=instrument)
 
     if host_on_aps_subnet():
-        yield from make_devices(clear=False, file="devices_aps_only.yml")
-        yield from make_devices(clear=False, file="ad_devices.yml")
+        make_devices(clear=False, file="devices_aps_only.yml", device_manager=instrument)
+        make_devices(clear=False, file="ad_devices.yml", device_manager=instrument)
         # yield from ad_initial_setup()
 
     ############################
@@ -106,12 +120,10 @@ def _startup_create_devices_plan():
     ]
     for device_file in device_files:
         try:
-            yield from make_devices(clear=False, file=device_file)
+            make_devices(clear=False, file=device_file, device_manager=instrument)
         except Exception as excuse:
             print(f"Could not import {device_file!r}: {excuse}")
 
-
-RE(_startup_create_devices_plan())
 
 pv_registers = oregistry["pv_registers"]
 
@@ -131,7 +143,15 @@ else:
         f"  Using {specwriter.spec_filename}."
     )
 
+# Setup baseline stream with connect=False is default
+# Devices with the label 'baseline' will be added to the baseline stream.
+setup_baseline_stream(sd, oregistry, connect=False)
+
 # from .plans.nexus_acq_tempus import setup_tempus_int_series, tempus_acquire, tempus_acq_int_series
 
 
 # from .plans.nexus_acq_rigaku_zdt import setup_rigaku_ZDT_series, rigaku_acq_ZDT_series, rigaku_zdt_acquire
+
+from .plans.sim_plans import sim_count_plan  # noqa: E402, F401
+from .plans.sim_plans import sim_print_plan  # noqa: E402, F401
+from .plans.sim_plans import sim_rel_scan_plan  # noqa: E402, F401
