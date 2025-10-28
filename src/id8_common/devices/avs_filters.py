@@ -51,6 +51,10 @@ class filter_trans(PVPositioner):
 
 
 class AVSfilters(Device):
+    """
+    Ophyd device for avs filters
+    """
+
     def __init__(
         self,
         prefix: str,
@@ -58,6 +62,9 @@ class AVSfilters(Device):
         *args,
         **kwargs,
     ):
+        """
+        Initialize the AVS filter device
+        """
         # self._translation = translation_motor
 
         super().__init__(prefix, *args, **kwargs)
