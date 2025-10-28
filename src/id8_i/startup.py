@@ -118,11 +118,12 @@ else:
         # "flight_tube_devices.yml",
         "aerotech_stages_devices.yml",
     ]
-    for device_file in device_files:
-        try:
-            make_devices(clear=False, file=device_file, device_manager=instrument)
-        except Exception as excuse:
-            print(f"Could not import {device_file!r}: {excuse}")
+    # for device_file in device_files:
+    #     try:
+    #         make_devices(clear=False, file=device_file, device_manager=instrument)
+    #     except Exception as excuse:
+    #         print(f"Could not import {device_file!r}: {excuse}")
+    make_devices(clear=False, file="aerotech_stages_devices.yml", device_manager=instrument)
 
 
 pv_registers = oregistry["pv_registers"]
