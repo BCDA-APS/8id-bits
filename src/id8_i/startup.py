@@ -108,9 +108,7 @@ else:
     make_devices(clear=False, file="transfocator.yml", device_manager=instrument)
 
     if host_on_aps_subnet():
-        make_devices(
-            clear=False, file="devices_aps_only.yml", device_manager=instrument
-        )
+        make_devices(clear=False, file="devices_aps_only.yml", device_manager=instrument)
         make_devices(clear=False, file="ad_devices.yml", device_manager=instrument)
         # yield from ad_initial_setup()
 
@@ -125,9 +123,7 @@ else:
     #         make_devices(clear=False, file=device_file, device_manager=instrument)
     #     except Exception as excuse:
     #         print(f"Could not import {device_file!r}: {excuse}")
-    make_devices(
-        clear=False, file="aerotech_stages_devices.yml", device_manager=instrument
-    )
+    make_devices(clear=False, file="aerotech_stages_devices.yml", device_manager=instrument)
 
 
 pv_registers = oregistry["pv_registers"]

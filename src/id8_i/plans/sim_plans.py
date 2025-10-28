@@ -23,9 +23,7 @@ DEFAULT_MD = {"title": "test run with simulator(s)"}
 
 
 @with_registry
-def sim_count_plan(
-    oregistry, num: int = 1, imax: float = 10_000, md: dict = DEFAULT_MD
-):
+def sim_count_plan(oregistry, num: int = 1, imax: float = 10_000, md: dict = DEFAULT_MD):
     """Demonstrate the ``count()`` plan."""
     logger.debug("sim_count_plan()")
     sim_det = oregistry["sim_det"]

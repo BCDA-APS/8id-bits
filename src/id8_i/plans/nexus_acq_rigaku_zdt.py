@@ -45,17 +45,13 @@ def setup_rigaku_ZDT_series(acq_time, num_frames, file_name):
     yield from bps.mv(rigaku3M.cam.num_images, num_frames)
 
     yield from bps.mv(pv_registers.file_name, file_name)
-    yield from bps.mv(
-        pv_registers.metadata_full_path, f"/gdata/dm/8ID/8IDI/{cycle_name}/{file_path}"
-    )
+    yield from bps.mv(pv_registers.metadata_full_path, f"/gdata/dm/8ID/8IDI/{cycle_name}/{file_path}")
     yield from bps.mv(
         pv_registers.metadata_full_path,
         f"/gdata/dm/8ID/8IDI/{cycle_name}/{file_path}/{file_name}_metadata.hdf",
     )
 
-    os.makedirs(
-        f"/gdata/dm/8ID/8IDI/{cycle_name}/{file_path}", mode=0o770, exist_ok=True
-    )
+    os.makedirs(f"/gdata/dm/8ID/8IDI/{cycle_name}/{file_path}", mode=0o770, exist_ok=True)
 
 
 ############# Homebrew acquisition plan #############

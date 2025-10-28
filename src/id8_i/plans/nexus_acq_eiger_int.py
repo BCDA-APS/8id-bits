@@ -43,15 +43,11 @@ def setup_eiger_int_series(acq_time, num_frames, file_header, file_name):
     yield from bps.mv(eiger4M.hdf1.file_name, file_name)
     yield from bps.mv(eiger4M.hdf1.file_path, file_path)
     yield from bps.mv(eiger4M.cam.num_images, num_frames)
-    yield from bps.mv(
-        eiger4M.cam.num_triggers, 1
-    )  # Need to put num_trigger to 1 for internal mode
+    yield from bps.mv(eiger4M.cam.num_triggers, 1)  # Need to put num_trigger to 1 for internal mode
     yield from bps.mv(eiger4M.hdf1.num_capture, num_frames)
 
     yield from bps.mv(pv_registers.file_name, file_name)
-    yield from bps.mv(
-        pv_registers.metadata_full_path, f"{file_path}/{file_name}_metadata.hdf"
-    )
+    yield from bps.mv(pv_registers.metadata_full_path, f"{file_path}/{file_name}_metadata.hdf")
 
 
 ############# Homebrew acquisition plan #############

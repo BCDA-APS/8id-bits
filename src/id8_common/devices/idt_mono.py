@@ -62,12 +62,8 @@ class IDTMono(Device):
     bragg = FCpt(EpicsMotor, "{motor_prefix}:{_bragg_motor}", labels={"motors"})
     xtal_gap = FCpt(EpicsMotor, "{motor_prefix}:{_xtal_gap_motor}", labels={"motors"})
     flag = FCpt(EpicsMotor, "{motor_prefix}:{_flag_motor}", labels={"motors"})
-    coarse_pitch = FCpt(
-        EpicsMotor, "{motor_prefix}:{_coarse_pitch_motor}", labels={"motors"}
-    )
-    coarse_roll = FCpt(
-        EpicsMotor, "{motor_prefix}:{_coarse_roll_motor}", labels={"motors"}
-    )
+    coarse_pitch = FCpt(EpicsMotor, "{motor_prefix}:{_coarse_pitch_motor}", labels={"motors"})
+    coarse_roll = FCpt(EpicsMotor, "{motor_prefix}:{_coarse_roll_motor}", labels={"motors"})
     x_pitch = FCpt(EpicsMotor, "{motor_prefix}:{_x_pitch_motor}", labels={"motors"})
     y_pitch = FCpt(EpicsMotor, "{motor_prefix}:{_y_pitch_motor}", labels={"motors"})
 

@@ -27,23 +27,23 @@ maintainers = [
 copyright = "2014-2025, APS"
 
 [tool.black]
-line-length = 115
+line-length = 120
 target-version = [ "py311",]
 include = "\\.pyi?$"
 exclude = "(\n  /(\n      \\.eggs         # exclude a few common directories in the\n    | \\.git          # root of the project\n    | \\.hg\n    | \\.mypy_cache\n    | \\.tox\n    | \\.venv\n    | \\.pytest_cache\n    | _build\n    | build\n    | dist\n    | docs\n  )/\n)\n"
 
 [tool.flake8]
-max-line-length = 115
+max-line-length = 120
 extend-ignore = [ "E203", "E402", "E501", "F401", "F405", "F722", "F811", "W503", "W504",]
 
 [tool.isort]
 force_single_line = true
-line_length = 88
+line_length = 120
 include_trailing_comma = true
 
 [tool.ruff]
 exclude = [ ".eggs", ".git", ".git-rewrite", ".mypy_cache", ".pytype", ".ruff_cache", ".tox", ".venv", "__pypackages__", "_build", "build", "dist", "venv", ".venv", "docs",]
-line-length = 88
+line-length = 120
 indent-width = 4
 target-version = "py311"
 

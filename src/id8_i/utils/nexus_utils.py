@@ -156,10 +156,8 @@ def create_runtime_metadata_dict(
         "/entry/instrument/detector_1/beam_center_x": pv_registers.current_db_x0.get(),
         "/entry/instrument/detector_1/beam_center_y": pv_registers.current_db_y0.get(),
         # All lengths changed to unit of meters
-        "/entry/instrument/detector_1/beam_center_position_x": pv_registers.current_det_x0.get()
-        / 1000.0,
-        "/entry/instrument/detector_1/beam_center_position_y": pv_registers.current_det_y0.get()
-        / 1000.0,
+        "/entry/instrument/detector_1/beam_center_position_x": pv_registers.current_det_x0.get() / 1000.0,
+        "/entry/instrument/detector_1/beam_center_position_y": pv_registers.current_det_y0.get() / 1000.0,
         "/entry/instrument/detector_1/position_x": detector.x.position / 1000.0,
         "/entry/instrument/detector_1/position_y": detector.y.position / 1000.0,
         "/entry/instrument/detector_1/count_time": det.cam.acquire_time.get(),
@@ -179,8 +177,7 @@ def create_runtime_metadata_dict(
         "/entry/instrument/slits_4/horizontal_gap": sl4.h.size.position,
         "/entry/instrument/slits_4/horizontal_center": sl4.h.center.position,
         "/entry/instrument/monochromator/energy": mono_8id.energy_readback.get(),
-        "/entry/instrument/monochromator/wavelength": mono_8id.energy_readback.get()
-        / 12.4,
+        "/entry/instrument/monochromator/wavelength": mono_8id.energy_readback.get() / 12.4,
         "/entry/instrument/incident_beam/incident_energy": mono_8id.energy_readback.get(),
         "/entry/instrument/incident_beam/incident_energy_spread": 0.0001,
         "/entry/instrument/incident_beam/incident_beam_intensity": (
@@ -196,12 +193,8 @@ def create_runtime_metadata_dict(
         "/entry/instrument/undulator_2/gap": undulator_downstream.gap.position,
         "/entry/instrument/undulator_2/energy": undulator_downstream.energy.position,
         "/entry/instrument/undulator_2/taper": undulator_downstream.gap_taper.position,
-        "/entry/instrument/attenuator_1/attenuator_transmission": (
-            filter_8ide.transmission.readback.get()
-        ),
-        "/entry/instrument/attenuator_1/attenuator_index": (
-            filter_8ide.index.readback.get()
-        ),
+        "/entry/instrument/attenuator_1/attenuator_transmission": (filter_8ide.transmission.readback.get()),
+        "/entry/instrument/attenuator_1/attenuator_index": (filter_8ide.index.readback.get()),
         "/entry/instrument/attenuator_2/attenuator_transmission": (0),
         "/entry/instrument/attenuator_2/attenuator_index": (0),
         "/entry/sample/position_x": sample.x.position,

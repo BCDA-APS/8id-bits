@@ -89,9 +89,7 @@ class JJtransfocator(Device):
     q = Cpt(EpicsSignalRO, "q", kind="hinted")
     dq = Cpt(EpicsSignalRO, "dq", kind="hinted")
     sam_position_readback = Cpt(EpicsSignalRO, "samplePosition_RBV", kind="hinted")
-    sam_position_offset_readback = Cpt(
-        EpicsSignalRO, "samplePositionOffset_RBV", kind="hinted"
-    )
+    sam_position_offset_readback = Cpt(EpicsSignalRO, "samplePositionOffset_RBV", kind="hinted")
 
     energy_keV_local = Cpt(EpicsSignal, "EnergyLocal", kind="config")
     energy_keV_mono = Cpt(EpicsSignalRO, "EnergyBeamline", kind="config")

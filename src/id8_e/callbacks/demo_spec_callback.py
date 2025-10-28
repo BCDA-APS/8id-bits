@@ -32,9 +32,7 @@ def spec_comment(comment: str, doc: Optional[Any] = None) -> None:
     apstools.callbacks.spec_comment(comment, doc, specwriter)
 
 
-def newSpecFile(
-    title: str, scan_id: Optional[int] = None, RE: Optional[Any] = None
-) -> None:
+def newSpecFile(title: str, scan_id: Optional[int] = None, RE: Optional[Any] = None) -> None:
     """
     User choice of the SPEC file name.
 

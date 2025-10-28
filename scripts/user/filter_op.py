@@ -140,9 +140,7 @@ def FL2_enable(enable_flag="Enabled", blade_list=EMPTY_LIST):
         enable_flag = "Enabled"
     for blade_num in blade_list:
         if blade_num in range(1, 13):
-            pe.caput(
-                (FILTER_PV_PREFIX + f"filter{blade_num:02d}" + "_Enable"), enable_flag
-            )
+            pe.caput((FILTER_PV_PREFIX + f"filter{blade_num:02d}" + "_Enable"), enable_flag)
 
 
 def FL2_disable():

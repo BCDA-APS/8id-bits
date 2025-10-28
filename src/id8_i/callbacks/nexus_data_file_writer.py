@@ -271,9 +271,7 @@ def nxwriter_init(RE):
     if iconfig.get("NEXUS_DATA_FILES", {}).get("ENABLE", False):
         RE.subscribe(nxwriter.receiver)  # write data to NeXus files
 
-    nxwriter.file_extension = iconfig.get("NEXUS_DATA_FILES", {}).get(
-        "FILE_EXTENSION", "hdf"
-    )
+    nxwriter.file_extension = iconfig.get("NEXUS_DATA_FILES", {}).get("FILE_EXTENSION", "hdf")
 
     print(nxwriter.file_extension)
     warn_missing = iconfig.get("NEXUS_DATA_FILES", {}).get("WARN_MISSING", False)

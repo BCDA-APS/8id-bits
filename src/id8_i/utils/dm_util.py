@@ -78,7 +78,5 @@ def dm_run_job(workflowProcApi: WorkflowProcApi, dmuser: str):
             # "downloadDirectory": f"/home/8-id-i/{cycle_name}/{exp_name}/analysis/{analysis_type}/"
         }
 
-        job = workflowProcApi.startProcessingJob(
-            dmuser, f"{workflow_name}", argsDict=argsDict
-        )
+        job = workflowProcApi.startProcessingJob(dmuser, f"{workflow_name}", argsDict=argsDict)
         print(f"Job {job['id']} processing {file_name}")

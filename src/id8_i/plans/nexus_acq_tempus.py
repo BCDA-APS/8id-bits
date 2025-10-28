@@ -44,9 +44,7 @@ def setup_tempus_int_series(file_name):
     file_path = f"{mount_point}{cycle_name}/{exp_name}/data_tempus/{file_name}"
 
     yield from bps.mv(pv_registers.file_name, file_name)
-    yield from bps.mv(
-        pv_registers.metadata_full_path, f"{file_path}/{file_name}_metadata.hdf"
-    )
+    yield from bps.mv(pv_registers.metadata_full_path, f"{file_path}/{file_name}_metadata.hdf")
 
 
 ############# Homebrew acquisition plan #############
@@ -76,9 +74,7 @@ def tempus_acquire(file_name):
     # --MC--
     # convert the timepix format to rigaku format
     target_folder = str(file_path)
-    output_dir = (
-        "/gdata/dm/8ID/8IDI/2025-2/tempus202507d/data/timepix/"  # This line is ignored
-    )
+    output_dir = "/gdata/dm/8ID/8IDI/2025-2/tempus202507d/data/timepix/"  # This line is ignored
     time_total = "1"  # total time in seconds for all frames
     time_bin = "383e-9"  # delta_t in seconds; time bin size\                   # This line is ignored
     assert (

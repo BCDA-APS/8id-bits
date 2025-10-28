@@ -59,10 +59,7 @@ class MyTetrAMM(TetrAMM):
         Tetramms are operated in continuous mode. Will just accept the current value.
         """
         if self._staged != Staged.yes:
-            raise RuntimeError(
-                "This detector is not ready to trigger."
-                "Call the stage() method before triggering."
-            )
+            raise RuntimeError("This detector is not ready to trigger." "Call the stage() method before triggering.")
 
         self._status = self._status_type(self)
         self._acquisition_signal.put(1, wait=False)
