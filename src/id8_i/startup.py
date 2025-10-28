@@ -61,10 +61,10 @@ if iconfig.get("NEXUS_DATA_FILES", {}).get("ENABLE", False):
     nxwriter = nxwriter_init(RE)
 
 if iconfig.get("SPEC_DATA_FILES", {}).get("ENABLE", False):
-    from .callbacks.spec_data_file_writer import init_specwriter_with_RE
-    from .callbacks.spec_data_file_writer import newSpecFile  # noqa: F401
-    from .callbacks.spec_data_file_writer import spec_comment  # noqa: F401
-    from .callbacks.spec_data_file_writer import specwriter
+    from .callbacks.demo_spec_callback import init_specwriter_with_RE
+    from .callbacks.demo_spec_callback import newSpecFile  # noqa: F401
+    from .callbacks.demo_spec_callback import spec_comment  # noqa: F401
+    from .callbacks.demo_spec_callback import specwriter
 
     specwriter.write_new_scan_header = False  # issue #1032
     init_specwriter_with_RE(RE)
