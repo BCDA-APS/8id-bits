@@ -43,11 +43,13 @@ Device uses PyDevice for focal size calculation and lens configuration control
 """
 
 import logging
+
 from ophyd import Component as Cpt
-from ophyd import FormattedComponent as FCpt
 from ophyd import Device
-from ophyd import EpicsSignal, EpicsSignalRO
 from ophyd import EpicsMotor
+from ophyd import EpicsSignal
+from ophyd import EpicsSignalRO
+from ophyd import FormattedComponent as FCpt
 from ophyd import PVPositioner
 
 logger = logging.getLogger(__name__)

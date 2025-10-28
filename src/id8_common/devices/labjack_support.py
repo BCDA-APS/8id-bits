@@ -1,9 +1,10 @@
 """LabJack LJT705 in 8-ID-I."""
 
-from id8_common.devices.epics_signal_wo import EpicsSignalWO
 from ophyd import Component
 from ophyd import Device
 from ophyd import EpicsSignal
+
+from id8_common.devices.epics_signal_wo import EpicsSignalWO
 
 
 class LabJack(Device):

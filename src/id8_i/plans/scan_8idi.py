@@ -158,7 +158,7 @@ def rheo_set_x_lup(
     yield from bp.rel_scan([det], rheometer.x, -0.5, 0.5, 100)
     yield from blockbeam()
 
-    #yield from bps.mv(rheometer.x, -3.53)
-    #yield from showbeam()
-    #yield from bp.rel_scan([det], rheometer.x, -8, 8, 160)
-    #yield from blockbeam()
+    # yield from bps.mv(rheometer.x, -3.53)
+    # yield from showbeam()
+    # yield from bp.rel_scan([det], rheometer.x, -8, 8, 160)
+    # yield from blockbeam()

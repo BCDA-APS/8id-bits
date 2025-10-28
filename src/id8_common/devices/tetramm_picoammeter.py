@@ -69,4 +69,3 @@ class MyTetrAMM(TetrAMM):
         self.generate_datum(self._image_name, ttime.time(), {})
         self._status.set_finished()
         return self._status
-

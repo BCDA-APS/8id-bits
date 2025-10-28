@@ -7,9 +7,8 @@ This module provides callbacks for writing data to Nexus data files.
 import logging
 from typing import Any
 
-from apstools.utils import host_on_aps_subnet
-
 from apsbits.utils.config_loaders import get_config
+from apstools.utils import host_on_aps_subnet
 
 logger = logging.getLogger(__name__)
 logger.bsdev(__file__)

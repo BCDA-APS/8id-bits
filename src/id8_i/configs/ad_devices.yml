@@ -72,7 +72,7 @@ apstools.devices.area_detector_factory.ad_creator:
   - process1: { class: id8_common.devices.area_detector.ID8_ProcessPlugin }
   - pva: { class: id8_common.devices.area_detector.ID8_PvaPlugin }
   - roi1: { class: id8_common.devices.area_detector.ID8_ROIPlugin }
-  - stats1: 
+  - stats1:
       class: id8_common.devices.area_detector.ID8_StatsPlugin
       kind: hinted
   - transform1: { class: id8_common.devices.area_detector.ID8_TransformPlugin }
@@ -99,7 +99,7 @@ apstools.devices.area_detector_factory.ad_creator:
 #   - pva: { class: id8_common.devices.area_detector.ID8_PvaPlugin }
 #   - roi1: { class: id8_common.devices.area_detector.ID8_ROIPlugin }
 #   - roi2: { class: id8_common.devices.area_detector.ID8_ROIPlugin }
-#   - stats1: 
+#   - stats1:
 #       class: id8_common.devices.area_detector.ID8_StatsPlugin
 #       kind: hinted
 #   - transform1: { class: id8_common.devices.area_detector.ID8_TransformPlugin }
@@ -125,7 +125,7 @@ apstools.devices.area_detector_factory.ad_creator:
   - process1: { class: id8_common.devices.area_detector.ID8_ProcessPlugin }
   - pva: { class: id8_common.devices.area_detector.ID8_PvaPlugin }
   - roi1: { class: id8_common.devices.area_detector.ID8_ROIPlugin }
-  - stats1: 
+  - stats1:
       class: id8_common.devices.area_detector.ID8_StatsPlugin
       kind: hinted
   - transform1: { class: id8_common.devices.area_detector.ID8_TransformPlugin }

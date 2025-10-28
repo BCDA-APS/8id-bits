@@ -6,7 +6,6 @@ import os
 
 from apsbits.core.instrument_init import oregistry
 from bluesky import plan_stubs as bps
-from bluesky import plans as bp
 
 from ..utils.dm_util import dm_run_job
 from ..utils.dm_util import dm_setup
@@ -54,17 +53,18 @@ def setup_rigaku_ZDT_series(acq_time, num_frames, file_name):
         f"/gdata/dm/8ID/8IDI/{cycle_name}/{file_path}/{file_name}_metadata.hdf",
     )
 
-    os.makedirs(f"/gdata/dm/8ID/8IDI/{cycle_name}/{file_path}", mode=0o770, exist_ok=True)
+    os.makedirs(
+        f"/gdata/dm/8ID/8IDI/{cycle_name}/{file_path}", mode=0o770, exist_ok=True
+    )
 
 
 ############# Homebrew acquisition plan #############
 def rigaku_zdt_acquire():
-
     yield from showbeam()
     yield from bps.sleep(0.1)
     yield from bps.mv(rigaku3M.cam.acquire, 1)
     # yield from bps.sleep(2.0)
-        
+
     while True:
         det_status = rigaku3M.cam.detector_state.get()
         if det_status != 1:
@@ -78,9 +78,12 @@ def rigaku_zdt_acquire():
             yield from bps.sleep(0.1)
         if det_status == 0:
             break
-   
+
     yield from blockbeam()
+
+
 ############# Homebrew acquisition plan ends #############
+
 
 def rigaku_acq_ZDT_series(
     acq_time=2e-5,

@@ -27,12 +27,8 @@ qnw_env1 = oregistry["qnw_env1"]
 qnw_env2 = oregistry["qnw_env2"]
 qnw_env3 = oregistry["qnw_env3"]
 
-def set_qnw(
-    qnw_number: int,
-    setpoint: float,
-    wait: bool = True,
-    ramprate: float = 0.3
-):
+
+def set_qnw(qnw_number: int, setpoint: float, wait: bool = True, ramprate: float = 0.3):
     """
     Change temperature on a QNW controller from a bluesky plan.
     """

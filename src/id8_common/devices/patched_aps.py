@@ -21,9 +21,10 @@ For others:
    aps = PatchedApsMachineParametersDevice("", name="aps")
 """
 
-from apstools.devices.aps_cycle import ApsCycleDM
 from apstools.devices import ApsMachineParametersDevice
+from apstools.devices.aps_cycle import ApsCycleDM
 from ophyd import Component
+
 
 class PatchedApsCycleDM(ApsCycleDM):
     """BUGFIX for new fiscal year."""
@@ -37,5 +38,5 @@ class PatchedApsCycleDM(ApsCycleDM):
 
 class PatchedApsMachineParametersDevice(ApsMachineParametersDevice):
     """BUGFIX for new fiscal year."""
+
     aps_cycle = Component(PatchedApsCycleDM)
- 

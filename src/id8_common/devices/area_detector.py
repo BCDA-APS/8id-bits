@@ -5,8 +5,6 @@ EPICS area_detector definitions for ID8.
 import logging
 
 from apstools.devices import AD_EpicsFileNameHDF5Plugin
-from apstools.devices import AD_plugin_primed
-from apstools.devices import AD_prime_plugin2
 from apstools.devices import CamMixin_V34
 from ophyd import ADComponent
 from ophyd import EpicsSignal
@@ -131,7 +129,9 @@ class Rigaku3MCam(CamBase_V34):
     """Support for the RigakuSi3M camera controls."""
 
     _html_docs = ["Rigaku3MCam.html"]
-    wait_for_plugins = ADComponent(EpicsSignal, "WaitForPlugins", string=True, kind="config")
+    wait_for_plugins = ADComponent(
+        EpicsSignal, "WaitForPlugins", string=True, kind="config"
+    )
 
     # sparse_enable = ADComponent(EpicsSignal, "SparseEnable", string=True)
     fast_file_name = ADComponent(EpicsSignalWithRBV, "FileName", string=True)

@@ -62,5 +62,3 @@ class AerotechRheometerStage(Device):
     roll = Component(EpicsMotor, "m10", labels=("rheometer", "motor"))
     pitch = Component(EpicsMotor, "m11", labels=("rheometer", "motor"))
     yaw = Component(EpicsMotor, "m12", labels=("rheometer", "motor"))
-
-

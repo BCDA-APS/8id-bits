@@ -28,7 +28,6 @@ def select_detector(det: Literal["eiger4M", "rigaku3M"]):
         Generator: Bluesky plan messages
     """
     if det == "eiger4M":
-
         if pv_registers.det_name.get() == det:
             pass
         else:
@@ -50,12 +49,13 @@ def select_detector(det: Literal["eiger4M", "rigaku3M"]):
             yield from bps.mv(pv_registers.det_pixel_size, 75e-6)
 
     elif det == "rigaku3M":
-
         if pv_registers.det_name.get() == det:
             pass
         else:
             yield from bps.mv(pv_registers.workflow_name, "xpcs8-boost-corr")
-            yield from bps.mv(pv_registers.qmap_file, "rigaku3m_Sq360_Dq36_log_primary.hdf")
+            yield from bps.mv(
+                pv_registers.qmap_file, "rigaku3m_Sq360_Dq36_log_primary.hdf"
+            )
 
             det_x_position = pv_registers.rigaku_det_x0.get()
             det_y_position = pv_registers.rigaku_det_y0.get()
@@ -90,7 +90,7 @@ def select_detector(det: Literal["eiger4M", "rigaku3M"]):
             yield from bps.mv(detector.x, det_x_position, detector.y, det_y_position)
 
             yield from bps.mv(pv_registers.det_name, det)
-            yield from bps.mv(pv_registers.det_pixel_size, 55e-6) 
+            yield from bps.mv(pv_registers.det_pixel_size, 55e-6)
 
     else:
         print("Detector name must be eiger4M, rigaku3M, or tempus")

@@ -32,11 +32,7 @@ def dm_setup() -> tuple:
     return workflowProcApi, dmuser
 
 
-def dm_run_job(
-    workflowProcApi: WorkflowProcApi,
-    dmuser: str
-):
-
+def dm_run_job(workflowProcApi: WorkflowProcApi, dmuser: str):
     analysis_machine = pv_registers.analysis_machine.get()
     det_name = pv_registers.det_name.get()
 
@@ -68,7 +64,7 @@ def dm_run_job(
         else:
             gpuID = -2
             machine_name = analysis_machine
-        
+
         argsDict = {
             "experimentName": exp_name,
             "filePath": filepath,
@@ -78,12 +74,11 @@ def dm_run_job(
             "demand": "True",
             "type": analysis_type,
             "saveG2": "False",
-            "download": "False"
-            # "downloadDirectory": f"/home/8-id-i/{cycle_name}/{exp_name}/analysis/{analysis_type}/" 
+            "download": "False",
+            # "downloadDirectory": f"/home/8-id-i/{cycle_name}/{exp_name}/analysis/{analysis_type}/"
         }
 
         job = workflowProcApi.startProcessingJob(
             dmuser, f"{workflow_name}", argsDict=argsDict
         )
         print(f"Job {job['id']} processing {file_name}")
-

@@ -13,9 +13,6 @@ Includes:
 import logging
 from pathlib import Path
 
-# Core Functions
-from tiled.client import from_profile
-
 from apsbits.core.best_effort_init import init_bec_peaks
 from apsbits.core.catalog_init import init_catalog
 from apsbits.core.instrument_init import init_instrument
@@ -31,6 +28,9 @@ from apsbits.utils.config_loaders import load_config
 from apsbits.utils.helper_functions import register_bluesky_magics
 from apsbits.utils.helper_functions import running_in_queueserver
 from apsbits.utils.logging_setup import configure_logging
+
+# Core Functions
+from tiled.client import from_profile
 
 # Configuration block
 # Get the path to the instrument package
