@@ -20,7 +20,6 @@ from apsbits.core.instrument_init import make_devices
 from apsbits.core.run_engine_init import init_RE
 
 # Utility functions
-from apsbits.utils.aps_functions import host_on_aps_subnet
 from apsbits.utils.baseline_setup import setup_baseline_stream
 
 # Configuration functions
@@ -128,7 +127,6 @@ setup_baseline_stream(sd, oregistry, connect=False)
 #         " is at least 1 character."
 #         f"  Using {specwriter.spec_filename}."
 #     )
-
 
 
 # from .plans.nexus_acq_tempus import setup_tempus_int_series, tempus_acquire, tempus_acq_int_series
