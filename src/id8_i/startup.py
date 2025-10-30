@@ -102,28 +102,28 @@ else:
     # These device files MUST load or startup will stop.
     make_devices(clear=False, file="devices.yml", device_manager=instrument)
 
-    if host_on_aps_subnet():
-        make_devices(clear=False, file="devices_aps_only.yml", device_manager=instrument)
-        make_devices(clear=False, file="ad_devices.yml", device_manager=instrument)
-        # yield from ad_initial_setup()
+#     if host_on_aps_subnet():
+#         make_devices(clear=False, file="devices_aps_only.yml", device_manager=instrument)
+#         make_devices(clear=False, file="ad_devices.yml", device_manager=instrument)
+#         # yield from ad_initial_setup()
 
-pv_registers = oregistry["pv_registers"]
+# pv_registers = oregistry["pv_registers"]
 
-spec_file_name = pv_registers.spec_file
-spec_file_name.wait_for_connection()
-_fname = spec_file_name.get()
+# spec_file_name = pv_registers.spec_file
+# spec_file_name.wait_for_connection()
+# _fname = spec_file_name.get()
 
-if len(_fname) > 4 and _fname.endswith(".dat"):
-    # PV should contain a valid file name
-    specwriter.newfile(_fname)
-else:
-    logger.warning(
-        f"SPEC file name {_fname!r} from EPICS PV"
-        f" {spec_file_name.pvname!r} is unacceptable."
-        "  File name must be of form 'NAME.dat' where NAME"
-        " is at least 1 character."
-        f"  Using {specwriter.spec_filename}."
-    )
+# if len(_fname) > 4 and _fname.endswith(".dat"):
+#     # PV should contain a valid file name
+#     specwriter.newfile(_fname)
+# else:
+#     logger.warning(
+#         f"SPEC file name {_fname!r} from EPICS PV"
+#         f" {spec_file_name.pvname!r} is unacceptable."
+#         "  File name must be of form 'NAME.dat' where NAME"
+#         " is at least 1 character."
+#         f"  Using {specwriter.spec_filename}."
+#     )
 
 # Setup baseline stream with connect=False is default
 # Devices with the label 'baseline' will be added to the baseline stream.
