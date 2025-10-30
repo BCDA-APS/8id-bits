@@ -223,7 +223,7 @@ id8_common.devices.func_gen.Function_Generator:
 - name: dpKeysight
   prefix: "dpKeysight:KEY1:"
 
-id8_i.devices.huber_diffractometer.Huber_Diffractometer:
+id8_common.devices.huber_diffractometer.Huber_Diffractometer:
 - name: huber
   prefix: "8ideSoft:CR8-E1:"
 
