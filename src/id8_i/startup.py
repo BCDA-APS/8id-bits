@@ -102,39 +102,40 @@ else:
     # These device files MUST load or startup will stop.
     make_devices(clear=False, file="devices.yml", device_manager=instrument)
 
-#     if host_on_aps_subnet():
-#         make_devices(clear=False, file="devices_aps_only.yml", device_manager=instrument)
-#         make_devices(clear=False, file="ad_devices.yml", device_manager=instrument)
-#         # yield from ad_initial_setup()
+    if host_on_aps_subnet():
+        make_devices(clear=False, file="devices_aps_only.yml", device_manager=instrument)
+        make_devices(clear=False, file="ad_devices.yml", device_manager=instrument)
+        # yield from ad_initial_setup()
 
 # Setup baseline stream with connect=False is default
 # Devices with the label 'baseline' will be added to the baseline stream.
 setup_baseline_stream(sd, oregistry, connect=False)
 
-# pv_registers = oregistry["pv_registers"]
+pv_registers = oregistry["pv_registers"]
 
-# spec_file_name = pv_registers.spec_file
-# spec_file_name.wait_for_connection()
-# _fname = spec_file_name.get()
+spec_file_name = pv_registers.spec_file
+spec_file_name.wait_for_connection()
+_fname = spec_file_name.get()
 
-# if len(_fname) > 4 and _fname.endswith(".dat"):
-#     # PV should contain a valid file name
-#     specwriter.newfile(_fname)
-# else:
-#     logger.warning(
-#         f"SPEC file name {_fname!r} from EPICS PV"
-#         f" {spec_file_name.pvname!r} is unacceptable."
-#         "  File name must be of form 'NAME.dat' where NAME"
-#         " is at least 1 character."
-#         f"  Using {specwriter.spec_filename}."
-#     )
+if len(_fname) > 4 and _fname.endswith(".dat"):
+    # PV should contain a valid file name
+    specwriter.newfile(_fname)
+else:
+    logger.warning(
+        f"SPEC file name {_fname!r} from EPICS PV"
+        f" {spec_file_name.pvname!r} is unacceptable."
+        "  File name must be of form 'NAME.dat' where NAME"
+        " is at least 1 character."
+        f"  Using {specwriter.spec_filename}."
+    )
 
 
+from .plans.nexus_acq_rigaku_zdt import setup_rigaku_ZDT_series, rigaku_acq_ZDT_series, rigaku_zdt_acquire
 
-# from .plans.nexus_acq_tempus import setup_tempus_int_series, tempus_acquire, tempus_acq_int_series
+from .plans.sample_info_unpack import select_sample
+from .plans.select_detector import select_detector
+from .plans.select_sample_env import select_sample_env
+from .plans.scan_8idi import att, x_lup, y_lup, rheo_set_x_lup, rheo_x_lup, rheo_y_lup
+from .plans.master_plan import run_measurement_info
 
-# from .plans.nexus_acq_rigaku_zdt import setup_rigaku_ZDT_series, rigaku_acq_ZDT_series, rigaku_zdt_acquire
-
-from .plans.sim_plans import sim_count_plan  # noqa: E402, F401
-from .plans.sim_plans import sim_print_plan  # noqa: E402, F401
-from .plans.sim_plans import sim_rel_scan_plan  # noqa: E402, F401
+from .plans.spec_8IDE import submit_Nexus_DM

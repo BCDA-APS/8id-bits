@@ -30,12 +30,12 @@ qnw_env2 = oregistry["qnw_env2"]
 qnw_env3 = oregistry["qnw_env3"]
 tetramm1 = oregistry["tetramm1"]
 pv_registers = oregistry["pv_registers"]
-undulator_upstream = oregistry["undulator_upstream"]
-undulator_downstream = oregistry["undulator_downstream"]
+# undulator_upstream = oregistry["undulator_upstream"]
+# undulator_downstream = oregistry["undulator_downstream"]
 huber = oregistry["huber"]
 sl4 = oregistry["sl4"]
 xbpm1 = oregistry["xbpm1"]
-aps = oregistry["aps"]
+# aps = oregistry["aps"]
 
 default_units_keymap = {
     "NX_COUNT": "one",  # Used for frame_sum, frame_average, delay_difference
@@ -164,10 +164,8 @@ def create_runtime_metadata_dict(
         "/entry/instrument/detector_1/frame_time": det.cam.acquire_period.get(),
         "/entry/instrument/detector_1/detector_name": pv_registers.det_name.get(),
         "/entry/instrument/detector_1/qmap_file": pv_registers.qmap_file.get(),
-        "/entry/instrument/detector_1/distance": 2.02,
-        # "/entry/instrument/detector_1/distance": flight_path_8idi.length.position / 1000.0,  # Not calibrated
-        # "/entry/instrument/detector_1/flightpath_swing": flight_path_8idi.swing.position,
-        "/entry/instrument/detector_1/flightpath_swing": -huber.delta.position,
+        "/entry/instrument/detector_1/distance": flight_path_8idi.length.position / 1000.0,  # Not calibrated
+        "/entry/instrument/detector_1/flightpath_swing": flight_path_8idi.swing.position,
         "/entry/instrument/detector_1/x_pixel_size": pv_registers.det_pixel_size.get(),
         "/entry/instrument/detector_1/y_pixel_size": pv_registers.det_pixel_size.get(),
         "/entry/instrument/beam_stop/x_position": flight_path_8idi.ds_x.position,
@@ -186,13 +184,13 @@ def create_runtime_metadata_dict(
             + xbpm1.current3.mean_value.get() / xbpm1.current_scales.ch3.get()
             + xbpm1.current4.mean_value.get() / xbpm1.current_scales.ch4.get()
         ),
-        "/entry/instrument/incident_beam/ring_current": aps.current.get(),
-        "/entry/instrument/undulator_1/gap": undulator_upstream.gap.position,
-        "/entry/instrument/undulator_1/energy": undulator_upstream.energy.position,
-        "/entry/instrument/undulator_1/taper": undulator_upstream.gap_taper.position,
-        "/entry/instrument/undulator_2/gap": undulator_downstream.gap.position,
-        "/entry/instrument/undulator_2/energy": undulator_downstream.energy.position,
-        "/entry/instrument/undulator_2/taper": undulator_downstream.gap_taper.position,
+        # "/entry/instrument/incident_beam/ring_current": aps.current.get(),
+        # "/entry/instrument/undulator_1/gap": undulator_upstream.gap.position,
+        # "/entry/instrument/undulator_1/energy": undulator_upstream.energy.position,
+        # "/entry/instrument/undulator_1/taper": undulator_upstream.gap_taper.position,
+        # "/entry/instrument/undulator_2/gap": undulator_downstream.gap.position,
+        # "/entry/instrument/undulator_2/energy": undulator_downstream.energy.position,
+        # "/entry/instrument/undulator_2/taper": undulator_downstream.gap_taper.position,
         "/entry/instrument/attenuator_1/attenuator_transmission": (filter_8ide.transmission.readback.get()),
         "/entry/instrument/attenuator_1/attenuator_index": (filter_8ide.index.readback.get()),
         "/entry/instrument/attenuator_2/attenuator_transmission": (0),

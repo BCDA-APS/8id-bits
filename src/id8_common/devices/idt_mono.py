@@ -64,9 +64,9 @@ class IDTMono(Device):
     flag = FCpt(EpicsMotor, "{motor_prefix}:{_flag_motor}", labels={"motors"})
     coarse_pitch = FCpt(EpicsMotor, "{motor_prefix}:{_coarse_pitch_motor}", labels={"motors"})
     coarse_roll = FCpt(EpicsMotor, "{motor_prefix}:{_coarse_roll_motor}", labels={"motors"})
-    x_pitch = FCpt(EpicsMotor, "{motor_prefix}:{_x_pitch_motor}", labels={"motors"})
-    y_pitch = FCpt(EpicsMotor, "{motor_prefix}:{_y_pitch_motor}", labels={"motors"})
+    x_slide = FCpt(EpicsMotor, "{motor_prefix}:{_x_pitch_motor}", labels={"motors"})
+    y_slide = FCpt(EpicsMotor, "{motor_prefix}:{_y_pitch_motor}", labels={"motors"})
 
-    # TODO: These are Labjack signals instead of motors
-    pitch_piezo = FCpt(EpicsMotor, "{motor_prefix}:{_pitch_piezo}", labels={"motors"})
-    roll_piezo = FCpt(EpicsMotor, "{motor_prefix}:{_roll_piezo}", labels={"motors"})
+    # # TODO: These are Labjack signals instead of motors
+    # pitch_piezo = FCpt(EpicsMotor, "{motor_prefix}:{_pitch_piezo}", labels={"motors"})
+    # roll_piezo = FCpt(EpicsMotor, "{motor_prefix}:{_roll_piezo}", labels={"motors"})
