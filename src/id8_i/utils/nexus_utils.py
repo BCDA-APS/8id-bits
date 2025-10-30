@@ -15,8 +15,8 @@ from typing import Union
 import h5py
 from apsbits.core.instrument_init import oregistry
 
-from .APS8IDI_default_metadata import default_metadata
-from .APS8IDI_xpcs_schema import xpcs_schema
+from .default_metadata import default_metadata
+from .xpcs_schema import xpcs_schema
 
 detector = oregistry["detector"]
 rheometer = oregistry["rheometer"]

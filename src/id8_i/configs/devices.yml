@@ -298,6 +298,48 @@ apstools.devices.aps_undulator.Revolver_Undulator:
 - name: undulator_downstream
   prefix: "S08ID:DSID:"
 
+id8_common.devices.aerotech_stages.AerotechSampleStage:
+- name: sample
+  prefix: "8idiAerotech:"
+  labels: ["sample", "stage"]
+
+id8_common.devices.aerotech_stages.AerotechDetectorStage:
+- name: detector
+  prefix: "8idiAerotech:"
+  labels: ["detector", "stage"]
+id8_common.devices.aerotech_stages.AerotechRheometerStage:
+- name: rheometer
+  prefix: "8idiAerotech:"
+  labels: ["rheometer", "stage"]
+
+id8_common.devices.flight_tube.FlightTubeDetector:
+- name: "det_motors"
+  prefix: "8idiSoft:FLIGHT:"
+id8_common.devices.flight_tube.FlightTubeBeamStop:
+- name: "bs_motors"
+  prefix: "8idiSoft:FLIGHT:"
+
+id8_common.devices.meascomp_usb_ctr.MeasCompCTR:
+  - name: daq1
+    prefix: "8idDAQ1:"
+
+id8_common.devices.meascomp_usb_ctr.MeasCompCtrMcs:
+  - name: mcs
+    prefix: "8idDAQ1:"
+
+id8_common.devices.jj_transfocators.JJtransfocator2x:
+- name: crl8id
+  prefix: "8idPyCRL:CRL8ID:"
+  labels: ["transfocators", "baseline"]
+  pitch1_motor: "8iddSoft:TRANS:m4"
+  yaw1_motor: "8iddSoft:TRANS:m3"
+  x1_motor: "8iddSoft:TRANS:m2"
+  y1_motor: "8iddSoft:TRANS:m1"
+  pitch2_motor: "8iddSoft:TRANS:m28"
+  yaw2_motor: "8iddSoft:TRANS:m27"
+  x2_motor: "8iddSoft:TRANS:m26"
+  y2_motor: "8iddSoft:TRANS:m25"
+
 ############################### THESE ARE EXAMPLES OF OTHER DEVICES THAT YOU CAN USE
 # ophyd.Signal:
 # - name: test

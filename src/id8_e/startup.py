@@ -71,13 +71,6 @@ bec, peaks = init_bec_peaks(iconfig)
 cat = init_catalog(iconfig)
 RE, sd = init_RE(iconfig, subscribers=[bec, cat])
 
-# Optional Nexus callback block
-# delete this block if not using Nexus
-if iconfig.get("NEXUS_DATA_FILES", {}).get("ENABLE", False):
-    from .callbacks.demo_nexus_callback import nxwriter_init
-
-    nxwriter = nxwriter_init(RE)
-
 # Optional SPEC callback block
 # delete this block if not using SPEC
 if iconfig.get("SPEC_DATA_FILES", {}).get("ENABLE", False):

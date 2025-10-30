@@ -1,6 +1,0 @@
-id8_common.devices.flight_tube.FlightTubeDetector:
-- name: "det_motors"
-  prefix: "8idiSoft:FLIGHT:"
-id8_common.devices.flight_tube.FlightTubeBeamStop:
-- name: "bs_motors"
-  prefix: "8idiSoft:FLIGHT:"

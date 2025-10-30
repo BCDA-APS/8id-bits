@@ -46,9 +46,6 @@ BEC:
 ### Support for known output file formats.
 ### Uncomment to use.  If undefined, will not write that type of file.
 ### Each callback should apply its configuration from here.
-NEXUS_DATA_FILES:
-    ENABLE: false
-    FILE_EXTENSION: hdf
 
 SPEC_DATA_FILES:
     ENABLE: true

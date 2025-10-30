@@ -73,10 +73,6 @@ cat = init_catalog(iconfig)
 RE, sd = init_RE(iconfig, subscribers=[bec, cat])
 
 # Import optional components based on configuration
-if iconfig.get("NEXUS_DATA_FILES", {}).get("ENABLE", False):
-    from .callbacks.nexus_data_file_writer import nxwriter_init
-
-    nxwriter = nxwriter_init(RE)
 
 if iconfig.get("SPEC_DATA_FILES", {}).get("ENABLE", False):
     from .callbacks.demo_spec_callback import init_specwriter_with_RE
@@ -105,26 +101,11 @@ else:
     ############################
     # These device files MUST load or startup will stop.
     make_devices(clear=False, file="devices.yml", device_manager=instrument)
-    make_devices(clear=False, file="transfocator.yml", device_manager=instrument)
 
     if host_on_aps_subnet():
         make_devices(clear=False, file="devices_aps_only.yml", device_manager=instrument)
         make_devices(clear=False, file="ad_devices.yml", device_manager=instrument)
         # yield from ad_initial_setup()
-
-    ############################
-    # These device files can fail gracefully.  Startup will continue.
-    device_files = [
-        # "flight_tube_devices.yml",
-        "aerotech_stages_devices.yml",
-    ]
-    # for device_file in device_files:
-    #     try:
-    #         make_devices(clear=False, file=device_file, device_manager=instrument)
-    #     except Exception as excuse:
-    #         print(f"Could not import {device_file!r}: {excuse}")
-    make_devices(clear=False, file="aerotech_stages_devices.yml", device_manager=instrument)
-
 
 pv_registers = oregistry["pv_registers"]
 
@@ -149,7 +130,6 @@ else:
 setup_baseline_stream(sd, oregistry, connect=False)
 
 # from .plans.nexus_acq_tempus import setup_tempus_int_series, tempus_acquire, tempus_acq_int_series
-
 
 # from .plans.nexus_acq_rigaku_zdt import setup_rigaku_ZDT_series, rigaku_acq_ZDT_series, rigaku_zdt_acquire
 

@@ -1,7 +1,0 @@
-id8_common.devices.meascomp_usb_ctr.MeasCompCTR:
-  - name: daq1
-    prefix: "8idDAQ1:"
-
-id8_common.devices.meascomp_usb_ctr.MeasCompCtrMcs:
-  - name: mcs
-    prefix: "8idDAQ1:"
