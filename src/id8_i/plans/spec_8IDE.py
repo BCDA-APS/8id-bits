@@ -14,7 +14,7 @@ from ..utils.nexus_utils import create_nexus_format_metadata
 
 # Add more detectors if needed
 eiger4M = oregistry["eiger4M"]
-# lambda2M = oregistry["lambda2M"]
+lambda2M = oregistry["lambda2M"]
 # lambda750k = oregistry["lambda750k"]
 # rigaku3M = oregistry["rigaku3M"]
 pv_registers = oregistry["pv_registers"]
@@ -39,12 +39,12 @@ def submit_Nexus_DM():
         det_name = pv_registers.det_name.get()
         if det_name == "eiger4M":
             det = eiger4M
-        # elif det_name == "lambda2M":
-        #     det = lambda2M
+        elif det_name == "lambda2M":
+            det = lambda2M
         # elif det_name == "lambda750k":
         #     det = lambda750k
-        elif det_name == "rigaku3M":
-            det = rigaku3M
+        # elif det_name == "rigaku3M":
+        #     det = rigaku3M
         else:
             det = None
             print("Detector name not found")
