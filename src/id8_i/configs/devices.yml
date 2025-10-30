@@ -312,20 +312,20 @@ id8_common.devices.aerotech_stages.AerotechRheometerStage:
   prefix: "8idiAerotech:"
   labels: ["rheometer", "stage"]
 
-# id8_common.devices.flight_tube.FlightTubeDetector:
-# - name: "det_motors"
-#   prefix: "8idiSoft:FLIGHT:"
-# id8_common.devices.flight_tube.FlightTubeBeamStop:
-# - name: "bs_motors"
-#   prefix: "8idiSoft:FLIGHT:"
+id8_common.devices.flight_tube.FlightTubeDetector:
+- name: "det_motors"
+  prefix: "8idiSoft:FLIGHT:"
+id8_common.devices.flight_tube.FlightTubeBeamStop:
+- name: "bs_motors"
+  prefix: "8idiSoft:FLIGHT:"
 
-# id8_common.devices.meascomp_usb_ctr.MeasCompCTR:
-#   - name: daq1
-#     prefix: "8idDAQ1:"
+id8_common.devices.meascomp_usb_ctr.MeasCompCTR:
+  - name: daq1
+    prefix: "8idDAQ1:"
 
-# id8_common.devices.meascomp_usb_ctr.MeasCompCtrMcs:
-#   - name: mcs
-#     prefix: "8idDAQ1:"
+id8_common.devices.meascomp_usb_ctr.MeasCompCtrMcs:
+  - name: mcs
+    prefix: "8idDAQ1:"
 
 id8_common.devices.jj_transfocators.JJtransfocator2x:
 - name: crl8id
