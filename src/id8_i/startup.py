@@ -107,6 +107,10 @@ else:
 #         make_devices(clear=False, file="ad_devices.yml", device_manager=instrument)
 #         # yield from ad_initial_setup()
 
+# Setup baseline stream with connect=False is default
+# Devices with the label 'baseline' will be added to the baseline stream.
+setup_baseline_stream(sd, oregistry, connect=False)
+
 # pv_registers = oregistry["pv_registers"]
 
 # spec_file_name = pv_registers.spec_file
@@ -125,9 +129,7 @@ else:
 #         f"  Using {specwriter.spec_filename}."
 #     )
 
-# Setup baseline stream with connect=False is default
-# Devices with the label 'baseline' will be added to the baseline stream.
-setup_baseline_stream(sd, oregistry, connect=False)
+
 
 # from .plans.nexus_acq_tempus import setup_tempus_int_series, tempus_acquire, tempus_acq_int_series
 
