@@ -34,6 +34,9 @@ pv_registers = oregistry["pv_registers"]
 # undulator_downstream = oregistry["undulator_downstream"]
 huber = oregistry["huber"]
 sl4 = oregistry["sl4"]
+sl7 = oregistry["sl7"]
+wb_slit = oregistry["wb_slit"]
+mono_slit = oregistry["mono_slit"]
 xbpm1 = oregistry["xbpm1"]
 # aps = oregistry["aps"]
 
@@ -170,10 +173,23 @@ def create_runtime_metadata_dict(
         "/entry/instrument/detector_1/y_pixel_size": pv_registers.det_pixel_size.get(),
         "/entry/instrument/beam_stop/x_position": flight_path_8idi.ds_x.position,
         "/entry/instrument/beam_stop/y_position": flight_path_8idi.ds_y.position,
-        "/entry/instrument/slits_4/vertical_gap": sl4.v.size.position,
-        "/entry/instrument/slits_4/vertical_center": sl4.v.center.position,
-        "/entry/instrument/slits_4/horizontal_gap": sl4.h.size.position,
-        "/entry/instrument/slits_4/horizontal_center": sl4.h.center.position,
+
+        "/entry/instrument/wb_slit/vertical_gap": wb_slit.vgap.position,
+        "/entry/instrument/wb_slit/vertical_center": wb_slit.vcen.position,
+        "/entry/instrument/wb_slit/horizontal_gap": wb_slit.hgap.position,
+        "/entry/instrument/wb_slit/horizontal_center": wb_slit.hcen.position,
+        "/entry/instrument/mono_slit/vertical_gap": mono_slit.vgap.position,
+        "/entry/instrument/mono_slit/vertical_center": mono_slit.vcen.position,
+        "/entry/instrument/mono_slit/horizontal_gap": mono_slit.hgap.position,
+        "/entry/instrument/mono_slit/horizontal_center": mono_slit.hcen.position,
+        "/entry/instrument/sl4/vertical_gap": sl4.v.size.position,
+        "/entry/instrument/sl4/vertical_center": sl4.v.center.position,
+        "/entry/instrument/sl4/horizontal_gap": sl4.h.size.position,
+        "/entry/instrument/sl4/horizontal_center": sl4.h.center.position,
+        "/entry/instrument/sl7/vertical_gap": sl7.v.size.position,
+        "/entry/instrument/sl7/vertical_center": sl7.v.center.position,
+        "/entry/instrument/sl7/horizontal_gap": sl7.h.size.position,
+        "/entry/instrument/sl7/horizontal_center": sl7.h.center.position,
         "/entry/instrument/monochromator/energy": mono_8id.energy_readback.get(),
         "/entry/instrument/monochromator/wavelength": mono_8id.energy_readback.get() / 12.4,
         "/entry/instrument/incident_beam/incident_energy": mono_8id.energy_readback.get(),
