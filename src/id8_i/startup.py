@@ -101,9 +101,12 @@ else:
     # These device files MUST load or startup will stop.
     make_devices(clear=False, file="devices.yml", device_manager=instrument)
 
-    if host_on_aps_subnet():
-        make_devices(clear=False, file="devices_aps_only.yml", device_manager=instrument)
-        make_devices(clear=False, file="ad_devices.yml", device_manager=instrument)
+    make_devices(clear=False, file="devices_aps_only.yml", device_manager=instrument)
+    make_devices(clear=False, file="ad_devices.yml", device_manager=instrument)
+
+    # if host_on_aps_subnet():
+    #     make_devices(clear=False, file="devices_aps_only.yml", device_manager=instrument)
+    #     make_devices(clear=False, file="ad_devices.yml", device_manager=instrument)
         # yield from ad_initial_setup()
 
 # Setup baseline stream with connect=False is default
