@@ -96,18 +96,6 @@ id8_common.devices.hv_motors.HV_Motors:
   pv_h: m9
   pv_v: m10
 
-id8_common.devices.idt_mono.IDTMono:
-- name: "idt_mono"
-  prefix: "8idaSoft:"
-  bragg_motor: "MONO:m1"
-  xtal_gap_motor: "MONO:m2"
-  flag_motor: "MONO:m3"
-  coarse_pitch_motor: "MONO:m5"
-  coarse_roll_motor: "MONO:m6"
-  x_slide: "MONO:m7"
-  y_slide: "MONO:m8"
-  # pitch_piezo: "LJT703:Ao2"
-  # roll_piezo: "LJT703:Ao3"
 
 id8_common.devices.labjack_support.LabJack:
 - name: "labjack"
