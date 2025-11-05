@@ -8,6 +8,7 @@ from id8_i.plans.nexus_acq_eiger_int import eiger_acq_int_series
 from id8_i.plans.nexus_acq_rigaku_zdt import rigaku_acq_ZDT_series
 from id8_i.plans.nexus_acq_tempus import tempus_acq_int_series
 from id8_i.plans.sample_info_unpack import select_sample
+from id8_i.plans.scan_8idi import att
 
 
 def run_measurement_info(file_name="measurement_info.json"):
@@ -41,10 +42,8 @@ def run_measurement_info(file_name="measurement_info.json"):
             # yield from select_detector(det_name)
 
             for ii in range(len(att_list)):
-                # print(f'\n At Attenuation Ratio {att_list[ii]}:\n')
-                # yield from att(att_list[ii])
-
-                print("\n Attenuation code was commented out \n")
+                print(f'\n At Attenuation Ratio {att_list[ii]}:\n')
+                yield from att(att_list[ii])
 
                 for jj in range(len(acq_time_list[ii])):
                     acq_time = acq_time_list[ii][jj]
