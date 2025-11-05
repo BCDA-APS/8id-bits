@@ -132,7 +132,5 @@ else:
     )
 
 
-# from .plans.nexus_acq_rigaku_zdt import setup_rigaku_ZDT_series, rigaku_acq_ZDT_series, rigaku_zdt_acquire
-
-
 # from .plans.master_plan import run_measurement_info
+# from .plans.scan_8idi import *

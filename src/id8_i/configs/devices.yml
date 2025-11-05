@@ -239,16 +239,16 @@ id8_common.devices.mono.Mono:
 # - name: robotic_pipette
 #   prefix: "8idiur5:UR5:"
 
-id8_common.devices.qnw_vac_device.QnwDevice:
-- name: qnw_vac1
-  prefix: "8idiSoft:QNWvac_1:"
-  readback_pv: null
-- name: qnw_vac2
-  prefix: "8idiSoft:QNWvac_2:"
-  readback_pv: null
-- name: qnw_vac3
-  prefix: "8idiSoft:QNWvac_3:"
-  readback_pv: null
+# id8_common.devices.qnw_vac_device.QnwDevice:
+# - name: qnw_vac1
+#   prefix: "8idiSoft:QNWvac_1:"
+#   readback_pv: null
+# - name: qnw_vac2
+#   prefix: "8idiSoft:QNWvac_2:"
+#   readback_pv: null
+# - name: qnw_vac3
+#   prefix: "8idiSoft:QNWvac_3:"
+#   readback_pv: null
 
 id8_common.devices.tetramm_picoammeter.MyTetrAMM:
 - name: tetramm1
