@@ -5,8 +5,6 @@ EPICS area_detector definitions for ID8.
 import logging
 
 from apstools.devices import AD_EpicsFileNameHDF5Plugin
-from apstools.devices import AD_plugin_primed
-from apstools.devices import AD_prime_plugin2
 from apstools.devices import CamMixin_V34
 from ophyd import ADComponent
 from ophyd import EpicsSignal

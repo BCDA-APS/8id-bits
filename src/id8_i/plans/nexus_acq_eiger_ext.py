@@ -8,7 +8,6 @@ acquisition workflows.
 
 from apsbits.core.instrument_init import oregistry
 from bluesky import plan_stubs as bps
-from bluesky import plans as bp
 
 from ..utils.dm_util import dm_run_job
 from ..utils.dm_util import dm_setup
@@ -94,14 +93,14 @@ def setup_eiger_ext_trig(
 
 ############# Homebrew acquisition plan #############
 def eiger_acquire():
-
+    """Acquire data from Eiger4M using external triggers."""
     yield from showbeam()
     yield from bps.sleep(0.1)
     yield from bps.mv(eiger4M.hdf1.capture, 1)
     yield from bps.mv(eiger4M.cam.acquire, 1)
 
     yield from bps.mv(softglue_8idi.start_pulses, "1!")
-        
+
     while True:
         det_status = eiger4M.cam.acquire_busy.get()
         if det_status == 1:
@@ -118,8 +117,10 @@ def eiger_acquire():
             break
         else:
             yield from bps.sleep(0.1)
-            count=+1
+            count = +1
         eiger4M.hdf1.capture.put(0)
+
+
 ############# Homebrew acquisition plan ends #############
 
 
@@ -175,10 +176,10 @@ def eiger_acq_ext_trig(
             create_nexus_format_metadata(metadata_fname, det=eiger4M)
 
             dm_run_job("eiger", process, workflowProcApi, dmuser, file_name)
-    except KeyboardInterrupt:
-        raise RuntimeError("\n Bluesky plan stopped by user (Ctrl+C).")
+    except KeyboardInterrupt as err:
+        raise RuntimeError("\n Bluesky plan stopped by user (Ctrl+C).") from err
     except Exception as e:
         print(f"Error occurred during measurement: {e}")
+        raise Exception from e
     finally:
         pass
-

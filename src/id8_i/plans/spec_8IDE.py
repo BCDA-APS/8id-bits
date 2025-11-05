@@ -8,16 +8,16 @@ triggered by SPEC through EPICS PVs.
 
 from apsbits.core.instrument_init import oregistry
 from bluesky import plan_stubs as bps
-from ..utils.dm_util import dm_run_job
-from ..utils.dm_util import dm_setup
+
 from ..utils.nexus_utils import create_nexus_format_metadata
 
 # Add more detectors if needed
 eiger4M = oregistry["eiger4M"]
 lambda2M = oregistry["lambda2M"]
 # lambda750k = oregistry["lambda750k"]
-# rigaku3M = oregistry["rigaku3M"]
+rigaku3M = oregistry["rigaku3M"]
 pv_registers = oregistry["pv_registers"]
+
 
 def submit_Nexus_DM():
     """Submit data processing jobs to DM when triggered by SPEC.
@@ -32,7 +32,6 @@ def submit_Nexus_DM():
     """
 
     while True:
-
         metadata_fname = pv_registers.metadata_full_path.get()
 
         # Convert detector name to detector Ophyd object
@@ -49,7 +48,7 @@ def submit_Nexus_DM():
             det = None
             print("Detector name not found")
         # Convert detector name to detector Ophyd object
-        
+
         bluesky_start = pv_registers.start_bluesky.get()
         if bluesky_start == "Yes":
             # Create metadata

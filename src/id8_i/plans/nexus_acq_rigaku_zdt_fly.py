@@ -47,9 +47,7 @@ def setup_rigaku_ZDT_fly(acq_time, num_frames, file_name):
     yield from bps.mv(rigaku3M.cam.num_images, num_frames)
 
     yield from bps.mv(pv_registers.file_name, file_name)
-    yield from bps.mv(
-        pv_registers.file_path, f"/gdata/dm/8IDI/{cycle_name}/{file_path}"
-    )
+    yield from bps.mv(pv_registers.file_path, f"/gdata/dm/8IDI/{cycle_name}/{file_path}")
     yield from bps.mv(
         pv_registers.metadata_full_path,
         f"/gdata/dm/8IDI/{cycle_name}/{file_path}/{file_name}_metadata.hdf",
@@ -93,9 +91,7 @@ def rigaku_acq_ZDT_fly(
             if sample_move:
                 yield from mesh_grid_move()
 
-            file_name = (
-                f"{folder_prefix}_f{num_frame:06d}_s{flyspeed*1000:04d}_r{ii+1:05d}"
-            )
+            file_name = f"{folder_prefix}_f{num_frame:06d}_s{flyspeed*1000:04d}_r{ii+1:05d}"
             yield from setup_rigaku_ZDT_fly(acq_time, num_frame, file_name)
 
             extra_acq_time = 1.0

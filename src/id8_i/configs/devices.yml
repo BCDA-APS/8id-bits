@@ -17,51 +17,51 @@ ophyd.EpicsMotor:
     prefix: 8iddSoft:CR8-D1:m1
     labels: ["motor"]
 
-id8_i.devices.xy_motors.XY_Motors:
-- name: damm
-  prefix: "8iddSoft:CR8-D1:US"
-  x_motor: m2
-  y_motor: m3
-- name: win_i
-  prefix: 8ide:US
-  x_motor: m13
-  y_motor: m12
-- name: win_e
-  prefix: 8ide:US
-  x_motor: m23
-  y_motor: m24
-- name: cam_stage_8idi
-  prefix: "8ide:"
-  x_motor: m13
-  y_motor: m12
+# id8_common.devices.xy_motors.XY_Motors:
+# - name: damm
+#   prefix: "8iddSoft:CR8-D1:"
+#   x_motor: m2
+#   y_motor: m3
+# # - name: win_i
+# #   prefix: 8ide:US
+# #   x_motor: m13
+# #   y_motor: m12
+# - name: win_e
+#   prefix: 8ide
+#   x_motor: m23
+#   y_motor: m24
+# # - name: cam_stage_8idi
+# #   prefix: "8ide:"
+# #   x_motor: m13
+# #   y_motor: m12
 
-id8_i.devices.fast_shutter.FastShutter:
+id8_common.devices.fast_shutter.FastShutter:
 - name: shutter_8ide
   prefix: "8ideSoft:fastshutter:"
 
-id8_i.devices.avs_filters.AVSfilters:
+id8_common.devices.avs_filters.AVSfilters:
 - name: filter_8ide
   prefix: "8idPyFilter:FL2:"
 # - name: filter_8idi
 #   prefix: "8idPyFilter:FL3:"
 
-id8_i.devices.granite.granite_device:
+id8_common.devices.granite.granite_device:
 - name: granite
   prefix: "8idiSoft:CR8-I2:US"
   x_motor: m8
 
-id8_i.devices.granite_enable.Valve_Enable:
+id8_common.devices.granite_enable.Valve_Enable:
 - name: granite_8idi_valve
   prefix: "8idiSoft:CR8-I2:"
 
-id8_i.devices.hhl_mirrors.HHL_Mirror1:
+id8_common.devices.hhl_mirrors.HHL_Mirror1:
 - name: mr1
   prefix: "8idaSoft:"
-id8_i.devices.hhl_mirrors.HHL_Mirror2:
+id8_common.devices.hhl_mirrors.HHL_Mirror2:
 - name: mr2
   prefix: "8idaSoft:"
 
-id8_i.devices.hhl_slits.HHLSlits:
+id8_common.devices.hhl_slits.HHLSlits:
 - name: wb_slit
   prefix: "8idaSoft:CR8-A1:US"
   secondary_prefix: "8idaSoft:SL-1:US"
@@ -86,32 +86,22 @@ id8_i.devices.hhl_slits.HHLSlits:
   vgap_motor: "vSize"
   vcen_motor: "vCenter"
 
-id8_i.devices.hv_motors.HV_Motors:
+id8_common.devices.hv_motors.HV_Motors:
 - name: bd6a
-  prefix: "8iddSoft:CR8-E2:"
+  prefix: "8ideSoft:CR8-E2:"
   pv_h: m9
   pv_v: m10
 - name: bd5a
-  prefix: "8iddSoft:CR8-D1:US"
+  prefix: "8iddSoft:CR8-D1:"
   pv_h: m9
   pv_v: m10
 
-id8_i.devices.idt_mono.IDTMono:
-- name: "idt_mono"
-  prefix: "8idaSoft:MONO:US"
-  bragg_motor: "m1"
-  xtal_gap_motor: "m2"
-  flag_motor: "m3"
-  coarse_pitch_motor: "m5"
-  coarse_roll_motor: "m6"
-  x_pitch_motor: "m7"
-  y_pitch_motor: "m8"
 
-id8_i.devices.labjack_support.LabJack:
+id8_common.devices.labjack_support.LabJack:
 - name: "labjack"
   prefix: "8idiSoft:LJT705:"
 
-id8_i.devices.qnw_device.QnwDevice:
+id8_common.devices.qnw_device.QnwDevice:
 - name: qnw_env1
   prefix: "8idiSoft:QNWenv_1:"
   readback_pv: null
@@ -126,7 +116,7 @@ id8_i.devices.registers_device.EpicsPvStorageRegisters:
 - name: pv_registers
   prefix: "8idiSoft:"
 
-id8_i.devices.slit_base.SlitBase:
+id8_common.devices.slit_base.SlitBase:
 - name: sl4_base
   prefix: "8iddSoft:CR8-D1:US"
   h_motor: m15
@@ -148,7 +138,7 @@ id8_i.devices.slit_base.SlitBase:
   h_motor: m15
   v_motor: m16
 
-id8_i.devices.slit.ID8Optics2Slit2D_HV:
+id8_common.devices.slit.ID8Optics2Slit2D_HV:
 - name: sl4
   prefix: "8iddSoft:Slit1"
 - name: sl5
@@ -160,7 +150,7 @@ id8_i.devices.slit.ID8Optics2Slit2D_HV:
 - name: sl9
   prefix: "8idiSoft:Slit2"
 
-id8_i.devices.individual_slits.IndividualSlits:
+id8_common.devices.individual_slits.IndividualSlits:
 - name: sl9_motors
   prefix: "8idiSoft:CR8-I2:US"
   h_positive_motor: m12
@@ -175,7 +165,7 @@ id8_i.devices.individual_slits.IndividualSlits:
   v_positive_motor: m2
   v_negative_motor: m1
 
-id8_i.devices.softglue.SoftGlue:  # This has to be reviewed
+id8_common.devices.softglue.SoftGlue:  # This has to be reviewed
 - name: "softglue_8idi"
   prefix: ""
   pv_acq_period: "8idi:SGControl1.A"
@@ -184,7 +174,7 @@ id8_i.devices.softglue.SoftGlue:  # This has to be reviewed
   pv_start_pulses: "8idi:softGlueA:MUX2-1_IN0_Signal"
   pv_stop_pulses: "8idi:softGlueA:OR-1_IN2_Signal"
 
-id8_i.devices.transfocator.Transfocator:
+id8_common.devices.transfocator.Transfocator:
 - name: rl1
   prefix: "8iddSoft:TRANS:"
   pv_y: "m1"
@@ -219,37 +209,37 @@ id8_i.devices.transfocator.Transfocator:
   pv_lens9: "m23"
   pv_lens10: "m24"
 
-id8_i.devices.func_gen.Function_Generator:
-- name: dpKeysight
-  prefix: "dpKeysight:KEY1:"
+# id8_common.devices.func_gen.Function_Generator:
+# - name: dpKeysight
+#   prefix: "dpKeysight:KEY1:"
 
-id8_i.devices.huber_diffractometer.Huber_Diffractometer:
+id8_common.devices.huber_diffractometer.Huber_Diffractometer:
 - name: huber
   prefix: "8ideSoft:CR8-E1:"
 
-id8_i.devices.lakeshore.Lakeshore:
+id8_common.devices.lakeshore.Lakeshore:
 - name: lakeshore1
   prefix: "8ideSoft:LS336:1:"
 - name: lakeshore2
   prefix: "8ideSoft:LS336:2:"
 
-id8_i.devices.rheometer_wait_signal.Rheometer_Wait:
+id8_common.devices.rheometer_wait_signal.Rheometer_Wait:
 - name: mcr_wait_signal
   prefix: "8idMZ4:SG:"
 
-id8_i.devices.flight_path.FlightPath:
+id8_common.devices.flight_path.FlightPath:
 - name: flight_path_8idi
   prefix: "8idiSoft:FLIGHT:"
 
-id8_i.devices.mono.Mono:
+id8_common.devices.mono.Mono:
 - name: mono_8id
   prefix: "8idaSoft:"
 
-id8_i.devices.ur5_robot.UR5_Pipette:
-- name: robotic_pipette
-  prefix: "8idiur5:UR5:"
+# id8_common.devices.ur5_robot.UR5_Pipette:
+# - name: robotic_pipette
+#   prefix: "8idiur5:UR5:"
 
-id8_i.devices.qnw_vac_device.QnwDevice:
+id8_common.devices.qnw_vac_device.QnwDevice:
 - name: qnw_vac1
   prefix: "8idiSoft:QNWvac_1:"
   readback_pv: null
@@ -260,7 +250,7 @@ id8_i.devices.qnw_vac_device.QnwDevice:
   prefix: "8idiSoft:QNWvac_3:"
   readback_pv: null
 
-id8_i.devices.tetramm_picoammeter.MyTetrAMM:
+id8_common.devices.tetramm_picoammeter.MyTetrAMM:
 - name: tetramm1
   prefix: "8idTetra:QUAD1:"
   port_name: "QUAD1"
@@ -274,11 +264,11 @@ id8_i.devices.tetramm_picoammeter.MyTetrAMM:
   prefix: "8idTetra:QUAD4:"
   port_name: "QUAD4"
 
-id8_i.devices.sydor_tp4u.SydorTP4U:
+id8_common.devices.sydor_tp4u.SydorTP4U:
 - name: xbpm1
   prefix: "8ideSoft:T4U_BPM:"
 
-id8_i.devices.idt_mono.IDTMono:
+id8_common.devices.idt_mono.IDTMono:
 - name: idt_mono
   prefix: "8idaSoft:MONO:"
   labels: ["mono", "baseline"]
@@ -292,11 +282,53 @@ id8_i.devices.idt_mono.IDTMono:
   pitch_piezo: "LJT703:Ao2"
   roll_piezo: "LJT703:Ao3"
 
-apstools.devices.aps_undulator.Revolver_Undulator:
-- name: undulator_upstream
-  prefix: "S08ID:USID:"
-- name: undulator_downstream
-  prefix: "S08ID:DSID:"
+# apstools.devices.aps_undulator.Revolver_Undulator:
+# - name: undulator_upstream
+#   prefix: "S08ID:USID:"
+# - name: undulator_downstream
+#   prefix: "S08ID:DSID:"
+
+id8_common.devices.aerotech_stages.AerotechSampleStage:
+- name: sample
+  prefix: "8idiAerotech:"
+  labels: ["sample", "stage"]
+
+id8_common.devices.aerotech_stages.AerotechDetectorStage:
+- name: detector
+  prefix: "8idiAerotech:"
+  labels: ["detector", "stage"]
+id8_common.devices.aerotech_stages.AerotechRheometerStage:
+- name: rheometer
+  prefix: "8idiAerotech:"
+  labels: ["rheometer", "stage"]
+
+id8_common.devices.flight_tube.FlightTubeDetector:
+- name: "det_motors"
+  prefix: "8idiSoft:FLIGHT:"
+id8_common.devices.flight_tube.FlightTubeBeamStop:
+- name: "bs_motors"
+  prefix: "8idiSoft:FLIGHT:"
+
+# id8_common.devices.meascomp_usb_ctr.MeasCompCTR:
+#   - name: daq1
+#     prefix: "8idDAQ1:"
+
+# id8_common.devices.meascomp_usb_ctr.MeasCompCtrMcs:
+#   - name: mcs
+#     prefix: "8idDAQ1:"
+
+# id8_common.devices.jj_transfocators.JJtransfocator2x:
+# - name: crl8id
+#   prefix: ""
+#   labels: ["transfocators", "baseline"]
+#   pitch1_motor: "8iddSoft:TRANS:m4"
+#   yaw1_motor: "8iddSoft:TRANS:m3"
+#   x1_motor: "8iddSoft:TRANS:m2"
+#   y1_motor: "8iddSoft:TRANS:m1"
+#   pitch2_motor: "8iddSoft:TRANS:m28"
+#   yaw2_motor: "8iddSoft:TRANS:m27"
+#   x2_motor: "8iddSoft:TRANS:m26"
+#   y2_motor: "8iddSoft:TRANS:m25"
 
 ############################### THESE ARE EXAMPLES OF OTHER DEVICES THAT YOU CAN USE
 # ophyd.Signal:

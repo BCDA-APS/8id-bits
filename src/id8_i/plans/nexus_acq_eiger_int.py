@@ -2,10 +2,10 @@
 Simple, modular Bluesky plans for users.
 """
 
+from datetime import datetime
+
 from apsbits.core.instrument_init import oregistry
 from bluesky import plan_stubs as bps
-from bluesky import plans as bp
-from datetime import datetime
 
 from ..utils.dm_util import dm_run_job
 from ..utils.dm_util import dm_setup
@@ -13,9 +13,7 @@ from ..utils.nexus_utils import create_nexus_format_metadata
 from .sample_info_unpack import gen_folder_prefix
 from .sample_info_unpack import mesh_grid_move
 from .shutter_logic import blockbeam
-from .shutter_logic import post_align
 from .shutter_logic import showbeam
-from .shutter_logic import shutteroff
 
 eiger4M = oregistry["eiger4M"]
 pv_registers = oregistry["pv_registers"]
@@ -45,24 +43,21 @@ def setup_eiger_int_series(acq_time, num_frames, file_header, file_name):
     yield from bps.mv(eiger4M.hdf1.file_name, file_name)
     yield from bps.mv(eiger4M.hdf1.file_path, file_path)
     yield from bps.mv(eiger4M.cam.num_images, num_frames)
-    yield from bps.mv(
-        eiger4M.cam.num_triggers, 1
-    )  # Need to put num_trigger to 1 for internal mode
+    yield from bps.mv(eiger4M.cam.num_triggers, 1)  # Need to put num_trigger to 1 for internal mode
     yield from bps.mv(eiger4M.hdf1.num_capture, num_frames)
 
     yield from bps.mv(pv_registers.file_name, file_name)
-    yield from bps.mv(
-        pv_registers.metadata_full_path, f"{file_path}/{file_name}_metadata.hdf"
-    )
+    yield from bps.mv(pv_registers.metadata_full_path, f"{file_path}/{file_name}_metadata.hdf")
+
 
 ############# Homebrew acquisition plan #############
 def eiger_acquire():
-
+    """Homebrew plan to acquire data with Eiger detector in internal mode."""
     yield from showbeam()
     yield from bps.sleep(0.1)
     yield from bps.mv(eiger4M.hdf1.capture, 1)
     yield from bps.mv(eiger4M.cam.acquire, 1)
-        
+
     while True:
         det_status = eiger4M.cam.acquire.get()
         if det_status == 1:
@@ -79,8 +74,10 @@ def eiger_acquire():
             break
         else:
             yield from bps.sleep(0.1)
-            count=+1
+            count = +1
         eiger4M.hdf1.capture.put(0)
+
+
 ############# Homebrew acquisition plan ends #############
 
 
@@ -121,7 +118,7 @@ def eiger_acq_int_series(
         time_now = _.strftime("%Y-%m-%d %H:%M:%S")
         print(f"\n{time_now}, Starting measurement {file_name}")
         yield from eiger_acquire()
-        _= datetime.now()
+        _ = datetime.now()
         time_now = _.strftime("%Y-%m-%d %H:%M:%S")
         print(f"{time_now}, Complete measurement {file_name}")
 

@@ -35,19 +35,23 @@ Device uses PyDevice for focal size calculation and lens configuration control
     y2_motor:
       The motor record PV controlling the real vertical motor on CRL1, ex: "100id:m27"
 
-        For two CRL system with Translation (JJtransfocator2xZ), there's yet another motor:
+        For two CRL system with Translation (JJtransfocator2xZ),
+        there's yet another motor:
 
         z2_motor:
-      The motor record PV controlling the real translation motor on CRL2, ex: "100id:m28"
+      The motor record PV controlling the real translation motor on CRL2,
+      ex: "100id:m28"
 
 """
 
 import logging
+
 from ophyd import Component as Cpt
-from ophyd import FormattedComponent as FCpt
 from ophyd import Device
-from ophyd import EpicsSignal, EpicsSignalRO
 from ophyd import EpicsMotor
+from ophyd import EpicsSignal
+from ophyd import EpicsSignalRO
+from ophyd import FormattedComponent as FCpt
 from ophyd import PVPositioner
 
 logger = logging.getLogger(__name__)
@@ -75,15 +79,17 @@ class focal_size(PVPositioner):
 
 
 class JJtransfocator(Device):
+    """
+    Ophyd device for JJ X-ray transfocator system
+    """
+
     focalPower = FCpt(fpower_index, "{prefix}")
     focalSize = FCpt(focal_size, "{prefix}")
 
     q = Cpt(EpicsSignalRO, "q", kind="hinted")
     dq = Cpt(EpicsSignalRO, "dq", kind="hinted")
     sam_position_readback = Cpt(EpicsSignalRO, "samplePosition_RBV", kind="hinted")
-    sam_position_offset_readback = Cpt(
-        EpicsSignalRO, "samplePositionOffset_RBV", kind="hinted"
-    )
+    sam_position_offset_readback = Cpt(EpicsSignalRO, "samplePositionOffset_RBV", kind="hinted")
 
     energy_keV_local = Cpt(EpicsSignal, "EnergyLocal", kind="config")
     energy_keV_mono = Cpt(EpicsSignalRO, "EnergyBeamline", kind="config")
@@ -109,6 +115,9 @@ class JJtransfocator1x(JJtransfocator):
         *args,
         **kwargs,
     ):
+        """
+        Initialize the JJtransfocator1x device
+        """
         self._pitch1_motor = pitch1_motor
         self._yaw1_motor = yaw1_motor
         self._x1_motor = x1_motor
@@ -146,6 +155,9 @@ class JJtransfocator2x(JJtransfocator1x):
         *args,
         **kwargs,
     ):
+        """
+        Initialize the JJtransfocator2x device
+        """
         self._pitch2_motor = pitch2_motor
         self._yaw2_motor = yaw2_motor
         self._x2_motor = x2_motor
@@ -168,6 +180,10 @@ class JJtransfocator2x(JJtransfocator1x):
 
 
 class JJtransfocator1xZ(JJtransfocator1x):
+    """
+    JJ transfocator with one CRL and translation for CRL
+    """
+
     def __init__(
         self,
         prefix: str,
@@ -175,6 +191,9 @@ class JJtransfocator1xZ(JJtransfocator1x):
         *args,
         **kwargs,
     ):
+        """
+        Initialize the JJtransfocator1xZ device
+        """
         self._z1_motor = z1_motor
 
         super().__init__(prefix, *args, **kwargs)
@@ -183,6 +202,10 @@ class JJtransfocator1xZ(JJtransfocator1x):
 
 
 class JJtransfocator2xZ(JJtransfocator2x):
+    """
+    JJ transfocator with two CRL and translation for second CRL
+    """
+
     def __init__(
         self,
         prefix: str,
@@ -190,6 +213,9 @@ class JJtransfocator2xZ(JJtransfocator2x):
         *args,
         **kwargs,
     ):
+        """
+        Initialize the JJtransfocator2xZ device
+        """
         self._z2_motor = z2_motor
 
         super().__init__(prefix, *args, **kwargs)

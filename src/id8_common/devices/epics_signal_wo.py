@@ -12,7 +12,6 @@ Create a "write-only" EpicsSignal subclass that restores the simpler
 method of EpicsSignalBase.set().
 """
 
-from ophyd import Component
 from ophyd import EpicsSignal
 from ophyd.signal import DEFAULT_WRITE_TIMEOUT
 from ophyd.status import Status
@@ -38,4 +37,3 @@ class EpicsSignalWO(EpicsSignal):
         st.set_finished()  # <== changed
         st.wait()  # <== added
         return st
-

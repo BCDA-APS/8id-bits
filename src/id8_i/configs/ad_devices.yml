@@ -72,7 +72,7 @@ apstools.devices.area_detector_factory.ad_creator:
   - process1: { class: id8_common.devices.area_detector.ID8_ProcessPlugin }
   - pva: { class: id8_common.devices.area_detector.ID8_PvaPlugin }
   - roi1: { class: id8_common.devices.area_detector.ID8_ROIPlugin }
-  - stats1: 
+  - stats1:
       class: id8_common.devices.area_detector.ID8_StatsPlugin
       kind: hinted
   - transform1: { class: id8_common.devices.area_detector.ID8_TransformPlugin }
@@ -99,7 +99,7 @@ apstools.devices.area_detector_factory.ad_creator:
 #   - pva: { class: id8_common.devices.area_detector.ID8_PvaPlugin }
 #   - roi1: { class: id8_common.devices.area_detector.ID8_ROIPlugin }
 #   - roi2: { class: id8_common.devices.area_detector.ID8_ROIPlugin }
-#   - stats1: 
+#   - stats1:
 #       class: id8_common.devices.area_detector.ID8_StatsPlugin
 #       kind: hinted
 #   - transform1: { class: id8_common.devices.area_detector.ID8_TransformPlugin }
@@ -125,34 +125,34 @@ apstools.devices.area_detector_factory.ad_creator:
   - process1: { class: id8_common.devices.area_detector.ID8_ProcessPlugin }
   - pva: { class: id8_common.devices.area_detector.ID8_PvaPlugin }
   - roi1: { class: id8_common.devices.area_detector.ID8_ROIPlugin }
-  - stats1: 
+  - stats1:
       class: id8_common.devices.area_detector.ID8_StatsPlugin
       kind: hinted
   - transform1: { class: id8_common.devices.area_detector.ID8_TransformPlugin }
 
-# - name: rigaku3M
-#   prefix: "8idRigaku3m:"
-#   # IOC host: rigakusi3m (10.54.116.29)
-#   labels: [ "area_detector", "detectors" ]
-#   plugins:
-#   - badpix1 # apstools 1.7.3+, no extra customization needed
-#   - cam:
-#       class: id8_common.devices.area_detector.Rigaku3MCam
-#   - codec1:
-#       # needed by PVA and HDF
-#       class: id8_common.devices.area_detector.ID8_CodecPlugin
-#   - image: { class: id8_common.devices.area_detector.ID8_ImagePlugin }
-#   - hdf1:
-#       class: id8_common.devices.area_detector.ID8_EpicsFileNameHDF5Plugin
-#       read_path_template: /gdata/dm/8ID/8IDI/2025-2/
-#       write_path_template: /gdata/dm/8ID/8IDI/2025-2/
-#       kind: normal
-#   - overlay1: { class: id8_common.devices.area_detector.ID8_OverlayPlugin }
-#   - process1: { class: id8_common.devices.area_detector.ID8_ProcessPlugin }
-#   - pva: { class: id8_common.devices.area_detector.ID8_PvaPlugin }
-#   - roi1: { class: id8_common.devices.area_detector.ID8_ROIPlugin }
-#   - stats1: { class: id8_common.devices.area_detector.ID8_StatsPlugin }
-#   - transform1: { class: id8_common.devices.area_detector.ID8_TransformPlugin }
+- name: rigaku3M
+  prefix: "8idRigaku3m:"
+  # IOC host: rigakusi3m (10.54.116.29)
+  labels: [ "area_detector", "detectors" ]
+  plugins:
+  - badpix1 # apstools 1.7.3+, no extra customization needed
+  - cam:
+      class: id8_common.devices.area_detector.Rigaku3MCam
+  - codec1:
+      # needed by PVA and HDF
+      class: id8_common.devices.area_detector.ID8_CodecPlugin
+  - image: { class: id8_common.devices.area_detector.ID8_ImagePlugin }
+  - hdf1:
+      class: id8_common.devices.area_detector.ID8_EpicsFileNameHDF5Plugin
+      read_path_template: /gdata/dm/8ID/8IDI/2025-2/
+      write_path_template: /gdata/dm/8ID/8IDI/2025-2/
+      kind: normal
+  - overlay1: { class: id8_common.devices.area_detector.ID8_OverlayPlugin }
+  - process1: { class: id8_common.devices.area_detector.ID8_ProcessPlugin }
+  - pva: { class: id8_common.devices.area_detector.ID8_PvaPlugin }
+  - roi1: { class: id8_common.devices.area_detector.ID8_ROIPlugin }
+  - stats1: { class: id8_common.devices.area_detector.ID8_StatsPlugin }
+  - transform1: { class: id8_common.devices.area_detector.ID8_TransformPlugin }
 
 
 # - name: lambda750k
