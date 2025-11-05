@@ -107,7 +107,7 @@ else:
     # if host_on_aps_subnet():
     #     make_devices(clear=False, file="devices_aps_only.yml", device_manager=instrument)
     #     make_devices(clear=False, file="ad_devices.yml", device_manager=instrument)
-        # yield from ad_initial_setup()
+    # yield from ad_initial_setup()
 
 # Setup baseline stream with connect=False is default
 # Devices with the label 'baseline' will be added to the baseline stream.
@@ -134,10 +134,5 @@ else:
 
 # from .plans.nexus_acq_rigaku_zdt import setup_rigaku_ZDT_series, rigaku_acq_ZDT_series, rigaku_zdt_acquire
 
-from .plans.sample_info_unpack import select_sample
-from .plans.select_detector import select_detector
-from .plans.select_sample_env import select_sample_env
-from .plans.scan_8idi import att, x_lup, y_lup, rheo_set_x_lup, rheo_x_lup, rheo_y_lup
-# from .plans.master_plan import run_measurement_info
 
-from .plans.spec_8IDE import submit_Nexus_DM
+# from .plans.master_plan import run_measurement_info

@@ -1,15 +1,18 @@
+""" "Master plan to run measurements based on measurement_info.json file."""
+
 import json
 import re
 
 from id8_i.plans.nexus_acq_eiger_ext import eiger_acq_ext_trig
 from id8_i.plans.nexus_acq_eiger_int import eiger_acq_int_series
-
-# from id8_i.plans.nexus_acq_rigaku_zdt import rigaku_acq_ZDT_series
-# from id8_i.plans.nexus_acq_tempus import tempus_acq_int_series
+from id8_i.plans.nexus_acq_rigaku_zdt import rigaku_acq_ZDT_series
+from id8_i.plans.nexus_acq_tempus import tempus_acq_int_series
 from id8_i.plans.sample_info_unpack import select_sample
 
 
 def run_measurement_info(file_name="measurement_info.json"):
+    """Run measurement based on measurement_info.json file."""
+
     file_path = "/home/beams10/8IDIUSER/bluesky/src/user_plans/"
 
     try:
@@ -96,9 +99,10 @@ def run_measurement_info(file_name="measurement_info.json"):
                     else:
                         print("Detector name must be eiger4M, rigaku3M, or tempus")
 
-    except KeyboardInterrupt:
-        raise RuntimeError("\n Bluesky plan stopped by user (Ctrl+C).")
+    except KeyboardInterrupt as err:
+        raise RuntimeError("\n Bluesky plan stopped by user (Ctrl+C).") from err
     except Exception as e:
         print(f"Error occurred during measurement: {e}")
+        raise Exception from e
     finally:
         pass

@@ -173,7 +173,6 @@ def create_runtime_metadata_dict(
         "/entry/instrument/detector_1/y_pixel_size": pv_registers.det_pixel_size.get(),
         "/entry/instrument/beam_stop/x_position": flight_path_8idi.ds_x.position,
         "/entry/instrument/beam_stop/y_position": flight_path_8idi.ds_y.position,
-
         "/entry/instrument/wb_slit/vertical_gap": wb_slit.vgap.position,
         "/entry/instrument/wb_slit/vertical_center": wb_slit.vcen.position,
         "/entry/instrument/wb_slit/horizontal_gap": wb_slit.hgap.position,

@@ -1,3 +1,5 @@
+"""Plan to test PV."""
+
 from apsbits.core.instrument_init import oregistry
 from bluesky import plan_stubs as bps
 
@@ -8,6 +10,7 @@ pv_registers = oregistry["pv_registers"]
 
 
 def break_pv():
+    """Break PV."""
     ii = 0
     while True:
         yield from showbeam()

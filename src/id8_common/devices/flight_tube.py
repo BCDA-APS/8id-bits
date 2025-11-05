@@ -1,6 +1,6 @@
-# """
-# SAXS Flight Tube
-# """
+"""
+Flight Tube
+"""
 
 from ophyd import Component
 from ophyd import Device

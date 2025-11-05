@@ -33,6 +33,8 @@ def dm_setup() -> tuple:
 
 
 def dm_run_job(workflowProcApi: WorkflowProcApi, dmuser: str):
+    """Submit a job to the Data Management system."""
+
     analysis_machine = pv_registers.analysis_machine.get()
     det_name = pv_registers.det_name.get()
 

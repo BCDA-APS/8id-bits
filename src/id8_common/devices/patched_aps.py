@@ -33,6 +33,7 @@ class PatchedApsCycleDM(ApsCycleDM):
     _cycle_name = "2025-3"  # TODO: apstools needs update
 
     def get(self):
+        """Return the current APS cycle name."""
         return self._cycle_name
 
 

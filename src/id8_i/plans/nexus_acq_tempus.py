@@ -49,6 +49,7 @@ def setup_tempus_int_series(file_name):
 
 ############# Homebrew acquisition plan #############
 def tempus_acquire(file_name):
+    """Acquire data using the Tempus detector in internal series mode."""
     cycle_name = pv_registers.cycle_name.get()
     exp_name = pv_registers.experiment_name.get()
     mount_point = "/home/8-id-i/"
@@ -106,6 +107,7 @@ def tempus_acq_int_series(
     wait_time=0,
     sample_move=False,
 ):
+    """Bluesky plan to acquire multiple internal series with the Tempus detector."""
     # try:home/beams4
     yield from post_align()
     yield from shutteroff()

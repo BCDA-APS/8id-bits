@@ -56,6 +56,8 @@ def setup_rigaku_ZDT_series(acq_time, num_frames, file_name):
 
 ############# Homebrew acquisition plan #############
 def rigaku_zdt_acquire():
+    """Run the Rigaku ZDT acquisition sequence."""
+
     yield from showbeam()
     yield from bps.sleep(0.1)
     yield from bps.mv(rigaku3M.cam.acquire, 1)
