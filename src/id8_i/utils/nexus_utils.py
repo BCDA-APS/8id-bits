@@ -25,9 +25,12 @@ filter_8ide = oregistry["filter_8ide"]
 lakeshore1 = oregistry["lakeshore1"]
 flight_path_8idi = oregistry["flight_path_8idi"]
 mono_8id = oregistry["mono_8id"]
-qnw_env1 = oregistry["qnw_env1"]
-qnw_env2 = oregistry["qnw_env2"]
-qnw_env3 = oregistry["qnw_env3"]
+# qnw_env1 = oregistry["qnw_env1"]
+# qnw_env2 = oregistry["qnw_env2"]
+# qnw_env3 = oregistry["qnw_env3"]
+# qnw_vac1 = oregistry["qnw_vac1"]
+qnw_vac2 = oregistry["qnw_vac2"]
+qnw_vac3 = oregistry["qnw_vac3"]
 tetramm1 = oregistry["tetramm1"]
 pv_registers = oregistry["pv_registers"]
 # undulator_upstream = oregistry["undulator_upstream"]
@@ -225,13 +228,19 @@ def create_runtime_metadata_dict(
         "/entry/sample/huber_y": huber.sample_y.position,
         "/entry/sample/huber_z": huber.sample_z.position,
         "/entry/sample/huber_x": huber.sample_x.position,
-        "/entry/sample/qnw_lakeshore": lakeshore1.readback_ch3.get(),
-        "/entry/sample/qnw1_temperature": qnw_env1.readback.get(),  # Air QNW
-        "/entry/sample/qnw1_temperature_set": qnw_env1.setpoint.get(),
-        "/entry/sample/qnw2_temperature": qnw_env2.readback.get(),
-        "/entry/sample/qnw2_temperature_set": qnw_env2.setpoint.get(),
-        "/entry/sample/qnw3_temperature": qnw_env3.readback.get(),
-        "/entry/sample/qnw3_temperature_set": qnw_env3.setpoint.get(),
+        # "/entry/sample/qnw1_temperature": qnw_vac1.readback.get(), 
+        # "/entry/sample/qnw1_temperature_set": qnw_vac1.setpoint.get(),
+        "/entry/sample/qnw2_temperature": qnw_vac2.readback.get(),
+        "/entry/sample/qnw2_temperature_set": qnw_vac2.setpoint.get(),
+        "/entry/sample/qnw3_temperature": qnw_vac3.readback.get(),
+        "/entry/sample/qnw3_temperature_set": qnw_vac3.setpoint.get(),
+        # "/entry/sample/qnw_lakeshore": lakeshore1.readback_ch3.get(),
+        # "/entry/sample/qnw1_temperature": qnw_env1.readback.get(),  
+        # "/entry/sample/qnw1_temperature_set": qnw_env1.setpoint.get(),
+        # "/entry/sample/qnw2_temperature": qnw_env2.readback.get(),
+        # "/entry/sample/qnw2_temperature_set": qnw_env2.setpoint.get(),
+        # "/entry/sample/qnw3_temperature": qnw_env3.readback.get(),
+        # "/entry/sample/qnw3_temperature_set": qnw_env3.setpoint.get(),
         "/entry/instrument/bluesky/parent_folder": (
             f"{pv_registers.mount_point.get()}/{pv_registers.cycle_name.get()}/"
             f"{pv_registers.experiment_name.get()}/data/"
