@@ -1,15 +1,18 @@
 [build-system]
-requires = [ "setuptools>=64.0", "setuptools_scm[toml]>=8.0",]
+requires = [ "setuptools>=77.0", "setuptools_scm[toml]>=8.0",]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "bits_xpcs"
+name = "id8-bits"
 version = "0.0.1"
 description = "APS 8ID Beamline Bluesky Instrument Control"
 readme = "README.md"
 requires-python = ">=3.11"
 keywords = ["bluesky", "BITS", "8ID"]
 classifiers = []
+# https://packaging.python.org/en/latest/guides/writing-pyproject-toml/#license
+license = "LicenseRef-ANL-Open-Source-License"
+license-files = ["LICEN[CS]E*"]
 dependencies = [ "apsbits"]
 
 authors = [
@@ -47,13 +50,10 @@ line-length = 120
 indent-width = 4
 target-version = "py311"
 
-[project.license]
-file = "LICENSE"
-
 [project.optional-dependencies]
 dev = [ "build", "isort", "mypy", "pre-commit", "pytest", "ruff",]
-doc = [ "babel", "ipykernel", "jinja2", "markupsafe", "myst_parser", "nbsphinx", "pydata-sphinx-theme", "pygments-ipython-console", "pygments", "sphinx-design", "sphinx-tabs", "sphinx",]
-all = [ "bits_xpcs[dev,doc]",]
+doc = [ "babel", "ipykernel", "jinja2", "markupsafe", "myst_parser", "nbsphinx", "pydata-sphinx-theme", "pygments-ipython-console", "pygments", "sphinx-design", "sphinx-tabs", "sphinx"]
+all = [ "id8-bits[dev,doc]",]
 
 [project.urls]
 Homepage = "https://BCDA-APS.github.io/BITS/"
@@ -77,16 +77,10 @@ skip-magic-trailing-comma = false
 line-ending = "auto"
 
 [tool.setuptools.package-dir]
-"id8_common" = "src/id8_common"
-"id8_i" = "src/id8_i"
-"id8_user_plans" = "src/user_plans"
-
-"aps_8id_bs_instrument" = "src/instrument"
 "" = "src"
 
 [tool.setuptools.package-data]
-"*" = ["*.txt", "*.yml"]
-
+"*" = [ "*.yml",]
 
 [tool.ruff.lint.per-file-ignores]
 "*.ipynb" = [ "F405",]
