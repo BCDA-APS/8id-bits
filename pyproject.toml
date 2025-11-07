@@ -81,8 +81,8 @@ line-ending = "auto"
 "id8_i" = "src/id8_i"
 "id8_user_plans" = "src/user_plans"
 
-# "aps_8id_bs_instrument" = "src/instrument"
-#"" = "src"
+"aps_8id_bs_instrument" = "src/instrument"
+"" = "src"
 
 [tool.setuptools.package-data]
 "*" = ["*.txt", "*.yml"]
