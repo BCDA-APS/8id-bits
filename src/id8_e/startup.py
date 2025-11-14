@@ -29,6 +29,7 @@ from apsbits.utils.helper_functions import register_bluesky_magics
 from apsbits.utils.helper_functions import running_in_queueserver
 from apsbits.utils.logging_setup import configure_logging
 
+
 # Core Functions
 from tiled.client import from_profile
 
@@ -99,6 +100,54 @@ else:
 # Experiment specific logic, device and plan loading. # Create the devices.
 make_devices(clear=False, file="devices.yml", device_manager=instrument)
 
+# LivePlot for area-detector ROI sum 
+try:
+    from bluesky.callbacks import LivePlot
+    from apsbits.core.instrument_init import oregistry
+    from .utils.helper_functions import running_in_queueserver  # if available in your package
+
+    if not running_in_queueserver():
+        # Choose the detector name here; 'eiger4M', 'rigaku3M', etc.
+        det_name = "eiger4M"  # change to the detector you want to plot
+        det = oregistry.get(det_name)
+        if det is None:
+            print(f"LivePlot: detector {det_name!r} not in oregistry; skipping LivePlot.")
+        else:
+            plugin = getattr(det, "roi1", None) or getattr(det, "stats1", None) or getattr(det, "image", None)
+            if plugin is None:
+                print(f"LivePlot: detector {det_name} has no roi1/stats1/image plugin attribute; available: {det.component_names}")
+            else:
+                # Find a numeric field to plot. Common choices: 'sum', 'total', 'value', 'mean_value'
+                candidates = ["sum", "total", "value", "mean_value", "total_value"]
+                field = None
+                for c in candidates:
+                    if c in plugin.component_names or hasattr(plugin, c):
+                        field = c
+                        break
+                # fallback: look for any readable attribute that returns a scalar
+                if field is None:
+                    for name in plugin.component_names:
+                        try:
+                            val = getattr(plugin, name).get()
+                            # scalar numeric test
+                            if isinstance(val, (int, float)):
+                                field = name
+                                break
+                        except Exception:
+                            continue
+
+                if field is None:
+                    print(f"LivePlot: couldn't find numeric field in {det_name}.roi1; plugin components: {plugin.component_names}")
+                else:
+                    # Use 'seq_num' as x axis; for position-based scans you can use the motor signal instead
+                    lp = LivePlot(field, plugin, x="seq_num")
+                    RE.subscribe(lp)
+                    print(f"LivePlot subscribed: {det_name}.roi1.{field} vs seq_num")
+    else:
+        print("Running in queueserver mode; skipping LivePlot setup.")
+except Exception as e:
+    print("LivePlot setup failed:", e)
+
 if host_on_aps_subnet():
     make_devices(clear=False, file="devices_aps_only.yml", device_manager=instrument)
 
@@ -106,6 +155,7 @@ if host_on_aps_subnet():
 # Devices with the label 'baseline' will be added to the baseline stream.
 setup_baseline_stream(sd, oregistry, connect=False)
 
-# from .plans.sim_plans import sim_count_plan  # noqa: E402, F401
-# from .plans.sim_plans import sim_print_plan  # noqa: E402, F401
-# from .plans.sim_plans import sim_rel_scan_plan  # noqa: E402, F401
+from .plans.sim_plan import sim_count_plan  # noqa: E402, F401
+from .plans.sim_plan import sim_print_plan  # noqa: E402, F401
+from .plans.sim_plan import sim_rel_scan_plan  # noqa: E402, F401
+

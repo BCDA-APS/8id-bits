@@ -24,16 +24,16 @@ from bluesky import plan_stubs as bps
 from .sample_info_unpack import sort_qnw
 
 ## For air QNW
-# qnw_env1 = oregistry["qnw_env1"]
-# qnw_env2 = oregistry["qnw_env2"]
-# qnw_env3 = oregistry["qnw_env3"]
+qnw_env1 = oregistry["qnw_env1"]
+qnw_env2 = oregistry["qnw_env2"]
+qnw_env3 = oregistry["qnw_env3"]
 
 # For vacuum QNW
 # qnw_env1 = oregistry["qnw_vac1"]
-qnw_env2 = oregistry["qnw_vac2"]
-qnw_env3 = oregistry["qnw_vac3"]
+# qnw_env2 = oregistry["qnw_vac2"]
+# qnw_env3 = oregistry["qnw_vac3"]
 
-qnw_controllers = [qnw_env2, qnw_env2, qnw_env3]
+qnw_controllers = [qnw_env1, qnw_env2, qnw_env3]
 
 def set_qnw(qnw_number: int, setpoint: float, wait: bool = True, ramprate: float = 0.3):
     """

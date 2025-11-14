@@ -21,7 +21,7 @@ rigaku3M = oregistry["rigaku3M"]
 pv_registers = oregistry["pv_registers"]
 
 
-def setup_rigaku_ZDT_series(acq_time, num_frames, file_name):
+def setup_rigaku_ZDT_series(acq_time, num_frames, file_header, file_name):
     """Setup the Rigaku3M for ZDT series acquisition.
 
     Configure the detector's cam module for internal acquisition mode and
@@ -35,7 +35,7 @@ def setup_rigaku_ZDT_series(acq_time, num_frames, file_name):
     cycle_name = pv_registers.cycle_name.get()
     exp_name = pv_registers.experiment_name.get()
 
-    file_path = f"{exp_name}/data/{file_name}"
+    file_path = f"{exp_name}/data/{file_header}/{file_name}"
     acq_period = acq_time
 
     yield from bps.mv(rigaku3M.cam.acquire_time, acq_time)
@@ -43,9 +43,10 @@ def setup_rigaku_ZDT_series(acq_time, num_frames, file_name):
     yield from bps.mv(rigaku3M.cam.fast_file_name, f"{file_name}.bin")
     yield from bps.mv(rigaku3M.cam.fast_file_path, file_path)
     yield from bps.mv(rigaku3M.cam.num_images, num_frames)
+    yield from bps.mv(rigaku3M.cam.output_control, 'Sparsified')
+    yield from bps.mv(rigaku3M.cam.output_resolution, '2 Bit')
 
     yield from bps.mv(pv_registers.file_name, file_name)
-    yield from bps.mv(pv_registers.metadata_full_path, f"/gdata/dm/8ID/8IDI/{cycle_name}/{file_path}")
     yield from bps.mv(
         pv_registers.metadata_full_path,
         f"/gdata/dm/8ID/8IDI/{cycle_name}/{file_path}/{file_name}_metadata.hdf",
@@ -110,9 +111,10 @@ def rigaku_acq_ZDT_series(
         if sample_move:
             yield from mesh_grid_move()
 
+        file_header = f"{folder_prefix}_f{num_frames:06d}"
         file_name = f"{folder_prefix}_f{num_frames:06d}_r{ii+1:05d}"
         print(file_name)
-        yield from setup_rigaku_ZDT_series(acq_time, num_frames, file_name)
+        yield from setup_rigaku_ZDT_series(acq_time, num_frames, file_header, file_name)
 
         print(f"\nStarting Measurement {file_name}")
         yield from rigaku_zdt_acquire()

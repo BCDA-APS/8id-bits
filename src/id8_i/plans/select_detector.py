@@ -53,7 +53,7 @@ def select_detector(det: Literal["eiger4M", "rigaku3M"]):
             pass
         else:
             yield from bps.mv(pv_registers.workflow_name, "xpcs8-boost-corr")
-            yield from bps.mv(pv_registers.qmap_file, "rigaku3m_Sq360_Dq36_log_primary.hdf")
+            yield from bps.mv(pv_registers.qmap_file, "rigaku3m_qmap_default.hdf")
 
             det_x_position = pv_registers.rigaku_det_x0.get()
             det_y_position = pv_registers.rigaku_det_y0.get()

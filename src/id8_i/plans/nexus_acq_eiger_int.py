@@ -34,19 +34,22 @@ def setup_eiger_int_series(acq_time, num_frames, file_header, file_name):
     mount_point = pv_registers.mount_point.get()
 
     file_path = f"{mount_point}{cycle_name}/{exp_name}/data/{file_header}/{file_name}"
-
-    acq_period = acq_time
-    yield from bps.mv(eiger4M.cam.trigger_mode, "Internal Series")  # 0
     yield from bps.mv(eiger4M.cam.acquire_time, acq_time)
     yield from bps.mv(eiger4M.cam.acquire_period, acq_period)
     yield from bps.mv(eiger4M.hdf1.file_name, file_name)
     yield from bps.mv(eiger4M.hdf1.file_path, file_path)
-    yield from bps.mv(eiger4M.cam.num_images, num_frames)
-    yield from bps.mv(eiger4M.cam.num_triggers, 1)  # Need to put num_trigger to 1 for internal mode
     yield from bps.mv(eiger4M.hdf1.num_capture, num_frames)
-
     yield from bps.mv(pv_registers.file_name, file_name)
     yield from bps.mv(pv_registers.metadata_full_path, f"{file_path}/{file_name}_metadata.hdf")
+
+    # Unique for Internal Mode
+    yield from bps.mv(eiger4M.cam.num_images, num_frames)
+    acq_period = acq_time
+    yield from bps.mv(eiger4M.cam.trigger_mode, "Internal Series")  # 0
+    yield from bps.mv(eiger4M.cam.num_triggers, 1)  # Need to put num_trigger to 1 for internal mode
+
+
+    
 
 
 ############# Homebrew acquisition plan #############

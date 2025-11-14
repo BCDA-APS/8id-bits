@@ -101,27 +101,27 @@ id8_common.devices.labjack_support.LabJack:
 - name: "labjack"
   prefix: "8idiSoft:LJT705:"
 
-# id8_common.devices.qnw_device.QnwDevice:
-# - name: qnw_env1
-#   prefix: "8idiSoft:QNWenv_1:"
-#   readback_pv: null
-# - name: qnw_env2
-#   prefix: "8idiSoft:QNWenv_2:"
-#   readback_pv: null
-# - name: qnw_env3
-#   prefix: "8idiSoft:QNWenv_3:"
-#   readback_pv: null
+id8_common.devices.qnw_device.QnwDevice:
+- name: qnw_env1
+  prefix: "8idiSoft:QNWenv_1:"
+  readback_pv: null
+- name: qnw_env2
+  prefix: "8idiSoft:QNWenv_2:"
+  readback_pv: null
+- name: qnw_env3
+  prefix: "8idiSoft:QNWenv_3:"
+  readback_pv: null
 
-id8_common.devices.qnw_vac_device.QnwDevice:
+# id8_common.devices.qnw_vac_device.QnwDevice:
 # - name: qnw_vac1
 #   prefix: "8idiSoft:QNWvac_1:"
 #   readback_pv: null
-- name: qnw_vac2
-  prefix: "8idiSoft:QNWvac_2:"
-  readback_pv: null
-- name: qnw_vac3
-  prefix: "8idiSoft:QNWvac_3:"
-  readback_pv: null
+# - name: qnw_vac2
+#   prefix: "8idiSoft:QNWvac_2:"
+#   readback_pv: null
+# - name: qnw_vac3
+#   prefix: "8idiSoft:QNWvac_3:"
+#   readback_pv: null
 
 id8_i.devices.registers_device.EpicsPvStorageRegisters:
 - name: pv_registers
