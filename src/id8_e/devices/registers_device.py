@@ -63,6 +63,8 @@ class EpicsPvStorageRegisters(Device):
     sample25_pos = Component(EpicsSignal, "Reg28")
     sample26_pos = Component(EpicsSignal, "Reg29")
     sample27_pos = Component(EpicsSignal, "Reg30")
+    sample28_pos = Component(EpicsSignal, "Reg30")
+
 
     sample31_pos = Component(EpicsSignal, "Reg51")
     sample32_pos = Component(EpicsSignal, "Reg52")

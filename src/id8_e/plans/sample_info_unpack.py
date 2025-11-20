@@ -153,11 +153,14 @@ def mesh_grid_move():
 
     if sam_dict["qnw_index"] == 0:
         yield from bps.mv(rheometer.x, x_pos, rheometer.y, y_pos)
+    
     elif sam_dict["qnw_index"] >= 1 and sam_dict["qnw_index"] <= 27:
         yield from bps.mv(sample.x, x_pos, sample.y, y_pos)
-    # elif sam_dict["qnw_index"] >= 31 and sam_dict["qnw_index"] <= 38:
-    #     yield from bps.mv(rheometer.x, x_pos, rheometer.y, y_pos)
+
     elif sam_dict["qnw_index"] == 31:
+        yield from bps.mv(huber.sample_x, x_pos, huber.sample_y, y_pos)
+    
+    elif sam_dict["qnw_index"] == 28:
         yield from bps.mv(huber.sample_x, x_pos, huber.sample_y, y_pos)
     else:
         pass

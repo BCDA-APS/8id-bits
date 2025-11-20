@@ -18,6 +18,15 @@ from apsbits.core.instrument_init import oregistry
 from .default_metadata import default_metadata
 from .xpcs_schema import xpcs_schema
 
+def _get_ring_current():
+   
+    aps_list = list(oregistry.findall(name="aps"))
+    machine = aps_list[0]
+
+    return float(machine.current.get())
+    
+
+
 detector = oregistry["detector"]
 rheometer = oregistry["rheometer"]
 sample = oregistry["sample"]
@@ -25,17 +34,17 @@ filter_8ide = oregistry["filter_8ide"]
 lakeshore1 = oregistry["lakeshore1"]
 flight_path_8idi = oregistry["flight_path_8idi"]
 mono_8id = oregistry["mono_8id"]
-qnw_env1 = oregistry["qnw_env1"]
-qnw_env2 = oregistry["qnw_env2"]
-qnw_env3 = oregistry["qnw_env3"]
+# qnw_env1 = oregistry["qnw_env1"]
+# qnw_env2 = oregistry["qnw_env2"]
+# qnw_env3 = oregistry["qnw_env3"]
 tetramm1 = oregistry["tetramm1"]
 pv_registers = oregistry["pv_registers"]
-undulator_upstream = oregistry["undulator_upstream"]
-undulator_downstream = oregistry["undulator_downstream"]
+# undulator_upstream = oregistry["undulator_upstream"]
+# undulator_downstream = oregistry["undulator_downstream"]
 huber = oregistry["huber"]
 sl4 = oregistry["sl4"]
 xbpm1 = oregistry["xbpm1"]
-aps = oregistry["aps"]
+# aps = oregistry["aps"]
 
 default_units_keymap = {
     "NX_COUNT": "one",  # Used for frame_sum, frame_average, delay_difference
@@ -186,13 +195,12 @@ def create_runtime_metadata_dict(
             + xbpm1.current3.mean_value.get() / xbpm1.current_scales.ch3.get()
             + xbpm1.current4.mean_value.get() / xbpm1.current_scales.ch4.get()
         ),
-        "/entry/instrument/incident_beam/ring_current": aps.current.get(),
-        "/entry/instrument/undulator_1/gap": undulator_upstream.gap.position,
-        "/entry/instrument/undulator_1/energy": undulator_upstream.energy.position,
-        "/entry/instrument/undulator_1/taper": undulator_upstream.gap_taper.position,
-        "/entry/instrument/undulator_2/gap": undulator_downstream.gap.position,
-        "/entry/instrument/undulator_2/energy": undulator_downstream.energy.position,
-        "/entry/instrument/undulator_2/taper": undulator_downstream.gap_taper.position,
+        "/entry/instrument/incident_beam/ring_current": _get_ring_current(),        
+        # "/entry/instrument/undulator_1/energy": undulator_upstream.energy.position,
+        # "/entry/instrument/undulator_1/taper": undulator_upstream.gap_taper.position,
+        # "/entry/instrument/undulator_2/gap": undulator_downstream.gap.position,
+        # "/entry/instrument/undulator_2/energy": undulator_downstream.energy.position,
+        # "/entry/instrument/undulator_2/taper": undulator_downstream.gap_taper.position,
         "/entry/instrument/attenuator_1/attenuator_transmission": (filter_8ide.transmission.readback.get()),
         "/entry/instrument/attenuator_1/attenuator_index": (filter_8ide.index.readback.get()),
         "/entry/instrument/attenuator_2/attenuator_transmission": (0),
@@ -213,12 +221,12 @@ def create_runtime_metadata_dict(
         "/entry/sample/huber_z": huber.sample_z.position,
         "/entry/sample/huber_x": huber.sample_x.position,
         "/entry/sample/qnw_lakeshore": lakeshore1.readback_ch3.get(),
-        "/entry/sample/qnw1_temperature": qnw_env1.readback.get(),  # Air QNW
-        "/entry/sample/qnw1_temperature_set": qnw_env1.setpoint.get(),
-        "/entry/sample/qnw2_temperature": qnw_env2.readback.get(),
-        "/entry/sample/qnw2_temperature_set": qnw_env2.setpoint.get(),
-        "/entry/sample/qnw3_temperature": qnw_env3.readback.get(),
-        "/entry/sample/qnw3_temperature_set": qnw_env3.setpoint.get(),
+        # "/entry/sample/qnw1_temperature": qnw_env1.readback.get(),  # Air QNW
+        # "/entry/sample/qnw1_temperature_set": qnw_env1.setpoint.get(),
+        # "/entry/sample/qnw2_temperature": qnw_env2.readback.get(),
+        # "/entry/sample/qnw2_temperature_set": qnw_env2.setpoint.get(),
+        # "/entry/sample/qnw3_temperature": qnw_env3.readback.get(),
+        # "/entry/sample/qnw3_temperature_set": qnw_env3.setpoint.get(),
         "/entry/instrument/bluesky/parent_folder": (
             f"{pv_registers.mount_point.get()}/{pv_registers.cycle_name.get()}/"
             f"{pv_registers.experiment_name.get()}/data/"

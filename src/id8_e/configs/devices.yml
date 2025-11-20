@@ -1,10 +1,336 @@
-# Guarneri-style device YAML configuration
+# Guarneri-style device YAML configuration for 8ide
 
 apsbits.utils.sim_creator.predefined_device:
-- { creator: ophyd.sim.motor, name: sim_motor }
-- { creator: ophyd.sim.noisy_det, name: sim_det }
+  - creator: ophyd.sim.motor
+    name: sim_motor
+  - creator: ophyd.sim.noisy_det
+    name: sim_det
 
-## THIS ARE EXAMPLES OF OTHER DEVICES THAT YOU CAN USE
+ophyd.EpicsMotor:
+  - name: fl2
+    prefix: 8ideSoft:CR8-E2:m7
+    labels: ["motor"]
+  - name: fl3
+    prefix: 8idiSoft:CR8-I2:m7
+    labels: ["motor"]
+  - name: flag4
+    prefix: 8iddSoft:CR8-D1:m1
+    labels: ["motor"]
+
+# id8_common.devices.xy_motors.XY_Motors:
+# - name: damm
+#   prefix: "8iddSoft:CR8-D1:"
+#   x_motor: m2
+#   y_motor: m3
+# # - name: win_i
+# #   prefix: 8ide:US
+# #   x_motor: m13
+# #   y_motor: m12
+# - name: win_e
+#   prefix: 8ide
+#   x_motor: m23
+#   y_motor: m24
+# # - name: cam_stage_8idi
+# #   prefix: "8ide:"
+# #   x_motor: m13
+# #   y_motor: m12
+
+id8_common.devices.fast_shutter.FastShutter:
+- name: shutter_8ide
+  prefix: "8ideSoft:fastshutter:"
+
+id8_common.devices.avs_filters.AVSfilters:
+- name: filter_8ide
+  prefix: "8idPyFilter:FL2:"
+# - name: filter_8idi
+#   prefix: "8idPyFilter:FL3:"
+
+id8_common.devices.granite.granite_device:
+- name: granite
+  prefix: "8idiSoft:CR8-I2:US"
+  x_motor: m8
+
+id8_common.devices.granite_enable.Valve_Enable:
+- name: granite_8idi_valve
+  prefix: "8idiSoft:CR8-I2:"
+
+id8_common.devices.hhl_mirrors.HHL_Mirror1:
+- name: mr1
+  prefix: "8idaSoft:"
+id8_common.devices.hhl_mirrors.HHL_Mirror2:
+- name: mr2
+  prefix: "8idaSoft:"
+
+id8_common.devices.hhl_slits.HHLSlits:
+- name: wb_slit
+  prefix: "8idaSoft:CR8-A1:US"
+  secondary_prefix: "8idaSoft:SL-1:US"
+  pitch_motor: "m3"
+  yaw_motor: "m4"
+  horizontal_motor: "m1"
+  diagonal_motor: "m2"
+  hgap_motor: "hSize"
+  hcen_motor: "hCenter"
+  vgap_motor: "vSize"
+  vcen_motor: "vCenter"
+
+- name: mono_slit
+  prefix: "8idaSoft:CR8-A1:US"
+  secondary_prefix: "8idaSoft:SL-2:US"
+  pitch_motor: "m11"
+  yaw_motor: "m12"
+  horizontal_motor: "m9"
+  diagonal_motor: "m10"
+  hgap_motor: "hSize"
+  hcen_motor: "hCenter"
+  vgap_motor: "vSize"
+  vcen_motor: "vCenter"
+
+id8_common.devices.hv_motors.HV_Motors:
+- name: bd6a
+  prefix: "8ideSoft:CR8-E2:"
+  pv_h: m9
+  pv_v: m10
+- name: bd5a
+  prefix: "8iddSoft:CR8-D1:"
+  pv_h: m9
+  pv_v: m10
+
+
+id8_common.devices.labjack_support.LabJack:
+- name: "labjack"
+  prefix: "8idiSoft:LJT705:"
+
+id8_common.devices.qnw_device.QnwDevice:
+- name: qnw_env1
+  prefix: "8idiSoft:QNWenv_1:"
+  readback_pv: null
+- name: qnw_env2
+  prefix: "8idiSoft:QNWenv_2:"
+  readback_pv: null
+- name: qnw_env3
+  prefix: "8idiSoft:QNWenv_3:"
+  readback_pv: null
+
+id8_common.devices.qnw_vac_device.QnwDevice:
+- name: qnw_vac1
+  prefix: "8idiSoft:QNWvac_1:"
+  readback_pv: null
+- name: qnw_vac2
+  prefix: "8idiSoft:QNWvac_2:"
+  readback_pv: null
+- name: qnw_vac3
+  prefix: "8idiSoft:QNWvac_3:"
+  readback_pv: null
+
+id8_i.devices.registers_device.EpicsPvStorageRegisters:
+- name: pv_registers
+  prefix: "8idiSoft:"
+
+id8_common.devices.slit_base.SlitBase:
+- name: sl4_base
+  prefix: "8iddSoft:CR8-D1:US"
+  h_motor: m15
+  v_motor: m16
+- name: sl5_base
+  prefix: 8ideSoft:CR8-E2:US
+  h_motor: m5
+  v_motor: m6
+- name: sl7_base
+  prefix: "8ideSoft:CR8-E2:US"
+  h_motor: m15
+  v_motor: m16
+- name: sl8_base
+  prefix: "8idiSoft:CR8-I2:US"
+  h_motor: m5
+  v_motor: m6
+- name: sl9_base
+  prefix: "8idiSoft:CR8-I2:US"
+  h_motor: m15
+  v_motor: m16
+
+id8_common.devices.slit.ID8Optics2Slit2D_HV:
+- name: sl4
+  prefix: "8iddSoft:Slit1"
+- name: sl5
+  prefix: "8ideSoft:Slit1"
+- name: sl7
+  prefix: "8ideSoft:Slit2"
+- name: sl8
+  prefix: "8idiSoft:Slit1"
+- name: sl9
+  prefix: "8idiSoft:Slit2"
+
+id8_common.devices.individual_slits.IndividualSlits:
+- name: sl9_motors
+  prefix: "8idiSoft:CR8-I2:US"
+  h_positive_motor: m12
+  h_negative_motor: m11
+  v_positive_motor: m10
+  v_negative_motor: m9
+
+- name: sl5_motors
+  prefix: "8ideSoft:CR8-E2:US"
+  h_positive_motor: m4
+  h_negative_motor: m3
+  v_positive_motor: m2
+  v_negative_motor: m1
+
+id8_common.devices.softglue.SoftGlue:  # This has to be reviewed
+- name: "softglue_8idi"
+  prefix: ""
+  pv_acq_period: "8idi:SGControl1.A"
+  pv_acq_time: "8idi:SGControl1.C"
+  pv_num_triggers: "8idi:SGControl1.J"
+  pv_start_pulses: "8idi:softGlueA:MUX2-1_IN0_Signal"
+  pv_stop_pulses: "8idi:softGlueA:OR-1_IN2_Signal"
+
+id8_common.devices.transfocator.Transfocator:
+- name: rl1
+  prefix: "8iddSoft:TRANS:"
+  pv_y: "m1"
+  pv_x: "m2"
+  pv_yaw: "m3"
+  pv_pitch: "m4"
+  pv_lens1: "m5"
+  pv_lens2: "m6"
+  pv_lens3: "m7"
+  pv_lens4: "m8"
+  pv_lens5: "m9"
+  pv_lens6: "m10"
+  pv_lens7: "m11"
+  pv_lens8: "m12"
+  pv_lens9: "m13"
+  pv_lens10: "m14"
+
+- name: rl2
+  prefix: "8iddSoft:TRANS:"
+  pv_y: "m25"
+  pv_x: "m26"
+  pv_yaw: "m27"
+  pv_pitch: "m28"
+  pv_lens1: "m15"
+  pv_lens2: "m16"
+  pv_lens3: "m17"
+  pv_lens4: "m18"
+  pv_lens5: "m19"
+  pv_lens6: "m20"
+  pv_lens7: "m21"
+  pv_lens8: "m22"
+  pv_lens9: "m23"
+  pv_lens10: "m24"
+
+# id8_common.devices.func_gen.Function_Generator:
+# - name: dpKeysight
+#   prefix: "dpKeysight:KEY1:"
+
+id8_common.devices.huber_diffractometer.Huber_Diffractometer:
+- name: huber
+  prefix: "8ideSoft:CR8-E1:"
+
+id8_common.devices.lakeshore.Lakeshore:
+- name: lakeshore1
+  prefix: "8ideSoft:LS336:1:"
+- name: lakeshore2
+  prefix: "8ideSoft:LS336:2:"
+
+id8_common.devices.rheometer_wait_signal.Rheometer_Wait:
+- name: mcr_wait_signal
+  prefix: "8idMZ4:SG:"
+
+id8_common.devices.flight_path.FlightPath:
+- name: flight_path_8idi
+  prefix: "8idiSoft:FLIGHT:"
+
+id8_common.devices.mono.Mono:
+- name: mono_8id
+  prefix: "8idaSoft:"
+
+# id8_common.devices.ur5_robot.UR5_Pipette:
+# - name: robotic_pipette
+#   prefix: "8idiur5:UR5:"
+
+id8_common.devices.tetramm_picoammeter.MyTetrAMM:
+- name: tetramm1
+  prefix: "8idTetra:QUAD1:"
+  port_name: "QUAD1"
+- name: tetramm2
+  prefix: "8idTetra:QUAD2:"
+  port_name: "QUAD2"
+- name: tetramm3
+  prefix: "8idTetra:QUAD3:"
+  port_name: "QUAD3"
+- name: tetramm4
+  prefix: "8idTetra:QUAD4:"
+  port_name: "QUAD4"
+
+id8_common.devices.sydor_tp4u.SydorTP4U:
+- name: xbpm1
+  prefix: "8ideSoft:T4U_BPM:"
+
+id8_common.devices.idt_mono.IDTMono:
+- name: idt_mono
+  prefix: "8idaSoft:MONO:"
+  labels: ["mono", "baseline"]
+  bragg_motor: "MONO:m1"
+  xtal_gap_motor: "MONO:m2"
+  flag_motor: "MONO:m3"
+  coarse_pitch_motor: "MONO:m5"
+  coarse_roll_motor: "MONO:m6"
+  x_pitch_motor: "MONO:m7"
+  y_pitch_motor: "MONO:m8"
+  pitch_piezo: "LJT703:Ao2"
+  roll_piezo: "LJT703:Ao3"
+
+# apstools.devices.aps_undulator.Revolver_Undulator:
+# - name: undulator_upstream
+#   prefix: "S08ID:USID:"
+# - name: undulator_downstream
+#   prefix: "S08ID:DSID:"
+
+id8_common.devices.aerotech_stages.AerotechSampleStage:
+- name: sample
+  prefix: "8idiAerotech:"
+  labels: ["sample", "stage"]
+
+id8_common.devices.aerotech_stages.AerotechDetectorStage:
+- name: detector
+  prefix: "8idiAerotech:"
+  labels: ["detector", "stage"]
+id8_common.devices.aerotech_stages.AerotechRheometerStage:
+- name: rheometer
+  prefix: "8idiAerotech:"
+  labels: ["rheometer", "stage"]
+
+id8_common.devices.flight_tube.FlightTubeDetector:
+- name: "det_motors"
+  prefix: "8idiSoft:FLIGHT:"
+id8_common.devices.flight_tube.FlightTubeBeamStop:
+- name: "bs_motors"
+  prefix: "8idiSoft:FLIGHT:"
+
+# id8_common.devices.meascomp_usb_ctr.MeasCompCTR:
+#   - name: daq1
+#     prefix: "8idDAQ1:"
+
+# id8_common.devices.meascomp_usb_ctr.MeasCompCtrMcs:
+#   - name: mcs
+#     prefix: "8idDAQ1:"
+
+# id8_common.devices.jj_transfocators.JJtransfocator2x:
+# - name: crl8id
+#   prefix: ""
+#   labels: ["transfocators", "baseline"]
+#   pitch1_motor: "8iddSoft:TRANS:m4"
+#   yaw1_motor: "8iddSoft:TRANS:m3"
+#   x1_motor: "8iddSoft:TRANS:m2"
+#   y1_motor: "8iddSoft:TRANS:m1"
+#   pitch2_motor: "8iddSoft:TRANS:m28"
+#   yaw2_motor: "8iddSoft:TRANS:m27"
+#   x2_motor: "8iddSoft:TRANS:m26"
+#   y2_motor: "8iddSoft:TRANS:m25"
+
+############################### THESE ARE EXAMPLES OF OTHER DEVICES THAT YOU CAN USE
 # ophyd.Signal:
 # - name: test
 #   value: 50.7
@@ -14,7 +340,7 @@ apsbits.utils.sim_creator.predefined_device:
 # apstools.synApps.Optics2Slit2D_HV:
 # - name: slit1
 #   prefix: ioc:Slit1
-#   labels: ["slits", "baseline"]
+#   labels: ["slits"]
 
 # hkl.SimulatedE4CV:
 # - name: sim4c
@@ -47,3 +373,22 @@ apsbits.utils.sim_creator.predefined_device:
 #           write_path_template: "/path/to/ioc/tmp/"
 #       - roi1
 #       - stats1
+
+
+hklpy2.creator:
+- name: sim_psic
+  geometry: E6C
+  reals: [ "mu", "eta", "chi", "phi", "nu", "delta" ]  # psic names
+  labels: [ "diffractometer" ]
+- name: psic
+  geometry: E6C
+  prefix: "8ideSoft:CR8-E1:"  
+  labels: [ "diffractometer" ]
+  reals:
+    mu: m6
+    eta: m7
+    chi: m8
+    phi: m9
+    nu: m4
+    delta: m5
+ 

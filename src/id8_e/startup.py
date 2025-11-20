@@ -99,6 +99,8 @@ else:
 
 # Experiment specific logic, device and plan loading. # Create the devices.
 make_devices(clear=False, file="devices.yml", device_manager=instrument)
+make_devices(clear=False, file="devices_aps_only.yml", device_manager=instrument)
+make_devices(clear=False, file="ad_devices.yml", device_manager=instrument)
 
 # LivePlot for area-detector ROI sum 
 try:
@@ -159,3 +161,10 @@ from .plans.sim_plan import sim_count_plan  # noqa: E402, F401
 from .plans.sim_plan import sim_print_plan  # noqa: E402, F401
 from .plans.sim_plan import sim_rel_scan_plan  # noqa: E402, F401
 
+from .plans.master_plan import run_measurement_info
+from .plans.select_sample_env import select_sample_env
+from .plans.sample_info_unpack import *
+from .plans.select_detector import *
+from .plans.scan_8idi import *
+from .plans.qnw_plans import *
+from .plans.nexus_acq_eiger_int import *

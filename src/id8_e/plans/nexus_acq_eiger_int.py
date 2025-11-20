@@ -29,13 +29,17 @@ def setup_eiger_int_series(acq_time, num_frames, file_header, file_name):
         num_frames: Number of frames to acquire
         file_name: Base name for the output files
     """
-    cycle_name = pv_registers.cycle_name.get()
-    exp_name = pv_registers.experiment_name.get()
-    mount_point = pv_registers.mount_point.get()
+    # cycle_name = pv_registers.cycle_name.get()
+    # exp_name = pv_registers.experiment_name.get()
+    # mount_point = pv_registers.mount_point.get()
 
-    file_path = f"{mount_point}{cycle_name}/{exp_name}/data/{file_header}/{file_name}"
+    # file_path = f"{mount_point}{cycle_name}/{exp_name}/data/{file_header}/{file_name}"
+    base_test_dir = "/home/beams/8IDIUSER/sdmarks/waxpcs_test_dir/eiger"
+    file_path = f"{base_test_dir}/{file_header}/{file_name}"
+
 
     acq_period = acq_time
+
     yield from bps.mv(eiger4M.cam.trigger_mode, "Internal Series")  # 0
     yield from bps.mv(eiger4M.cam.acquire_time, acq_time)
     yield from bps.mv(eiger4M.cam.acquire_period, acq_period)
@@ -63,7 +67,7 @@ def eiger_acquire():
             yield from bps.sleep(0.1)
         if det_status == 0:
             break
-    yield from blockbeam()
+    # yield from blockbeam()
 
     frame_num_set = eiger4M.hdf1.queue_size.get()
     count = 0
@@ -85,7 +89,7 @@ def eiger_acq_int_series(
     num_frames=10,
     num_rep=3,
     wait_time=0,
-    sample_move=False,
+    sample_move=True,
 ):
     """Run internal series acquisition with the Eiger detector.
 
@@ -98,8 +102,8 @@ def eiger_acq_int_series(
         sample_move: Whether to move sample between repetitions
     """
     # try:
-    yield from post_align()
-    yield from shutteroff()
+    # yield from post_align()
+    # yield from shutteroff()
     workflowProcApi, dmuser = dm_setup()
     folder_prefix = gen_folder_prefix()
 
