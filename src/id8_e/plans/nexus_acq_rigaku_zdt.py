@@ -35,9 +35,9 @@ def setup_rigaku_ZDT_series(acq_time, num_frames, file_name):
     cycle_name = pv_registers.cycle_name.get()
     exp_name = pv_registers.experiment_name.get()
 
-    # file_path = f"{exp_name}/data/{file_name}"
+    file_path = f"{exp_name}/data/{file_name}"
 
-    file_path = "/home/beams/8IDIUSER/sdmarks/waxpcs_test_dir" # for testing only
+    # file_path = "/home/beams/8IDIUSER/sdmarks/waxpcs_test_dir" # for testing only
     
     acq_period = acq_time
 

@@ -6,6 +6,8 @@ import os
 
 from apsbits.core.instrument_init import oregistry
 from bluesky import plan_stubs as bps
+import subprocess
+import shlex
 
 from ..utils.dm_util import dm_run_job
 from ..utils.dm_util import dm_setup
@@ -34,8 +36,15 @@ def setup_rigaku_ZDT_series(acq_time, num_frames, file_header, file_name):
     """
     cycle_name = pv_registers.cycle_name.get()
     exp_name = pv_registers.experiment_name.get()
+    use_subfolder = pv_registers.use_subfolder.get()
 
-    file_path = f"{exp_name}/data/{file_header}/{file_name}"
+    if use_subfolder == 'Yes':
+        file_path = f"{exp_name}/data/{file_header}/{file_name}"
+    elif use_subfolder == 'No':   
+        file_path = f"{exp_name}/data/{file_name}"
+    else: 
+        print("Sub folder options can only be either Yes or No")
+
     acq_period = acq_time
 
     yield from bps.mv(rigaku3M.cam.acquire_time, acq_time)
@@ -53,6 +62,13 @@ def setup_rigaku_ZDT_series(acq_time, num_frames, file_header, file_name):
     )
 
     os.makedirs(f"/gdata/dm/8ID/8IDI/{cycle_name}/{file_path}", mode=0o770, exist_ok=True)
+
+    full_path = f"/gdata/dm/8ID/8IDI/{cycle_name}/{file_path}"
+    remote_cmd = f"mkdir -m 770 -p {shlex.quote(full_path)}"
+    subprocess.run(
+    ["ssh", "s8ididm", remote_cmd],
+    check=True,
+    )
 
 
 ############# Homebrew acquisition plan #############
@@ -86,7 +102,7 @@ def rigaku_zdt_acquire():
 def rigaku_acq_ZDT_series(
     acq_time=2e-5,
     num_frames=100000,
-    num_rep=2,
+    num_reps=2,
     wait_time=0,
     process=True,
     sample_move=False,
@@ -96,7 +112,7 @@ def rigaku_acq_ZDT_series(
     Args:
         acq_time: Acquisition time per frame in seconds
         num_frame: Number of frames to acquire
-        num_rep: Number of repetitions
+        num_reps: Number of repetitions
         wait_time: Time to wait between repetitions
         process: Whether to process data after acquisition
         sample_move: Whether to move sample between repetitions
@@ -107,7 +123,7 @@ def rigaku_acq_ZDT_series(
     workflowProcApi, dmuser = dm_setup()
     folder_prefix = gen_folder_prefix()
 
-    for ii in range(num_rep):
+    for ii in range(num_reps):
         if sample_move:
             yield from mesh_grid_move()
 

@@ -103,7 +103,7 @@ def tempus_acquire(file_name):
 
 def tempus_acq_int_series(
     num_frames=2000000,
-    num_rep=3,
+    num_reps=3,
     wait_time=0,
     sample_move=False,
 ):
@@ -114,7 +114,7 @@ def tempus_acq_int_series(
     # workflowProcApi, dmuser = dm_setup()
     folder_prefix = gen_folder_prefix()
 
-    for ii in range(num_rep):
+    for ii in range(num_reps):
         yield from bps.sleep(wait_time)
 
         if sample_move:

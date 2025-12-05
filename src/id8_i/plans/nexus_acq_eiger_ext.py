@@ -19,11 +19,16 @@ from .shutter_logic import blockbeam
 from .shutter_logic import post_align
 from .shutter_logic import showbeam
 from .shutter_logic import shutteron
+from .qnw_plans import find_qnw_index
 
 eiger4M = oregistry["eiger4M"]
 softglue_8idi = oregistry["softglue_8idi"]
 pv_registers = oregistry["pv_registers"]
 
+qnw_env1 = oregistry["qnw_env1"]
+qnw_env2 = oregistry["qnw_env2"]
+qnw_env3 = oregistry["qnw_env3"]
+qnw_controllers = [qnw_env1, qnw_env2, qnw_env3]
 
 def setup_eiger_ext_trig(
     acq_time: float,
@@ -43,8 +48,15 @@ def setup_eiger_ext_trig(
     cycle_name = pv_registers.cycle_name.get()
     exp_name = pv_registers.experiment_name.get()
     mount_point = pv_registers.mount_point.get()
-
-    file_path = f"{mount_point}{cycle_name}/{exp_name}/data/{file_header}/{file_name}"
+    use_subfolder = pv_registers.use_subfolder.get()
+    
+    if use_subfolder == "Yes":
+        file_path = f"{mount_point}{cycle_name}/{exp_name}/data/{file_header}/{file_name}" 
+    elif use_subfolder == "No":   
+        file_path = f"{mount_point}{cycle_name}/{exp_name}/data/{file_name}" 
+    else: 
+        print("Sub folder options can only be either Yes or No")
+    
     yield from bps.mv(eiger4M.cam.acquire_time, acq_time)
     yield from bps.mv(eiger4M.cam.acquire_period, acq_period)
     yield from bps.mv(eiger4M.hdf1.file_name, file_name)
@@ -89,7 +101,6 @@ def eiger_acquire():
             count = +1
         eiger4M.hdf1.capture.put(0)
 
-
 ############# Homebrew acquisition plan ends #############
 
 
@@ -97,7 +108,7 @@ def eiger_acq_ext_trig(
     acq_time: float = 1,
     acq_period: float = 2,
     num_frames: int = 10,
-    num_rep: int = 2,
+    num_reps: int = 2,
     wait_time: float = 0,
     sample_move: bool = True,
 ):
@@ -107,7 +118,7 @@ def eiger_acq_ext_trig(
         acq_time: Acquisition time per frame in seconds
         acq_period: Time between frames in seconds
         num_frames: Number of frames to acquire
-        num_rep: Number of repetitions
+        num_reps: Number of repetitions
         wait_time: Time to wait between repetitions
         sample_move: Whether to move sample between repetitions
         process: Whether to process data after acquisition
@@ -120,14 +131,16 @@ def eiger_acq_ext_trig(
     workflowProcApi, dmuser = dm_setup()
     folder_prefix = gen_folder_prefix()
 
-    for ii in range(num_rep):
+    for ii in range(num_reps):
         yield from bps.sleep(wait_time)
 
         if sample_move:
             yield from mesh_grid_move()
 
-        file_header = f"{folder_prefix}_f{num_frames:06d}"
-        file_name = f"{folder_prefix}_f{num_frames:06d}_r{ii+1:05d}"
+        qnw_temp=int(qnw_controllers[find_qnw_index()-1].setpoint.get())
+        file_header = f"{folder_prefix}_t{qnw_temp:03d}C_f{num_frames:06d}"
+        file_name = f"{folder_prefix}_t{qnw_temp:03d}C_f{num_frames:06d}_r{ii+1:05d}"
+
         yield from setup_eiger_ext_trig(acq_time, acq_period, num_frames, file_header, file_name)
 
         _ = datetime.now()

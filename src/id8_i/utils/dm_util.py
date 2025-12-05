@@ -47,6 +47,7 @@ def dm_run_job(workflowProcApi: WorkflowProcApi, dmuser: str):
         analysis_machine = pv_registers.analysis_machine.get()
         analysis_type = pv_registers.analysis_type.get()
         file_name = pv_registers.file_name.get()
+        use_subfolder = pv_registers.use_subfolder.get()
 
         if det_name == "rigaku3M":
             filepath = f"{file_name}.bin.000"
@@ -67,6 +68,13 @@ def dm_run_job(workflowProcApi: WorkflowProcApi, dmuser: str):
             gpuID = -2
             machine_name = analysis_machine
 
+        if use_subfolder == "Yes":
+            use_subfolder_flag = "True"
+        elif use_subfolder == "No":   
+            use_subfolder_flag = "False"
+        else: 
+            print("Sub folder options can only be either Yes or No")
+
         argsDict = {
             "experimentName": exp_name,
             "filePath": filepath,
@@ -77,6 +85,7 @@ def dm_run_job(workflowProcApi: WorkflowProcApi, dmuser: str):
             "type": analysis_type,
             "saveG2": "False",
             "download": "False",
+            "useSubdir": use_subfolder_flag
             # "downloadDirectory": f"/home/8-id-i/{cycle_name}/{exp_name}/analysis/{analysis_type}/"
         }
 

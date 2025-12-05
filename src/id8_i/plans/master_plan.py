@@ -29,6 +29,7 @@ def run_measurement_info(file_name="measurement_info.json"):
             acq_time_list = block_value.get("acq_time_list")
             acq_period_list = block_value.get("acq_period_list")
             num_frames_list = block_value.get("num_frames_list")
+            wait_time_list = block_value.get("wait_time_list")
             num_reps_list = block_value.get("num_reps_list")
             # fly_scan_yes_list = block_value.get("fly_scan_yes_list")
             sample_move_yes_list = block_value.get("sample_move_yes_list")
@@ -50,6 +51,7 @@ def run_measurement_info(file_name="measurement_info.json"):
                     acq_period = acq_period_list[ii][jj]
                     num_frames = num_frames_list[ii][jj]
                     num_reps = num_reps_list[ii][jj]
+                    wait_time = wait_time_list[ii][jj]
                     # fly_scan_yes = fly_scan_yes_list[ii][jj]
                     sample_move_yes = sample_move_yes_list[ii][jj]
 
@@ -65,8 +67,8 @@ def run_measurement_info(file_name="measurement_info.json"):
                             yield from eiger_acq_int_series(
                                 acq_time=acq_time,
                                 num_frames=num_frames,
-                                num_rep=num_reps,
-                                wait_time=0,
+                                num_reps=num_reps,
+                                wait_time=wait_time,
                                 sample_move=sample_move_yes,
                             )
                         elif acq_time != acq_period and acq_period >= 0.1:
@@ -75,8 +77,8 @@ def run_measurement_info(file_name="measurement_info.json"):
                                 acq_time=acq_time,
                                 acq_period=acq_period,
                                 num_frames=num_frames,
-                                num_rep=num_reps,
-                                wait_time=0,
+                                num_reps=num_reps,
+                                wait_time=wait_time,
                                 sample_move=sample_move_yes,
                             )
                         else:
@@ -85,17 +87,17 @@ def run_measurement_info(file_name="measurement_info.json"):
                     elif det_name == "rigaku3M":
                         yield from rigaku_acq_ZDT_series(
                             acq_time=2e-5,
-                            num_frames=100000,
-                            num_rep=num_reps,
-                            wait_time=0,
+                            num_frames=num_frames,
+                            num_reps=num_reps,
+                            wait_time=wait_time,
                             process=True,
                             sample_move=sample_move_yes,
                         )
                     elif det_name == "tempus":
                         yield from tempus_acq_int_series(
                             num_frames=2000000,
-                            num_rep=num_reps,
-                            wait_time=0,
+                            num_reps=num_reps,
+                            wait_time=wait_time,
                             sample_move=sample_move_yes,
                         )
                     else:
@@ -108,3 +110,10 @@ def run_measurement_info(file_name="measurement_info.json"):
         raise Exception from e
     finally:
         pass
+
+
+def run_round_robin(num_loops=1, filename="measurement_info.json"):
+
+    for _ in range(num_loops):
+        yield from run_measurement_info(filename)
+

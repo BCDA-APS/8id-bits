@@ -29,6 +29,7 @@ class EpicsPvStorageRegisters(Device):
 
     analysis_machine = Component(EpicsSignal, "StrReg11", string=True)
     workflow_name = Component(EpicsSignal, "StrReg12", string=True)
+    use_subfolder = Component(EpicsSignal, "StrReg13", string=True)
 
     start_bluesky = Component(EpicsSignal, "StrReg20", string=True)
 

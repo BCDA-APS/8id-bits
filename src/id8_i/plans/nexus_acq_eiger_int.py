@@ -13,10 +13,15 @@ from ..utils.nexus_utils import create_nexus_format_metadata
 from .sample_info_unpack import gen_folder_prefix
 from .sample_info_unpack import mesh_grid_move
 from .shutter_logic import *
+from .qnw_plans import find_qnw_index
 
 eiger4M = oregistry["eiger4M"]
 pv_registers = oregistry["pv_registers"]
 
+qnw_env1 = oregistry["qnw_env1"]
+qnw_env2 = oregistry["qnw_env2"]
+qnw_env3 = oregistry["qnw_env3"]
+qnw_controllers = [qnw_env1, qnw_env2, qnw_env3]
 
 def setup_eiger_int_series(acq_time, num_frames, file_header, file_name):
     """Setup the Eiger4M for internal series acquisition.
@@ -32,8 +37,15 @@ def setup_eiger_int_series(acq_time, num_frames, file_header, file_name):
     cycle_name = pv_registers.cycle_name.get()
     exp_name = pv_registers.experiment_name.get()
     mount_point = pv_registers.mount_point.get()
+    use_subfolder = pv_registers.use_subfolder.get()
 
-    file_path = f"{mount_point}{cycle_name}/{exp_name}/data/{file_header}/{file_name}"
+    if use_subfolder == "Yes":
+        file_path = f"{mount_point}{cycle_name}/{exp_name}/data/{file_header}/{file_name}" 
+    elif use_subfolder == "No":   
+        file_path = f"{mount_point}{cycle_name}/{exp_name}/data/{file_name}"
+    else: 
+        print("Sub folder options can only be either Yes or No") 
+
     yield from bps.mv(eiger4M.cam.acquire_time, acq_time)
     # moved up by damian 2025-11-15, acq_period was defined after calling it:
     acq_period = acq_time
@@ -87,7 +99,7 @@ def eiger_acquire():
 def eiger_acq_int_series(
     acq_time=1,
     num_frames=10,
-    num_rep=3,
+    num_reps=3,
     wait_time=0,
     sample_move=False,
 ):
@@ -96,7 +108,7 @@ def eiger_acq_int_series(
     Args:
         acq_time: Acquisition time per frame in seconds
         num_frames: Number of frames to acquire
-        num_rep: Number of repetitions
+        num_reps: Number of repetitions
         wait_time: Time to wait between repetitions
         process: Whether to process data after acquisition
         sample_move: Whether to move sample between repetitions
@@ -107,14 +119,16 @@ def eiger_acq_int_series(
     workflowProcApi, dmuser = dm_setup()
     folder_prefix = gen_folder_prefix()
 
-    for ii in range(num_rep):
+    for ii in range(num_reps):
         yield from bps.sleep(wait_time)
 
         if sample_move:
             yield from mesh_grid_move()
 
-        file_header = f"{folder_prefix}_f{num_frames:06d}"
-        file_name = f"{folder_prefix}_f{num_frames:06d}_r{ii+1:05d}"
+        qnw_temp=int(qnw_controllers[find_qnw_index()-1].setpoint.get())
+        file_header = f"{folder_prefix}_t{qnw_temp:03d}C_f{num_frames:06d}"
+        file_name = f"{folder_prefix}_t{qnw_temp:03d}C_f{num_frames:06d}_r{ii+1:05d}"
+
         yield from setup_eiger_int_series(acq_time, num_frames, file_header, file_name)
 
         _ = datetime.now()
