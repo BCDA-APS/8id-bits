@@ -29,7 +29,6 @@ from apsbits.utils.helper_functions import register_bluesky_magics
 from apsbits.utils.helper_functions import running_in_queueserver
 from apsbits.utils.logging_setup import configure_logging
 
-
 # Core Functions
 from tiled.client import from_profile
 
@@ -161,11 +160,18 @@ from .plans.sim_plan import sim_count_plan  # noqa: E402, F401
 from .plans.sim_plan import sim_print_plan  # noqa: E402, F401
 from .plans.sim_plan import sim_rel_scan_plan  # noqa: E402, F401
 
-from .plans.master_plan import run_measurement_info
-from .plans.select_sample_env import select_sample_env
-from .plans.sample_info_unpack import *
-from .plans.select_detector import *
-from .plans.scan_8idi import *
-from .plans.qnw_plans import *
-from .plans.nexus_acq_eiger_int import *
-from .plans.nexus_acq_rigaku_zdt import *
+# from .plans.master_plan import run_measurement_info
+# from .plans.select_sample_env import select_sample_env
+# from .plans.sample_info_unpack import *
+# from .plans.select_detector import *
+# from .plans.scan_8idi import *
+# from .plans.qnw_plans import *
+# from .plans.nexus_acq_eiger_int import *
+# from .plans.nexus_acq_rigaku_zdt import *
+
+# hklpy2
+psic = oregistry["psic"]
+import hklpy2
+from hklpy2.user import *
+from hklpy2.user import set_diffractometer
+set_diffractometer(psic)

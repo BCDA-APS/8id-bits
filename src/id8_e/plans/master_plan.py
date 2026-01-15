@@ -14,6 +14,10 @@ from id8_i.plans.scan_8idi import att
 def run_measurement_info(file_name="measurement_info.json"):
     """Run measurement based on measurement_info.json file."""
 
+    if "." in file_name:
+        raise valueerror("file_name should not contain '.'")
+        return
+   
     file_path = "/home/beams10/8IDIUSER/bluesky/src/user_plans/"
 
     try:

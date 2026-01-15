@@ -42,6 +42,7 @@ def select_sample_env(env: Literal["qnw", "rheometer", "robot"]):
         "qnw": 923.0,
         "rheometer": 88,
         "robot": 62,
+        "clip": 859
     }
 
     target = choices.get(env)

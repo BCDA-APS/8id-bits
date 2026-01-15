@@ -29,7 +29,7 @@ class MyTetrAMM(TetrAMM):
     current2 = Component(StatsPlugin_V34, "Current2:")
     current3 = Component(StatsPlugin_V34, "Current3:")
     current4 = Component(StatsPlugin_V34, "Current4:")
-    image = Component(ImagePlugin_V34, "image1:")
+    # image = Component(ImagePlugin_V34, "image1:")
     sum_all = Component(StatsPlugin_V34, "SumAll:")
 
     def __init__(self, *args, port_name="TetrAMM", **kwargs):

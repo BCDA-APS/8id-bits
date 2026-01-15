@@ -14,7 +14,7 @@ def get_machine_name() -> str:
         str: Either 'adamite' or 'amazonite'
     """
     # machines = ["adamite", "califone", "amazonite"]
-    machines = ["adamite", "califone"]
+    machines = ["adamite", "califone", "califone"]
     return random.choice(machines)
 
 

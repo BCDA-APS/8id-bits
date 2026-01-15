@@ -57,44 +57,44 @@ def select_sample(env: int):
     yield from bps.mv(pv_registers.qnw_index, env)
 
 
-def sort_qnw() -> Dict[str, Union[int, float, str]]:
-    """Read and organize sample information from the configuration file.
+# def sort_qnw() -> Dict[str, Union[int, float, str]]:
+#     """Read and organize sample information from the configuration file.
 
-    This function reads the sample information JSON file and returns a dictionary
-    containing the current sample's metadata, including position, dimensions,
-    and measurement parameters.
+#     This function reads the sample information JSON file and returns a dictionary
+#     containing the current sample's metadata, including position, dimensions,
+#     and measurement parameters.
 
-    Returns:
-        Dictionary containing sample metadata with the following keys:
-        - qnw_index: Sample environment index
-        - meas_num: Measurement number
-        - sample_name: Name of the sample
-        - header: Measurement header prefix
-        - x_cen, y_cen: Center position coordinates
-        - x_radius, y_radius: Scan range in each direction
-        - x_pts, y_pts: Number of points in each direction
-        - temp_zone: Temperature zone information
-    """
-    qnw_index = int(pv_registers.qnw_index.get())
-    sample_key = f"sample_{qnw_index}"
-    with open(SAMPLE_INFO_PATH, "r") as f:
-        loaded_dict = json.load(f)
+#     Returns:
+#         Dictionary containing sample metadata with the following keys:
+#         - qnw_index: Sample environment index
+#         - meas_num: Measurement number
+#         - sample_name: Name of the sample
+#         - header: Measurement header prefix
+#         - x_cen, y_cen: Center position coordinates
+#         - x_radius, y_radius: Scan range in each direction
+#         - x_pts, y_pts: Number of points in each direction
+#         - temp_zone: Temperature zone information
+#     """
+#     qnw_index = int(pv_registers.qnw_index.get())
+#     sample_key = f"sample_{qnw_index}"
+#     with open(SAMPLE_INFO_PATH, "r") as f:
+#         loaded_dict = json.load(f)
 
-    sam_dict = {
-        "qnw_index": int(pv_registers.qnw_index.get()),
-        "meas_num": int(pv_registers.measurement_num.get()),
-        "sample_name": loaded_dict[sample_key]["sample_name"],
-        "header": loaded_dict[sample_key]["header"],
-        "x_cen": float(loaded_dict[sample_key]["x_cen"]),
-        "y_cen": float(loaded_dict[sample_key]["y_cen"]),
-        "x_radius": float(loaded_dict[sample_key]["x_radius"]),
-        "y_radius": float(loaded_dict[sample_key]["y_radius"]),
-        "x_pts": int(loaded_dict[sample_key]["x_pts"]),
-        "y_pts": int(loaded_dict[sample_key]["y_pts"]),
-        "temp_zone": loaded_dict[sample_key]["temp_zone"],
-    }
+#     sam_dict = {
+#         "qnw_index": int(pv_registers.qnw_index.get()),
+#         "meas_num": int(pv_registers.measurement_num.get()),
+#         "sample_name": loaded_dict[sample_key]["sample_name"],
+#         "header": loaded_dict[sample_key]["header"],
+#         "x_cen": float(loaded_dict[sample_key]["x_cen"]),
+#         "y_cen": float(loaded_dict[sample_key]["y_cen"]),
+#         "x_radius": float(loaded_dict[sample_key]["x_radius"]),
+#         "y_radius": float(loaded_dict[sample_key]["y_radius"]),
+#         "x_pts": int(loaded_dict[sample_key]["x_pts"]),
+#         "y_pts": int(loaded_dict[sample_key]["y_pts"]),
+#         "temp_zone": loaded_dict[sample_key]["temp_zone"],
+#     }
 
-    return sam_dict
+#     return sam_dict
 
 
 def gen_folder_prefix() -> str:

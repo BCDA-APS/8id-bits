@@ -196,12 +196,7 @@ def create_runtime_metadata_dict(
         "/entry/instrument/monochromator/wavelength": mono_8id.energy_readback.get() / 12.4,
         "/entry/instrument/incident_beam/incident_energy": mono_8id.energy_readback.get(),
         "/entry/instrument/incident_beam/incident_energy_spread": 0.0001,
-        "/entry/instrument/incident_beam/incident_beam_intensity": (
-            xbpm1.current1.mean_value.get() / xbpm1.current_scales.ch1.get()
-            + xbpm1.current2.mean_value.get() / xbpm1.current_scales.ch2.get()
-            + xbpm1.current3.mean_value.get() / xbpm1.current_scales.ch3.get()
-            + xbpm1.current4.mean_value.get() / xbpm1.current_scales.ch4.get()
-        ),
+        "/entry/instrument/incident_beam/incident_beam_intensity": tetramm1.current2.mean_value.get()*1e-9,
         # "/entry/instrument/incident_beam/ring_current": aps.current.get(),
         # "/entry/instrument/undulator_1/gap": undulator_upstream.gap.position,
         # "/entry/instrument/undulator_1/energy": undulator_upstream.energy.position,
@@ -228,7 +223,7 @@ def create_runtime_metadata_dict(
         "/entry/sample/huber_y": huber.sample_y.position,
         "/entry/sample/huber_z": huber.sample_z.position,
         "/entry/sample/huber_x": huber.sample_x.position,
-        # "/entry/sample/qnw_lakeshore": lakeshore1.readback_ch3.get(),
+        "/entry/sample/qnw_lakeshore": lakeshore1.readback_ch4.get(),
         "/entry/sample/qnw1_temperature": qnw_env1.readback.get(),  
         "/entry/sample/qnw1_temperature_set": qnw_env1.setpoint.get(),
         "/entry/sample/qnw2_temperature": qnw_env2.readback.get(),

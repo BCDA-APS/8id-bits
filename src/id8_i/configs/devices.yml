@@ -254,15 +254,15 @@ id8_common.devices.tetramm_picoammeter.MyTetrAMM:
 - name: tetramm1
   prefix: "8idTetra:QUAD1:"
   port_name: "QUAD1"
-- name: tetramm2
-  prefix: "8idTetra:QUAD2:"
-  port_name: "QUAD2"
-- name: tetramm3
-  prefix: "8idTetra:QUAD3:"
-  port_name: "QUAD3"
-- name: tetramm4
-  prefix: "8idTetra:QUAD4:"
-  port_name: "QUAD4"
+# - name: tetramm2
+#   prefix: "8idTetra:QUAD2:"
+#   port_name: "QUAD2"
+# - name: tetramm3
+#   prefix: "8idTetra:QUAD3:"
+#   port_name: "QUAD3"
+# - name: tetramm4
+#   prefix: "8idTetra:QUAD4:"
+#   port_name: "QUAD4"
 
 id8_common.devices.sydor_tp4u.SydorTP4U:
 - name: xbpm1

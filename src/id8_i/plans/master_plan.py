@@ -6,7 +6,8 @@ import re
 from id8_i.plans.nexus_acq_eiger_ext import eiger_acq_ext_trig
 from id8_i.plans.nexus_acq_eiger_int import eiger_acq_int_series
 from id8_i.plans.nexus_acq_rigaku_zdt import rigaku_acq_ZDT_series
-from id8_i.plans.nexus_acq_tempus import tempus_acq_int_series
+from id8_i.plans.nexus_acq_aeon import aeon_acq_series
+# from id8_i.plans.nexus_acq_aeon_fly import aeon_acq_series_fly
 from id8_i.plans.sample_info_unpack import select_sample
 from id8_i.plans.select_detector import select_detector
 from id8_i.plans.scan_8idi import att
@@ -21,7 +22,12 @@ def run_measurement_info(file_name="measurement_info.json"):
         with open(file_path + file_name, "r") as f:
             measurement_info = json.load(f)
 
+        # if "." in file_name:
+        #     print("file_name should not contain '.' characters.")
+        #     return
+
         for block_key, block_value in measurement_info.items():
+
             match = re.search(r"_(\d+)", block_key)
             sam_index = int(match.group(1))
             det_name = block_value.get("detector")
@@ -31,13 +37,21 @@ def run_measurement_info(file_name="measurement_info.json"):
             num_frames_list = block_value.get("num_frames_list")
             wait_time_list = block_value.get("wait_time_list")
             num_reps_list = block_value.get("num_reps_list")
-            # fly_scan_yes_list = block_value.get("fly_scan_yes_list")
             sample_move_yes_list = block_value.get("sample_move_yes_list")
+            # fly_speed_list = block_value.get("fly_speed_list")
 
             print(f"\n --- Measurement Block {block_key} ---")
 
             print(f"Sample index: {sam_index}")
             yield from select_sample(sam_index)
+            # yield from select_sample(sample_name)
+            # print(f"Sample name: {sample_name}")
+            # if "." in sample_name:
+            #     raise RuntimeError(
+            #         f"aborting: sample_name contains '.': {sample_name!r} (block {block_key})"
+            #     )
+            #     return
+
 
             print(f"Detector name: {det_name}")
             yield from select_detector(det_name)
@@ -52,7 +66,7 @@ def run_measurement_info(file_name="measurement_info.json"):
                     num_frames = num_frames_list[ii][jj]
                     num_reps = num_reps_list[ii][jj]
                     wait_time = wait_time_list[ii][jj]
-                    # fly_scan_yes = fly_scan_yes_list[ii][jj]
+                    # fly_speed = fly_speed_list[ii][jj]
                     sample_move_yes = sample_move_yes_list[ii][jj]
 
                     print(f"    Acquisition Time: {acq_time}")
@@ -93,15 +107,37 @@ def run_measurement_info(file_name="measurement_info.json"):
                             process=True,
                             sample_move=sample_move_yes,
                         )
-                    elif det_name == "tempus":
-                        yield from tempus_acq_int_series(
-                            num_frames=2000000,
+                    # elif det_name == "tempus":
+                    #     yield from tempus_acq_int_series(
+                    #         num_frames=2000000,
+                    #         num_reps=num_reps,
+                    #         wait_time=wait_time,
+                    #         sample_move=sample_move_yes,
+                    #     )
+                    elif det_name == "aeon750k":
+
+                        yield from aeon_acq_series(
                             num_reps=num_reps,
                             wait_time=wait_time,
                             sample_move=sample_move_yes,
                         )
+
+                        # if fly_speed == 0:
+                        #     yield from aeon_acq_series(
+                        #         num_reps=num_reps,
+                        #         wait_time=wait_time,
+                        #         sample_move=sample_move_yes,
+                        #     )
+                        # else:
+                        #     yield from aeon_acq_series_fly(
+                        #         num_reps=num_reps,
+                        #         wait_time=wait_time,
+                        #         fly_speed=fly_speed,
+                        #         sample_move=sample_move_yes,
+                        #     )
+
                     else:
-                        print("Detector name must be eiger4M, rigaku3M, or tempus")
+                        print("Detector name must be eiger4M, rigaku3M, or aeon750k")
 
     except KeyboardInterrupt as err:
         raise RuntimeError("\n Bluesky plan stopped by user (Ctrl+C).") from err

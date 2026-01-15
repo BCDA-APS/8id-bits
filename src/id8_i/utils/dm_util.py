@@ -53,8 +53,8 @@ def dm_run_job(workflowProcApi: WorkflowProcApi, dmuser: str):
             filepath = f"{file_name}.bin.000"
         elif det_name == "eiger4M":
             filepath = f"{file_name}.h5"
-        elif det_name == "tempus":
-            filepath = f"{file_name}.bin"
+        elif det_name == "aeon750k":
+            filepath = f"{file_name}.tpx.000"
         else:
             pass
 
@@ -75,19 +75,36 @@ def dm_run_job(workflowProcApi: WorkflowProcApi, dmuser: str):
         else: 
             print("Sub folder options can only be either Yes or No")
 
-        argsDict = {
-            "experimentName": exp_name,
-            "filePath": filepath,
-            "qmap": f"{qmap_file}",
-            "analysisMachine": machine_name,
-            "gpuID": gpuID,
-            "demand": "True",
-            "type": analysis_type,
-            "saveG2": "False",
-            "download": "False",
-            "useSubdir": use_subfolder_flag
-            # "downloadDirectory": f"/home/8-id-i/{cycle_name}/{exp_name}/analysis/{analysis_type}/"
-        }
+        if det_name == "aeon750k":
+            argsDict = {
+                "experimentName": exp_name,
+                "filePath": filepath,
+                "qmap": f"{qmap_file}",
+                "analysisMachine": machine_name,
+                "gpuID": gpuID,
+                "demand": "True",
+                "type": analysis_type,
+                "saveG2": "True",
+                "download": "False",
+                "useSubdir": use_subfolder_flag,
+                "normalizeFrame": 0,
+                "binTimeS": 460.182e-9
+            }
+        else:
+            argsDict = {
+                "experimentName": exp_name,
+                "filePath": filepath,
+                "qmap": f"{qmap_file}",
+                "analysisMachine": machine_name,
+                "gpuID": gpuID,
+                "demand": "True",
+                "type": analysis_type,
+                "saveG2": "False",
+                "download": "False",
+                "useSubdir": use_subfolder_flag,
+                "normalizeFrame": "False"
+                # "downloadDirectory": f"/home/8-id-i/{cycle_name}/{exp_name}/analysis/{analysis_type}/"
+            }
 
         job = workflowProcApi.startProcessingJob(dmuser, f"{workflow_name}", argsDict=argsDict)
         print(f"Job {job['id']} processing {file_name}")

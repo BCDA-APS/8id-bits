@@ -40,6 +40,7 @@ def select_sample(env: int):
     sample_key = f"sample_{env}"
     x_cen = loaded_dict[sample_key]["x_cen"]
     y_cen = loaded_dict[sample_key]["y_cen"]
+    sample_name = loaded_dict[sample_key]["sample_name"]
 
     print(f"Moving {sample_key} x to {x_cen} and y to {y_cen}")
 
@@ -111,6 +112,7 @@ def gen_folder_prefix() -> str:
 
     pv_registers.sample_name.put(sam_dict["sample_name"])
     sample_name = sam_dict["sample_name"]
+ 
 
     att_level = int(filter.attenuation.readback.get())
 

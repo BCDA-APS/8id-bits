@@ -378,10 +378,13 @@ id8_common.devices.flight_tube.FlightTubeBeamStop:
 hklpy2.creator:
 - name: sim_psic
   geometry: E6C
+  solver: hkl_soleil
   reals: [ "mu", "eta", "chi", "phi", "nu", "delta" ]  # psic names
   labels: [ "diffractometer" ]
+
 - name: psic
   geometry: E6C
+  solver: hkl_soleil
   prefix: "8ideSoft:CR8-E1:"  
   labels: [ "diffractometer" ]
   reals:
@@ -391,4 +394,3 @@ hklpy2.creator:
     phi: m9
     nu: m4
     delta: m5
- 
