@@ -7,8 +7,7 @@ predefined positions for different sample environments (QNW, rheometer, robot).
 
 from typing import Literal
 
-# import bluesky.plan_stubs as bps
-import time
+import bluesky.plan_stubs as bps
 from apsbits.core.instrument_init import oregistry
 
 sample = oregistry["sample"]
@@ -50,15 +49,18 @@ def select_sample_env(env: Literal["qnw", "rheometer", "robot"]):
     if target is None:
         raise KeyError(f"Unknown environment {env=!r}")
 
-    granite_8idi_valve.enable.put(1)
-    time.sleep(2.0)
+    yield from bps.mv(granite_8idi_valve.enable, 1)
+    yield from bps.sleep(2)
 
     if env == "qnw":
-        granite.x.move(choices["qnw"])
+        # yield from bps.mv(sample.x, 0.5)
+        yield from bps.mv(granite.x, choices["qnw"])
     if env == "rheometer":
-        granite.x.move(choices["rheometer"])
+        # yield from bps.mv(sample.x, 0.5)
+        yield from bps.mv(granite.x, choices["rheometer"])
     elif env == "robot":
-        granite.x.move(choices["robot"])
+        yield from bps.mv(granite.x, choices["robot"])
+        # yield from bps.mv(sample.x, 298)
 
-    granite_8idi_valve.enable.put(0)
-    time.sleep(2)
+    yield from bps.mv(granite_8idi_valve.enable, 0)
+    yield from bps.sleep(2)

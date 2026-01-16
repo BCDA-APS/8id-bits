@@ -3,9 +3,9 @@ Simple, modular Bluesky plans for users.
 """
 
 from datetime import datetime
-import time
 
 from apsbits.core.instrument_init import oregistry
+from bluesky import plan_stubs as bps
 
 from ..utils.dm_util import dm_run_job
 from ..utils.dm_util import dm_setup
@@ -46,43 +46,40 @@ def setup_eiger_int_series(acq_time, num_frames, file_header, file_name):
     else: 
         print("Sub folder options can only be either Yes or No") 
 
-    eiger4M.cam.acquire_time.put(acq_time)
+    yield from bps.mv(eiger4M.cam.acquire_time, acq_time)
     # moved up by damian 2025-11-15, acq_period was defined after calling it:
     acq_period = acq_time
-    eiger4M.cam.acquire_period.put(acq_period)
-    eiger4M.hdf1.file_name.put(file_name)
-    eiger4M.hdf1.file_path.put(file_path)
-    eiger4M.hdf1.num_capture.put(num_frames)
-    pv_registers.file_name.put(file_name)
-    pv_registers.metadata_full_path.put(f"{file_path}/{file_name}_metadata.hdf")
+    yield from bps.mv(eiger4M.cam.acquire_period, acq_period)
+    yield from bps.mv(eiger4M.hdf1.file_name, file_name)
+    yield from bps.mv(eiger4M.hdf1.file_path, file_path)
+    yield from bps.mv(eiger4M.hdf1.num_capture, num_frames)
+    yield from bps.mv(pv_registers.file_name, file_name)
+    yield from bps.mv(pv_registers.metadata_full_path, f"{file_path}/{file_name}_metadata.hdf")
 
     # Unique for Internal Mode
     # moved up by damian 2025-11-15, to set internal series first:
-    eiger4M.cam.trigger_mode.put("Internal Series")  # 0
-    eiger4M.cam.num_images.put(num_frames)  # Needs to be set after the trigger mode
-    eiger4M.cam.num_triggers.put(1)  # Need to put num_trigger to 1 for internal mode
+    yield from bps.mv(eiger4M.cam.trigger_mode, "Internal Series")  # 0
+    yield from bps.mv(eiger4M.cam.num_images, num_frames)  # Needs to be set after the trigger mode
+    yield from bps.mv(eiger4M.cam.num_triggers, 1)  # Need to put num_trigger to 1 for internal mode
 
     
+
+
 ############# Homebrew acquisition plan #############
 def eiger_acquire():
     """Homebrew plan to acquire data with Eiger detector in internal mode."""
-    showbeam()
-    time.sleep(0.1)
-    eiger4M.hdf1.capture.put(1)
-    eiger4M.cam.acquire.put(1)
+    yield from showbeam()
+    yield from bps.sleep(0.1)
+    yield from bps.mv(eiger4M.hdf1.capture, 1)
+    yield from bps.mv(eiger4M.cam.acquire, 1)
 
     while True:
-        #### QZ on 2026/01/06 ####
-        # without the 0.5 s wait time, the repeating acqs go out of sync. 
-        # Don't know why and maybe the 0.5 s can be made shorter
-        #### QZ on 2026/01/06 ####
-        time.sleep(0.5)
         det_status = eiger4M.cam.acquire.get()
         if det_status == 1:
-            time.sleep(0.1)
+            yield from bps.sleep(0.1)
         if det_status == 0:
             break
-    blockbeam()
+    yield from blockbeam()
 
     frame_num_set = eiger4M.hdf1.queue_size.get()
     count = 0
@@ -91,8 +88,8 @@ def eiger_acquire():
         if frame_num_processed == frame_num_set:
             break
         else:
-           time.sleep(0.1)
-        count = +1
+            yield from bps.sleep(0.1)
+            count = +1
         eiger4M.hdf1.capture.put(0)
 
 
@@ -116,39 +113,39 @@ def eiger_acq_int_series(
         process: Whether to process data after acquisition
         sample_move: Whether to move sample between repetitions
     """
-    try:
-        post_align()
-        shutteroff()
-        workflowProcApi, dmuser = dm_setup()
-        folder_prefix = gen_folder_prefix()
+    # try:
+    yield from post_align()
+    yield from shutteroff()
+    workflowProcApi, dmuser = dm_setup()
+    folder_prefix = gen_folder_prefix()
 
-        for ii in range(num_reps):
-            time.sleep(wait_time)
+    for ii in range(num_reps):
+        yield from bps.sleep(wait_time)
 
-            if sample_move:
-                mesh_grid_move()
+        if sample_move:
+            yield from mesh_grid_move()
 
-            qnw_temp=int(qnw_controllers[find_qnw_index()-1].setpoint.get())
-            file_header = f"{folder_prefix}_t{qnw_temp:03d}C_f{num_frames:06d}"
-            file_name = f"{folder_prefix}_t{qnw_temp:03d}C_f{num_frames:06d}_r{ii+1:05d}"
+        qnw_temp=int(qnw_controllers[find_qnw_index()-1].setpoint.get())
+        file_header = f"{folder_prefix}_t{qnw_temp:03d}C_f{num_frames:06d}"
+        file_name = f"{folder_prefix}_t{qnw_temp:03d}C_f{num_frames:06d}_r{ii+1:05d}"
 
-            setup_eiger_int_series(acq_time, num_frames, file_header, file_name)
+        yield from setup_eiger_int_series(acq_time, num_frames, file_header, file_name)
 
-            _ = datetime.now()
-            time_now = _.strftime("%Y-%m-%d %H:%M:%S")
-            print(f"\n{time_now}, Starting measurement {file_name}")
-            eiger_acquire()
-            _ = datetime.now()
-            time_now = _.strftime("%Y-%m-%d %H:%M:%S")
-            print(f"{time_now}, Complete measurement {file_name}")
+        _ = datetime.now()
+        time_now = _.strftime("%Y-%m-%d %H:%M:%S")
+        print(f"\n{time_now}, Starting measurement {file_name}")
+        yield from eiger_acquire()
+        _ = datetime.now()
+        time_now = _.strftime("%Y-%m-%d %H:%M:%S")
+        print(f"{time_now}, Complete measurement {file_name}")
 
-            metadata_fname = pv_registers.metadata_full_path.get()
-            create_nexus_format_metadata(metadata_fname, det=eiger4M)
+        metadata_fname = pv_registers.metadata_full_path.get()
+        create_nexus_format_metadata(metadata_fname, det=eiger4M)
 
-            dm_run_job(workflowProcApi, dmuser)
-    except KeyboardInterrupt:
-        raise RuntimeError("\n Sam wants Bluesky plan stopped by user (Ctrl+C).")
-    except Exception as e:
-        print(f"Error occurred during measurement: {e}")
-    finally:
-        pass
+        dm_run_job(workflowProcApi, dmuser)
+    # except KeyboardInterrupt:
+    #     raise RuntimeError("\n Bluesky plan stopped by user (Ctrl+C).")
+    # except Exception as e:
+    #     print(f"Error occurred during measurement: {e}")
+    # finally:
+    #     pass

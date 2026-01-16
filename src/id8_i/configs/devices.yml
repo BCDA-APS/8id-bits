@@ -6,16 +6,16 @@ apsbits.utils.sim_creator.predefined_device:
   - creator: ophyd.sim.noisy_det
     name: sim_det
 
-ophyd.EpicsMotor:
-  - name: fl2
-    prefix: 8ideSoft:CR8-E2:m7
-    labels: ["motor"]
-  - name: fl3
-    prefix: 8idiSoft:CR8-I2:m7
-    labels: ["motor"]
-  - name: flag4
-    prefix: 8iddSoft:CR8-D1:m1
-    labels: ["motor"]
+# ophyd.EpicsMotor:
+#   - name: fl2
+#     prefix: 8ideSoft:CR8-E2:m7
+#     labels: ["motor"]
+#   - name: fl3
+#     prefix: 8idiSoft:CR8-I2:m7
+#     labels: ["motor"]
+#   - name: flag4
+#     prefix: 8iddSoft:CR8-D1:m1
+#     labels: ["motor"]
 
 # id8_common.devices.xy_motors.XY_Motors:
 # - name: damm
@@ -35,9 +35,9 @@ ophyd.EpicsMotor:
 # #   x_motor: m13
 # #   y_motor: m12
 
-id8_common.devices.fast_shutter.FastShutter:
-- name: shutter_8ide
-  prefix: "8ideSoft:fastshutter:"
+# id8_common.devices.fast_shutter.FastShutter:
+# - name: shutter_8ide
+#   prefix: "8ideSoft:fastshutter:"
 
 id8_common.devices.avs_filters.AVSfilters:
 - name: filter_8ide
@@ -161,20 +161,20 @@ id8_common.devices.slit.ID8Optics2Slit2D_HV:
 - name: sl9
   prefix: "8idiSoft:Slit2"
 
-id8_common.devices.individual_slits.IndividualSlits:
-- name: sl9_motors
-  prefix: "8idiSoft:CR8-I2:US"
-  h_positive_motor: m12
-  h_negative_motor: m11
-  v_positive_motor: m10
-  v_negative_motor: m9
+# id8_common.devices.individual_slits.IndividualSlits:
+# - name: sl9_motors
+#   prefix: "8idiSoft:CR8-I2:US"
+#   h_positive_motor: m12
+#   h_negative_motor: m11
+#   v_positive_motor: m10
+#   v_negative_motor: m9
 
-- name: sl5_motors
-  prefix: "8ideSoft:CR8-E2:US"
-  h_positive_motor: m4
-  h_negative_motor: m3
-  v_positive_motor: m2
-  v_negative_motor: m1
+# - name: sl5_motors
+#   prefix: "8ideSoft:CR8-E2:US"
+#   h_positive_motor: m4
+#   h_negative_motor: m3
+#   v_positive_motor: m2
+#   v_negative_motor: m1
 
 id8_common.devices.softglue.SoftGlue:  # This has to be reviewed
 - name: "softglue_8idi"

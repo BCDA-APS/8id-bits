@@ -31,6 +31,8 @@ from apsbits.utils.logging_setup import configure_logging
 
 # Core Functions
 from tiled.client import from_profile
+from epics import caget
+import time
 
 # Configuration block
 # Get the path to the instrument package
@@ -96,10 +98,37 @@ else:
     from bluesky import plan_stubs as bps  # noqa: F401
     from bluesky import plans as bp  # noqa: F401
 
+
+# Check if an IOC is alive
+def ioc_alive(pv, timeout=0.5, retries=2):
+    """
+    Return True if a PV responds, False otherwise.
+    """
+    for _ in range(retries):
+        try:
+            val = caget(pv, timeout=timeout)
+            if val is not None:
+                return True
+        except Exception:
+            pass
+        time.sleep(0.1)
+    return False
+
 # Experiment specific logic, device and plan loading. # Create the devices.
 make_devices(clear=False, file="devices.yml", device_manager=instrument)
 make_devices(clear=False, file="devices_aps_only.yml", device_manager=instrument)
-make_devices(clear=False, file="ad_devices.yml", device_manager=instrument)
+
+# from apstools.devices import load_devices_from_yaml
+# from utils.ioc_utils import ioc_alive
+
+RIGAKU_TEST_PV = "8idRigaku3m:cam1:Manufacturer_RBV"
+
+if ioc_alive(RIGAKU_TEST_PV):
+    print("Rigaku3M IOC is up — loading detector")
+    load_devices_from_yaml("ad_devices.yml", oregistry)
+else:
+    print("Rigaku3M IOC not reachable — skipping detector load")
+    
 
 # LivePlot for area-detector ROI sum 
 try:

@@ -3,16 +3,14 @@
 import json
 import re
 
+from id8_i.plans.nexus_acq_eiger_ext import eiger_acq_ext_trig
 from id8_i.plans.nexus_acq_eiger_int import eiger_acq_int_series
+from id8_i.plans.nexus_acq_rigaku_zdt import rigaku_acq_ZDT_series
+from id8_i.plans.nexus_acq_aeon import aeon_acq_series
+# from id8_i.plans.nexus_acq_aeon_fly import aeon_acq_series_fly
 from id8_i.plans.sample_info_unpack import select_sample
 from id8_i.plans.select_detector import select_detector
 from id8_i.plans.scan_8idi import att
-
-from id8_i.plans.nexus_acq_eiger_ext import eiger_acq_ext_trig
-# from id8_i.plans.nexus_acq_rigaku_zdt import rigaku_acq_ZDT_series
-# from id8_i.plans.nexus_acq_aeon import aeon_acq_series
-# from id8_i.plans.nexus_acq_aeon_fly import aeon_acq_series_fly
-
 
 
 def run_measurement_info(file_name="measurement_info.json"):
@@ -45,7 +43,7 @@ def run_measurement_info(file_name="measurement_info.json"):
             print(f"\n --- Measurement Block {block_key} ---")
 
             print(f"Sample index: {sam_index}")
-            select_sample(sam_index)
+            yield from select_sample(sam_index)
             # yield from select_sample(sample_name)
             # print(f"Sample name: {sample_name}")
             # if "." in sample_name:
@@ -54,12 +52,13 @@ def run_measurement_info(file_name="measurement_info.json"):
             #     )
             #     return
 
+
             print(f"Detector name: {det_name}")
-            select_detector(det_name)
+            yield from select_detector(det_name)
 
             for ii in range(len(att_list)):
                 print(f'\n At Attenuation Ratio {att_list[ii]}:\n')
-                att(att_list[ii])
+                yield from att(att_list[ii])
 
                 for jj in range(len(acq_time_list[ii])):
                     acq_time = acq_time_list[ii][jj]
@@ -79,7 +78,7 @@ def run_measurement_info(file_name="measurement_info.json"):
                     if det_name == "eiger4M":
                         if acq_time == acq_period:
                             print(f"Using eiger internal series")
-                            eiger_acq_int_series(
+                            yield from eiger_acq_int_series(
                                 acq_time=acq_time,
                                 num_frames=num_frames,
                                 num_reps=num_reps,
@@ -88,7 +87,7 @@ def run_measurement_info(file_name="measurement_info.json"):
                             )
                         elif acq_time != acq_period and acq_period >= 0.1:
                             print(f"Using eiger external trigger series")
-                            eiger_acq_ext_trig(
+                            yield from eiger_acq_ext_trig(
                                 acq_time=acq_time,
                                 acq_period=acq_period,
                                 num_frames=num_frames,
@@ -99,15 +98,15 @@ def run_measurement_info(file_name="measurement_info.json"):
                         else:
                             print("Error: use acquition period larger than 0.1 s for Eiger Ext Trig mode")
                             
-                    # elif det_name == "rigaku3M":
-                    #     rigaku_acq_ZDT_series(
-                    #         acq_time=2e-5,
-                    #         num_frames=num_frames,
-                    #         num_reps=num_reps,
-                    #         wait_time=wait_time,
-                    #         process=True,
-                    #         sample_move=sample_move_yes,
-                    #     )
+                    elif det_name == "rigaku3M":
+                        yield from rigaku_acq_ZDT_series(
+                            acq_time=2e-5,
+                            num_frames=num_frames,
+                            num_reps=num_reps,
+                            wait_time=wait_time,
+                            process=True,
+                            sample_move=sample_move_yes,
+                        )
                     # elif det_name == "tempus":
                     #     yield from tempus_acq_int_series(
                     #         num_frames=2000000,
@@ -115,13 +114,13 @@ def run_measurement_info(file_name="measurement_info.json"):
                     #         wait_time=wait_time,
                     #         sample_move=sample_move_yes,
                     #     )
-                    # elif det_name == "aeon750k":
+                    elif det_name == "aeon750k":
 
-                    #     aeon_acq_series(
-                    #         num_reps=num_reps,
-                    #         wait_time=wait_time,
-                    #         sample_move=sample_move_yes,
-                    #     )
+                        yield from aeon_acq_series(
+                            num_reps=num_reps,
+                            wait_time=wait_time,
+                            sample_move=sample_move_yes,
+                        )
 
                         # if fly_speed == 0:
                         #     yield from aeon_acq_series(
@@ -152,5 +151,5 @@ def run_measurement_info(file_name="measurement_info.json"):
 def run_round_robin(num_loops=1, filename="measurement_info.json"):
 
     for _ in range(num_loops):
-        run_measurement_info(filename)
+        yield from run_measurement_info(filename)
 

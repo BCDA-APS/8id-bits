@@ -7,7 +7,7 @@ using the LabJack device.
 
 import epics as pe
 from apsbits.core.instrument_init import oregistry
-import time
+from bluesky import plan_stubs as bps
 
 labjack = oregistry["labjack"]
 
@@ -15,27 +15,23 @@ labjack = oregistry["labjack"]
 def showbeam():
     """Open the beam shutter to show the beam."""
     if labjack.operation.get(use_cache=False) != 0:
-        labjack.operation.put(0)
-    time.sleep(0.5)
+        yield from bps.mv(labjack.operation, 0)
 
 
 def blockbeam():
     """Block the beam by closing the shutter."""
     if labjack.operation.get(use_cache=False) != 1:
-        labjack.operation.put(1)
-    time.sleep(0.5)
+        yield from bps.mv(labjack.operation, 1)
 
 
 def shutteron():
     """Enable the shutter control logic."""
-    labjack.logic.put(0)
-    time.sleep(0.5)
+    yield from bps.mv(labjack.logic, 0)
 
 
 def shutteroff():
     """Disable the shutter control logic."""
-    labjack.logic.put(1)
-    time.sleep(0.5)
+    yield from bps.mv(labjack.logic, 1)
 
 
 def post_align():
@@ -44,8 +40,7 @@ def post_align():
     Sets flight tube output and blocks the beam.
     """
     pe.caput("8idiSoft:FLIGHT:bo1:8", 1)
-    blockbeam()
-    time.sleep(0.5)
+    yield from blockbeam()
 
 
 def pre_align():
@@ -54,5 +49,4 @@ def pre_align():
     Clears flight tube output and disables shutter control.
     """
     pe.caput("8idiSoft:FLIGHT:bo1:8", 0)
-    shutteroff()
-    time.sleep(0.5)
+    yield from shutteroff()

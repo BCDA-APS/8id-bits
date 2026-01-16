@@ -16,8 +16,6 @@ from .shutter_logic import blockbeam
 from .shutter_logic import pre_align
 from .shutter_logic import showbeam
 
-import time
-
 rheometer = oregistry["rheometer"]
 sample = oregistry["sample"]
 filter_beam = oregistry["filter_8ide"]
@@ -34,8 +32,8 @@ def att(att_ratio: Optional[float] = None):
         att_ratio = 1.0
     else:
         pass
-    filter_beam.attenuation.move(att_ratio)
-    time.sleep(0.5)
+    yield from bps.mv(filter_beam.attenuation, att_ratio)
+    yield from bps.sleep(0.5)
 
 
 def x_lup(
@@ -54,12 +52,12 @@ def x_lup(
         att_level: Attenuation level to use (0-15)
         det: Detector to use for the scan
     """
-    pre_align()
-    att(att_ratio)
-    showbeam()
+    yield from pre_align()
+    yield from att(att_ratio)
 
+    yield from showbeam()
     yield from bp.rel_scan([det], sample.x, rel_begin, rel_end, num_pts)
-    blockbeam()
+    yield from blockbeam()
 
 
 def y_lup(
@@ -78,12 +76,12 @@ def y_lup(
         att_level: Attenuation level to use (0-15)
         det: Detector to use for the scan
     """
-    pre_align()
-    att(att_ratio)
+    yield from pre_align()
+    yield from att(att_ratio)
 
-    showbeam()
+    yield from showbeam()
     yield from bp.rel_scan([det], sample.y, rel_begin, rel_end, num_pts)
-    blockbeam()
+    yield from blockbeam()
 
 
 def rheo_x_lup(
@@ -102,12 +100,12 @@ def rheo_x_lup(
         att_level: Attenuation level to use (0-15)
         det: Detector to use for the scan
     """
-    pre_align()
-    att(att_ratio)
+    yield from pre_align()
+    yield from att(att_ratio)
 
-    showbeam()
+    yield from showbeam()
     yield from bp.rel_scan([det], rheometer.x, rel_begin, rel_end, num_pts)
-    blockbeam()
+    yield from blockbeam()
 
 
 def rheo_y_lup(
@@ -126,12 +124,12 @@ def rheo_y_lup(
         att_level: Attenuation level to use (0-15)
         det: Detector to use for the scan
     """
-    pre_align()
-    att(att_ratio)
+    yield from pre_align()
+    yield from att(att_ratio)
 
-    showbeam()
+    yield from showbeam()
     yield from bp.rel_scan([det], rheometer.y, rel_begin, rel_end, num_pts)
-    blockbeam()
+    yield from blockbeam()
 
 
 def rheo_set_x_lup(
@@ -147,16 +145,20 @@ def rheo_set_x_lup(
         att_level: Attenuation level to use (0-15)
         det: Detector to use for the scan
     """
-    pre_align()
-    att(att_ratio)
+    yield from pre_align()
+    yield from att(att_ratio)
 
-    rheometer.x.put(14.0)
-    showbeam()
+    yield from bps.mv(rheometer.x, -14.0)
+    yield from showbeam()
     yield from bp.rel_scan([det], rheometer.x, -0.5, 0.5, 100)
-    blockbeam()
+    yield from blockbeam()
 
-    rheometer.x.put(-2.6)
-    showbeam()
+    yield from bps.mv(rheometer.x, -2.6)
+    yield from showbeam()
     yield from bp.rel_scan([det], rheometer.x, -0.5, 0.5, 100)
-    blockbeam()
+    yield from blockbeam()
 
+    # yield from bps.mv(rheometer.x, -3.53)
+    # yield from showbeam()
+    # yield from bp.rel_scan([det], rheometer.x, -8, 8, 160)
+    # yield from blockbeam()

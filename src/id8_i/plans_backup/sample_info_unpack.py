@@ -10,7 +10,7 @@ from typing import Union
 
 import numpy as np
 from apsbits.core.instrument_init import oregistry
-# from bluesky import plan_stubs as bps
+from bluesky import plan_stubs as bps
 
 sample = oregistry["sample"]
 rheometer = oregistry["rheometer"]
@@ -45,18 +45,17 @@ def select_sample(env: int):
     print(f"Moving {sample_key} x to {x_cen} and y to {y_cen}")
 
     if env == 0:
-        rheometer.x.move(x_cen)
-        rheometer.y.move(y_cen)
+        yield from bps.mv(rheometer.x, x_cen, rheometer.y, y_cen)
     elif 1 <= env <= 27:
-        sample.x.move(x_cen)
-        sample.y.move(y_cen)
+        yield from bps.mv(sample.x, x_cen, sample.y, y_cen)
     elif env == 31:
-        huber.sample_x.move(x_cen)
-        huber.sample_y.move(y_cen)
+        yield from bps.mv(huber.sample_x, x_cen, huber.sample_y, y_cen)
+    # elif 31 <= env <= 38:
+    #     yield from bps.mv(rheometer.x, x_cen, rheometer.y, y_cen)
     else:
         pass
 
-    pv_registers.qnw_index.put(env)
+    yield from bps.mv(pv_registers.qnw_index, env)
 
 
 def sort_qnw() -> Dict[str, Union[int, float, str]]:
@@ -155,15 +154,14 @@ def mesh_grid_move():
     y_pos = samy_list[int(np.floor(pos_index / sam_dict["x_pts"]))]
 
     if sam_dict["qnw_index"] == 0:
-        rheometer.x.move(x_pos)
-        rheometer.y.move(y_pos)
+        yield from bps.mv(rheometer.x, x_pos, rheometer.y, y_pos)
     elif sam_dict["qnw_index"] >= 1 and sam_dict["qnw_index"] <= 27:
-        sample.x.move(x_pos)
-        sample.y.move(y_pos)
+        yield from bps.mv(sample.x, x_pos, sample.y, y_pos)
+    # elif sam_dict["qnw_index"] >= 31 and sam_dict["qnw_index"] <= 38:
+    #     yield from bps.mv(rheometer.x, x_pos, rheometer.y, y_pos)
     elif sam_dict["qnw_index"] == 31:
-        huber.sample_x.move(x_pos)
-        huber.sample_y.move(y_pos)
+        yield from bps.mv(huber.sample_x, x_pos, huber.sample_y, y_pos)
     else:
         pass
 
-    sample_pos_register.put(pos_index)
+    yield from bps.mv(sample_pos_register, pos_index)
