@@ -46,3 +46,6 @@ user_plans/
 
 # RE metadata dictionary for session persistence
 .re_md_dict.yml
+
+# local reference copies
+*\ copy.py

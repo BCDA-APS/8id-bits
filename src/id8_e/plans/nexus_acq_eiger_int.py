@@ -11,7 +11,7 @@ from ..utils.dm_util import dm_run_job
 from ..utils.dm_util import dm_setup
 from ..utils.nexus_utils import create_nexus_format_metadata
 from .sample_info_unpack import gen_folder_prefix
-from .sample_info_unpack import mesh_grid_move
+# from .sample_info_unpack import mesh_grid_move
 from .shutter_logic import *
 
 eiger4M = oregistry["eiger4M"]

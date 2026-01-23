@@ -55,10 +55,7 @@ def setup_eiger_ext_trig(
 
     yield from bps.mv(pv_registers.file_name, file_name)
     yield from bps.mv(pv_registers.file_path, file_path)
-    yield from bps.mv(
-        pv_registers.metadata_full_path,
-        f"{file_path}/{file_name}_metadata.hdf",
-    )
+    yield from bps.mv(pv_registers.metadata_full_path, f"{file_path}/{file_name}_metadata.hdf",)
 
     yield from bps.mv(softglue_8idi.acq_time, acq_time)
     yield from bps.mv(softglue_8idi.acq_period, acq_period)

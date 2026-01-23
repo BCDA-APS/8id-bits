@@ -45,10 +45,10 @@ id8_common.devices.avs_filters.AVSfilters:
 # - name: filter_8idi
 #   prefix: "8idPyFilter:FL3:"
 
-id8_common.devices.granite.granite_device:
-- name: granite
-  prefix: "8idiSoft:CR8-I2:US"
-  x_motor: m8
+# id8_common.devices.granite.granite_device:
+# - name: granite
+#   prefix: "8idiSoft:CR8-I2:US"
+#   x_motor: m8
 
 id8_common.devices.granite_enable.Valve_Enable:
 - name: granite_8idi_valve
@@ -101,31 +101,31 @@ id8_common.devices.labjack_support.LabJack:
 - name: "labjack"
   prefix: "8idiSoft:LJT705:"
 
-id8_common.devices.qnw_device.QnwDevice:
-- name: qnw_env1
-  prefix: "8idiSoft:QNWenv_1:"
-  readback_pv: null
-- name: qnw_env2
-  prefix: "8idiSoft:QNWenv_2:"
-  readback_pv: null
-- name: qnw_env3
-  prefix: "8idiSoft:QNWenv_3:"
-  readback_pv: null
+# id8_common.devices.qnw_device.QnwDevice:
+# - name: qnw_env1
+#   prefix: "8idiSoft:QNWenv_1:"
+#   readback_pv: null
+# - name: qnw_env2
+#   prefix: "8idiSoft:QNWenv_2:"
+#   readback_pv: null
+# - name: qnw_env3
+#   prefix: "8idiSoft:QNWenv_3:"
+#   readback_pv: null
 
-id8_common.devices.qnw_vac_device.QnwDevice:
-- name: qnw_vac1
-  prefix: "8idiSoft:QNWvac_1:"
-  readback_pv: null
-- name: qnw_vac2
-  prefix: "8idiSoft:QNWvac_2:"
-  readback_pv: null
-- name: qnw_vac3
-  prefix: "8idiSoft:QNWvac_3:"
-  readback_pv: null
+# id8_common.devices.qnw_vac_device.QnwDevice:
+# - name: qnw_vac1
+#   prefix: "8idiSoft:QNWvac_1:"
+#   readback_pv: null
+# - name: qnw_vac2
+#   prefix: "8idiSoft:QNWvac_2:"
+#   readback_pv: null
+# - name: qnw_vac3
+#   prefix: "8idiSoft:QNWvac_3:"
+#   readback_pv: null
 
-id8_i.devices.registers_device.EpicsPvStorageRegisters:
+id8_e.devices.registers_device.EpicsPvStorageRegisters:
 - name: pv_registers
-  prefix: "8idiSoft:"
+  prefix: "8ideSoft:"
 
 id8_common.devices.slit_base.SlitBase:
 - name: sl4_base
@@ -224,6 +224,10 @@ id8_common.devices.transfocator.Transfocator:
 # - name: dpKeysight
 #   prefix: "dpKeysight:KEY1:"
 
+id8_common.devices.func_gen.Function_Generator:
+- name: 8idKeysight
+  prefix: "8idKeysight:KEY1:"
+
 id8_common.devices.huber_diffractometer.Huber_Diffractometer:
 - name: huber
   prefix: "8ideSoft:CR8-E1:"
@@ -234,9 +238,9 @@ id8_common.devices.lakeshore.Lakeshore:
 - name: lakeshore2
   prefix: "8ideSoft:LS336:2:"
 
-id8_common.devices.rheometer_wait_signal.Rheometer_Wait:
-- name: mcr_wait_signal
-  prefix: "8idMZ4:SG:"
+# id8_common.devices.rheometer_wait_signal.Rheometer_Wait:
+# - name: mcr_wait_signal
+#   prefix: "8idMZ4:SG:"
 
 id8_common.devices.flight_path.FlightPath:
 - name: flight_path_8idi
@@ -288,19 +292,19 @@ id8_common.devices.idt_mono.IDTMono:
 # - name: undulator_downstream
 #   prefix: "S08ID:DSID:"
 
-id8_common.devices.aerotech_stages.AerotechSampleStage:
-- name: sample
-  prefix: "8idiAerotech:"
-  labels: ["sample", "stage"]
+# id8_common.devices.aerotech_stages.AerotechSampleStage:
+# - name: sample
+#   prefix: "8idiAerotech:"
+#   labels: ["sample", "stage"]
 
-id8_common.devices.aerotech_stages.AerotechDetectorStage:
-- name: detector
-  prefix: "8idiAerotech:"
-  labels: ["detector", "stage"]
-id8_common.devices.aerotech_stages.AerotechRheometerStage:
-- name: rheometer
-  prefix: "8idiAerotech:"
-  labels: ["rheometer", "stage"]
+# id8_common.devices.aerotech_stages.AerotechDetectorStage:
+# - name: detector
+#   prefix: "8idiAerotech:"
+#   labels: ["detector", "stage"]
+# id8_common.devices.aerotech_stages.AerotechRheometerStage:
+# - name: rheometer
+#   prefix: "8idiAerotech:"
+#   labels: ["rheometer", "stage"]
 
 id8_common.devices.flight_tube.FlightTubeDetector:
 - name: "det_motors"

@@ -3,12 +3,13 @@ Module for selecting samples and reading sample information from a JSON
 configuration file. Supports both rheometer and regular sample stages.
 """
 
-import json
 from pathlib import Path
 from typing import Dict
 from typing import Union
 
 import numpy as np
+import yaml 
+
 from apsbits.core.instrument_init import oregistry
 # from bluesky import plan_stubs as bps
 
@@ -16,26 +17,32 @@ sample = oregistry["sample"]
 rheometer = oregistry["rheometer"]
 filter = oregistry["filter_8ide"]
 pv_registers = oregistry["pv_registers"]
-huber = oregistry["huber"]
 
 SAMPLE_INFO_PATH = Path("/home/beams/8IDIUSER/bluesky/src/user_plans/sample_info.json")
 
 
-def select_sample(env: int):
-    """Select and move to a sample position.
-
-    This plan reads sample position information from a JSON file and moves
-    either the rheometer (env=0) or sample stage (env=1-27) to the specified
-    position.
-
-    Args:
-        env: Sample environment index (0 for rheometer, 1-27 for samples)
-
-    Yields:
-        Generator: Bluesky plan messages
+def read_sample_info(SAMPLE_INFO_PATH):
+    """
+    This function loads information from sample_info.yaml,
+    checks which sample is being run from measurement_info.yaml,
+    and populates all Str/Ai registers with the information from that sample. 
     """
     with open(SAMPLE_INFO_PATH, "r") as f:
         loaded_dict = json.load(f)
+
+    sam_dict = {
+        "qnw_index": int(pv_registers.qnw_index.get()),
+        "meas_num": int(pv_registers.measurement_num.get()),
+        "sample_name": loaded_dict[sample_key]["sample_name"],
+        "header": loaded_dict[sample_key]["header"],
+        "x_cen": float(loaded_dict[sample_key]["x_cen"]),
+        "y_cen": float(loaded_dict[sample_key]["y_cen"]),
+        "x_radius": float(loaded_dict[sample_key]["x_radius"]),
+        "y_radius": float(loaded_dict[sample_key]["y_radius"]),
+        "x_pts": int(loaded_dict[sample_key]["x_pts"]),
+        "y_pts": int(loaded_dict[sample_key]["y_pts"]),
+        "temp_zone": loaded_dict[sample_key]["temp_zone"],
+    }
 
     sample_key = f"sample_{env}"
     x_cen = loaded_dict[sample_key]["x_cen"]
@@ -50,9 +57,6 @@ def select_sample(env: int):
     elif 1 <= env <= 27:
         sample.x.move(x_cen)
         sample.y.move(y_cen)
-    elif env == 31:
-        huber.sample_x.move(x_cen)
-        huber.sample_y.move(y_cen)
     else:
         pass
 

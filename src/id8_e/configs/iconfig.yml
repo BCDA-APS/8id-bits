@@ -6,7 +6,7 @@ ICONFIG_VERSION: 2.0.1
 # Add additional configuration for use with your instrument.
 
 ### The short name for the databroker catalog.
-DATABROKER_CATALOG: 8ide_waxpcs # change from temp to 8ide_waxpcs
+DATABROKER_CATALOG: 8ide_xpcs
 
 ### RunEngine configuration
 RUN_ENGINE:

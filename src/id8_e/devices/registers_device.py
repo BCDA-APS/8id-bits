@@ -19,7 +19,8 @@ class EpicsPvStorageRegisters(Device):
     det_name = Component(EpicsSignal, "StrReg2", string=True)
     file_name = Component(EpicsSignal, "StrReg3", string=True)
     metadata_full_path = Component(EpicsSignal, "StrReg4", string=True)
-    analysis_type = Component(EpicsSignal, "StrReg5", string=True)
+    file_path = Component(EpicsSignal, "StrReg5", string=True)
+    # analysis_type = Component(EpicsSignal, "StrReg20", string=True)
 
     experiment_name = Component(EpicsSignal, "StrReg6", string=True)
     spec_file = Component(EpicsSignal, "StrReg7", string=True)
@@ -30,10 +31,8 @@ class EpicsPvStorageRegisters(Device):
     analysis_machine = Component(EpicsSignal, "StrReg11", string=True)
     workflow_name = Component(EpicsSignal, "StrReg12", string=True)
 
-    start_bluesky = Component(EpicsSignal, "StrReg20", string=True)
-
     measurement_num = Component(EpicsSignal, "Reg1")
-    qnw_index = Component(EpicsSignal, "Reg2")
+    sample_index = Component(EpicsSignal, "Reg2")
 
     sample0_pos = Component(EpicsSignal, "Reg3")
     sample1_pos = Component(EpicsSignal, "Reg4")

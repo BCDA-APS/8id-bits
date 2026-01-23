@@ -1,35 +1,24 @@
-""" "Master plan to run measurements based on measurement_info.json file."""
 
-import json
+import yaml 
 import re
 
 from id8_i.plans.nexus_acq_eiger_int import eiger_acq_int_series
 from id8_i.plans.sample_info_unpack import select_sample
 from id8_i.plans.select_detector import select_detector
 from id8_i.plans.scan_8idi import att
-
 from id8_i.plans.nexus_acq_eiger_ext import eiger_acq_ext_trig
-# from id8_i.plans.nexus_acq_rigaku_zdt import rigaku_acq_ZDT_series
-# from id8_i.plans.nexus_acq_aeon import aeon_acq_series
-# from id8_i.plans.nexus_acq_aeon_fly import aeon_acq_series_fly
 
-
-
-def run_measurement_info(file_name="measurement_info.json"):
-    """Run measurement based on measurement_info.json file."""
+def run_measurement_info(file_name="measurement_info.yaml"):
+    """Run measurement based on measurement_info.yaml file."""
 
     file_path = "/home/beams10/8IDIUSER/bluesky/src/user_plans/"
 
     try:
         with open(file_path + file_name, "r") as f:
-            measurement_info = json.load(f)
-
-        # if "." in file_name:
-        #     print("file_name should not contain '.' characters.")
-        #     return
+            measurement_info = yaml.safe_load(f)
 
         for block_key, block_value in measurement_info.items():
-
+                        
             match = re.search(r"_(\d+)", block_key)
             sam_index = int(match.group(1))
             det_name = block_value.get("detector")
@@ -40,19 +29,11 @@ def run_measurement_info(file_name="measurement_info.json"):
             wait_time_list = block_value.get("wait_time_list")
             num_reps_list = block_value.get("num_reps_list")
             sample_move_yes_list = block_value.get("sample_move_yes_list")
-            # fly_speed_list = block_value.get("fly_speed_list")
 
             print(f"\n --- Measurement Block {block_key} ---")
 
             print(f"Sample index: {sam_index}")
             select_sample(sam_index)
-            # yield from select_sample(sample_name)
-            # print(f"Sample name: {sample_name}")
-            # if "." in sample_name:
-            #     raise RuntimeError(
-            #         f"aborting: sample_name contains '.': {sample_name!r} (block {block_key})"
-            #     )
-            #     return
 
             print(f"Detector name: {det_name}")
             select_detector(det_name)
@@ -67,14 +48,12 @@ def run_measurement_info(file_name="measurement_info.json"):
                     num_frames = num_frames_list[ii][jj]
                     num_reps = num_reps_list[ii][jj]
                     wait_time = wait_time_list[ii][jj]
-                    # fly_speed = fly_speed_list[ii][jj]
                     sample_move_yes = sample_move_yes_list[ii][jj]
 
                     print(f"    Acquisition Time: {acq_time}")
                     print(f"    Acquisition Period: {acq_period}")
                     print(f"    Number of Frames: {num_frames}")
                     print(f"    Number of Repeats: {num_reps}")
-                    # print(f"    Fly Scan? {'Yes' if fly_scan_yes == 1 else 'No'}\n")
 
                     if det_name == "eiger4M":
                         if acq_time == acq_period:
@@ -98,45 +77,7 @@ def run_measurement_info(file_name="measurement_info.json"):
                             )
                         else:
                             print("Error: use acquition period larger than 0.1 s for Eiger Ext Trig mode")
-                            
-                    # elif det_name == "rigaku3M":
-                    #     rigaku_acq_ZDT_series(
-                    #         acq_time=2e-5,
-                    #         num_frames=num_frames,
-                    #         num_reps=num_reps,
-                    #         wait_time=wait_time,
-                    #         process=True,
-                    #         sample_move=sample_move_yes,
-                    #     )
-                    # elif det_name == "tempus":
-                    #     yield from tempus_acq_int_series(
-                    #         num_frames=2000000,
-                    #         num_reps=num_reps,
-                    #         wait_time=wait_time,
-                    #         sample_move=sample_move_yes,
-                    #     )
-                    # elif det_name == "aeon750k":
-
-                    #     aeon_acq_series(
-                    #         num_reps=num_reps,
-                    #         wait_time=wait_time,
-                    #         sample_move=sample_move_yes,
-                    #     )
-
-                        # if fly_speed == 0:
-                        #     yield from aeon_acq_series(
-                        #         num_reps=num_reps,
-                        #         wait_time=wait_time,
-                        #         sample_move=sample_move_yes,
-                        #     )
-                        # else:
-                        #     yield from aeon_acq_series_fly(
-                        #         num_reps=num_reps,
-                        #         wait_time=wait_time,
-                        #         fly_speed=fly_speed,
-                        #         sample_move=sample_move_yes,
-                        #     )
-
+                    
                     else:
                         print("Detector name must be eiger4M, rigaku3M, or aeon750k")
 
@@ -148,9 +89,7 @@ def run_measurement_info(file_name="measurement_info.json"):
     finally:
         pass
 
-
-def run_round_robin(num_loops=1, filename="measurement_info.json"):
+def run_round_robin(num_loops=1, filename="measurement_info.yaml"):
 
     for _ in range(num_loops):
         run_measurement_info(filename)
-

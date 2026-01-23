@@ -117,17 +117,20 @@ def ioc_alive(pv, timeout=0.5, retries=2):
 # Experiment specific logic, device and plan loading. # Create the devices.
 make_devices(clear=False, file="devices.yml", device_manager=instrument)
 make_devices(clear=False, file="devices_aps_only.yml", device_manager=instrument)
+make_devices(clear=False, file="ad_devices.yml", device_manager=instrument)
 
 # from apstools.devices import load_devices_from_yaml
 # from utils.ioc_utils import ioc_alive
 
-RIGAKU_TEST_PV = "8idRigaku3m:cam1:Manufacturer_RBV"
+# RIGAKU_TEST_PV = "8idRigaku3m:cam1:Manufacturer_RBV"
+# EIGER_TEST_PV = "8idEiger4m:cam1:Manufacturer_RBV"
 
-if ioc_alive(RIGAKU_TEST_PV):
-    print("Rigaku3M IOC is up — loading detector")
-    load_devices_from_yaml("ad_devices.yml", oregistry)
-else:
-    print("Rigaku3M IOC not reachable — skipping detector load")
+# if ioc_alive(RIGAKU_TEST_PV):
+#     print("Rigaku3M IOC is up — loading detector")
+#     load_devices_from_yaml("ad_devices.yml", oregistry)
+    
+# else:
+#     print("Rigaku3M IOC not reachable — skipping detector load")
     
 
 # LivePlot for area-detector ROI sum 
@@ -181,6 +184,8 @@ except Exception as e:
 if host_on_aps_subnet():
     make_devices(clear=False, file="devices_aps_only.yml", device_manager=instrument)
 
+pv_registers = oregistry["pv_registers"]
+
 # Setup baseline stream with connect=False is default
 # Devices with the label 'baseline' will be added to the baseline stream.
 setup_baseline_stream(sd, oregistry, connect=False)
@@ -191,16 +196,36 @@ from .plans.sim_plan import sim_rel_scan_plan  # noqa: E402, F401
 
 # from .plans.master_plan import run_measurement_info
 # from .plans.select_sample_env import select_sample_env
-# from .plans.sample_info_unpack import *
+from .plans.sample_info_unpack import *
 # from .plans.select_detector import *
-# from .plans.scan_8idi import *
+from .plans.scan_8ide import *
 # from .plans.qnw_plans import *
-# from .plans.nexus_acq_eiger_int import *
+from .plans.nexus_acq_eiger_int import *
 # from .plans.nexus_acq_rigaku_zdt import *
 
-# hklpy2
 psic = oregistry["psic"]
 import hklpy2
 from hklpy2.user import *
 from hklpy2.user import set_diffractometer
 set_diffractometer(psic)
+
+
+def stream_rois(det, stats_nums=(1, 2, 3), fields=("total",), hinted=("total",)):
+    det.read_attrs = [a for a in det.read_attrs if "." not in a]
+    for n in stats_nums:
+        stats_attr = f"stats{n}"
+
+        if stats_attr not in det.read_attrs:
+            det.read_attrs.append(stats_attr)
+
+        stats = getattr(det, stats_attr)
+
+        stats.kind = "hinted"
+
+        stats.read_attrs = list(fields)
+
+        for f in fields:
+            sig = getattr(stats, f)
+            sig.kind = "hinted" if f in hinted else "normal"
+
+# stream_rois(eiger4M, stats_nums=(1,2,3), fields=("total",))

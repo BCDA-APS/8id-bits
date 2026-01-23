@@ -27,9 +27,8 @@ def _get_ring_current():
     
 
 
-detector = oregistry["detector"]
-rheometer = oregistry["rheometer"]
-sample = oregistry["sample"]
+# detector = oregistry["detector"]
+# sample = oregistry["sample"]
 filter_8ide = oregistry["filter_8ide"]
 lakeshore1 = oregistry["lakeshore1"]
 flight_path_8idi = oregistry["flight_path_8idi"]
@@ -167,8 +166,8 @@ def create_runtime_metadata_dict(
         # All lengths changed to unit of meters
         "/entry/instrument/detector_1/beam_center_position_x": pv_registers.current_det_x0.get() / 1000.0,
         "/entry/instrument/detector_1/beam_center_position_y": pv_registers.current_det_y0.get() / 1000.0,
-        "/entry/instrument/detector_1/position_x": detector.x.position / 1000.0,
-        "/entry/instrument/detector_1/position_y": detector.y.position / 1000.0,
+        # "/entry/instrument/detector_1/position_x": detector.x.position / 1000.0,
+        # "/entry/instrument/detector_1/position_y": detector.y.position / 1000.0,
         "/entry/instrument/detector_1/count_time": det.cam.acquire_time.get(),
         "/entry/instrument/detector_1/frame_time": det.cam.acquire_period.get(),
         "/entry/instrument/detector_1/detector_name": pv_registers.det_name.get(),
