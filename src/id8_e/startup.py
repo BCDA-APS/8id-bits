@@ -75,13 +75,13 @@ RE, sd = init_RE(iconfig, subscribers=[bec, cat])
 
 # Optional SPEC callback block
 # delete this block if not using SPEC
-if iconfig.get("SPEC_DATA_FILES", {}).get("ENABLE", False):
-    from .callbacks.demo_spec_callback import init_specwriter_with_RE
-    from .callbacks.demo_spec_callback import newSpecFile  # noqa: F401
-    from .callbacks.demo_spec_callback import spec_comment  # noqa: F401
-    from .callbacks.demo_spec_callback import specwriter  # noqa: F401
+# if iconfig.get("SPEC_DATA_FILES", {}).get("ENABLE", False):
+#     from .callbacks.demo_spec_callback import init_specwriter_with_RE
+#     from .callbacks.demo_spec_callback import newSpecFile  # noqa: F401
+#     from .callbacks.demo_spec_callback import spec_comment  # noqa: F401
+#     from .callbacks.demo_spec_callback import specwriter  # noqa: F401
 
-    init_specwriter_with_RE(RE)
+    # init_specwriter_with_RE(RE)
 
 # These imports must come after the above setup.
 # Queue server block
@@ -146,7 +146,7 @@ try:
         if det is None:
             print(f"LivePlot: detector {det_name!r} not in oregistry; skipping LivePlot.")
         else:
-            plugin = getattr(det, "roi1", None) or getattr(det, "stats1", None) or getattr(det, "image", None)
+            plugin = getattr(det, "roi1", None) or getattr(det, "stats2", None) or getattr(det, "image", None)
             if plugin is None:
                 print(f"LivePlot: detector {det_name} has no roi1/stats1/image plugin attribute; available: {det.component_names}")
             else:
@@ -210,22 +210,16 @@ from hklpy2.user import set_diffractometer
 set_diffractometer(psic)
 
 
-def stream_rois(det, stats_nums=(1, 2, 3), fields=("total",), hinted=("total",)):
-    det.read_attrs = [a for a in det.read_attrs if "." not in a]
-    for n in stats_nums:
-        stats_attr = f"stats{n}"
+if "stats1" not in eiger4M.read_attrs:
+    eiger4M.read_attrs.append("stats1")
 
-        if stats_attr not in det.read_attrs:
-            det.read_attrs.append(stats_attr)
+eiger4M.stats1.read_attrs = ["total"]
+eiger4M.stats1.kind = "hinted"
+eiger4M.stats1.total.kind = "hinted"
 
-        stats = getattr(det, stats_attr)
+if "stats1" not in lambda2M.read_attrs:
+    lambda2M.read_attrs.append("stats1")
 
-        stats.kind = "hinted"
-
-        stats.read_attrs = list(fields)
-
-        for f in fields:
-            sig = getattr(stats, f)
-            sig.kind = "hinted" if f in hinted else "normal"
-
-# stream_rois(eiger4M, stats_nums=(1,2,3), fields=("total",))
+lambda2M.stats1.read_attrs = ["total"]
+lambda2M.stats1.kind = "hinted"
+lambda2M.stats1.total.kind = "hinted"

@@ -1,15 +1,14 @@
 """
-Module for selecting samples and reading sample information from a JSON
+Module for selecting samples and reading sample information from a YAML
 configuration file. Supports both rheometer and regular sample stages.
 """
 
+import yaml
 from pathlib import Path
 from typing import Dict
 from typing import Union
 
 import numpy as np
-import yaml 
-
 from apsbits.core.instrument_init import oregistry
 # from bluesky import plan_stubs as bps
 
@@ -17,37 +16,31 @@ sample = oregistry["sample"]
 rheometer = oregistry["rheometer"]
 filter = oregistry["filter_8ide"]
 pv_registers = oregistry["pv_registers"]
+huber = oregistry["huber"]
 
-SAMPLE_INFO_PATH = Path("/home/beams/8IDIUSER/bluesky/src/user_plans/sample_info.json")
+SAMPLE_INFO_PATH = Path("/home/beams/8IDIUSER/bluesky/src/user_plans/sample_info.yaml")
 
 
-def read_sample_info(SAMPLE_INFO_PATH):
-    """
-    This function loads information from sample_info.yaml,
-    checks which sample is being run from measurement_info.yaml,
-    and populates all Str/Ai registers with the information from that sample. 
+def select_sample(env: int):
+    """Select and move to a sample position.
+
+    This plan reads sample position information from a YAML file and moves
+    either the rheometer (env=0) or sample stage (env=1-27) to the specified
+    position.
+
+    Args:
+        env: Sample environment index (0 for rheometer, 1-27 for samples)
+
+    Yields:
+        Generator: Bluesky plan messages
     """
     with open(SAMPLE_INFO_PATH, "r") as f:
-        loaded_dict = json.load(f)
-
-    sam_dict = {
-        "qnw_index": int(pv_registers.qnw_index.get()),
-        "meas_num": int(pv_registers.measurement_num.get()),
-        "sample_name": loaded_dict[sample_key]["sample_name"],
-        "header": loaded_dict[sample_key]["header"],
-        "x_cen": float(loaded_dict[sample_key]["x_cen"]),
-        "y_cen": float(loaded_dict[sample_key]["y_cen"]),
-        "x_radius": float(loaded_dict[sample_key]["x_radius"]),
-        "y_radius": float(loaded_dict[sample_key]["y_radius"]),
-        "x_pts": int(loaded_dict[sample_key]["x_pts"]),
-        "y_pts": int(loaded_dict[sample_key]["y_pts"]),
-        "temp_zone": loaded_dict[sample_key]["temp_zone"],
-    }
+        loaded_dict = yaml.safe_load(f)
 
     sample_key = f"sample_{env}"
     x_cen = loaded_dict[sample_key]["x_cen"]
     y_cen = loaded_dict[sample_key]["y_cen"]
-    sample_name = loaded_dict[sample_key]["sample_name"]
+    # sample_name = loaded_dict[sample_key]["sample_name"] # Variable unused in original, kept commented or remove
 
     print(f"Moving {sample_key} x to {x_cen} and y to {y_cen}")
 
@@ -57,6 +50,9 @@ def read_sample_info(SAMPLE_INFO_PATH):
     elif 1 <= env <= 27:
         sample.x.move(x_cen)
         sample.y.move(y_cen)
+    elif env == 31:
+        huber.sample_x.move(x_cen)
+        huber.sample_y.move(y_cen)
     else:
         pass
 
@@ -66,7 +62,7 @@ def read_sample_info(SAMPLE_INFO_PATH):
 def sort_qnw() -> Dict[str, Union[int, float, str]]:
     """Read and organize sample information from the configuration file.
 
-    This function reads the sample information JSON file and returns a dictionary
+    This function reads the sample information YAML file and returns a dictionary
     containing the current sample's metadata, including position, dimensions,
     and measurement parameters.
 
@@ -84,7 +80,7 @@ def sort_qnw() -> Dict[str, Union[int, float, str]]:
     qnw_index = int(pv_registers.qnw_index.get())
     sample_key = f"sample_{qnw_index}"
     with open(SAMPLE_INFO_PATH, "r") as f:
-        loaded_dict = json.load(f)
+        loaded_dict = yaml.safe_load(f)
 
     sam_dict = {
         "qnw_index": int(pv_registers.qnw_index.get()),
