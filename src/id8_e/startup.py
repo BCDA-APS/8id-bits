@@ -13,6 +13,7 @@ Includes:
 import logging
 from pathlib import Path
 
+# Core Functions
 from apsbits.core.best_effort_init import init_bec_peaks
 from apsbits.core.catalog_init import init_catalog
 from apsbits.core.instrument_init import init_instrument
@@ -29,11 +30,6 @@ from apsbits.utils.helper_functions import register_bluesky_magics
 from apsbits.utils.helper_functions import running_in_queueserver
 from apsbits.utils.logging_setup import configure_logging
 
-# Core Functions
-from tiled.client import from_profile
-from epics import caget
-import time
-
 # Configuration block
 # Get the path to the instrument package
 # Load configuration to be used by the instrument.
@@ -46,7 +42,6 @@ iconfig = load_config(iconfig_path)
 # from the one in the apsbits package
 extra_logging_configs_path = instrument_path / "configs" / "extra_logging.yml"
 configure_logging(extra_logging_configs_path=extra_logging_configs_path)
-
 
 logger = logging.getLogger(__name__)
 logger.info("Starting Instrument with iconfig: %s", iconfig_path)
@@ -64,11 +59,6 @@ oregistry.clear()
 register_bluesky_magics()
 
 # Bluesky initialization block
-
-if iconfig.get("TILED_PROFILE_NAME", {}):
-    profile_name = iconfig.get("TILED_PROFILE_NAME")
-    tiled_client = from_profile(profile_name)
-
 bec, peaks = init_bec_peaks(iconfig)
 cat = init_catalog(iconfig)
 RE, sd = init_RE(iconfig, subscribers=[bec, cat])
@@ -104,6 +94,9 @@ def ioc_alive(pv, timeout=0.5, retries=2):
     """
     Return True if a PV responds, False otherwise.
     """
+    import time
+    from epics import caget
+
     for _ in range(retries):
         try:
             val = caget(pv, timeout=timeout)
@@ -136,8 +129,7 @@ make_devices(clear=False, file="ad_devices.yml", device_manager=instrument)
 # LivePlot for area-detector ROI sum 
 try:
     from bluesky.callbacks import LivePlot
-    from apsbits.core.instrument_init import oregistry
-    from .utils.helper_functions import running_in_queueserver  # if available in your package
+    from apsbits.utils.helper_functions import running_in_queueserver
 
     if not running_in_queueserver():
         # Choose the detector name here; 'eiger4M', 'rigaku3M', etc.
