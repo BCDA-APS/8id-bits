@@ -13,6 +13,7 @@ Includes:
 import logging
 from pathlib import Path
 
+# Core Functions
 from apsbits.core.best_effort_init import init_bec_peaks
 from apsbits.core.catalog_init import init_catalog
 from apsbits.core.instrument_init import init_instrument
@@ -29,11 +30,6 @@ from apsbits.utils.helper_functions import register_bluesky_magics
 from apsbits.utils.helper_functions import running_in_queueserver
 from apsbits.utils.logging_setup import configure_logging
 
-# Core Functions
-from tiled.client import from_profile
-from epics import caget
-import time
-
 # Configuration block
 # Get the path to the instrument package
 # Load configuration to be used by the instrument.
@@ -46,7 +42,6 @@ iconfig = load_config(iconfig_path)
 # from the one in the apsbits package
 extra_logging_configs_path = instrument_path / "configs" / "extra_logging.yml"
 configure_logging(extra_logging_configs_path=extra_logging_configs_path)
-
 
 logger = logging.getLogger(__name__)
 logger.info("Starting Instrument with iconfig: %s", iconfig_path)
@@ -64,11 +59,6 @@ oregistry.clear()
 register_bluesky_magics()
 
 # Bluesky initialization block
-
-if iconfig.get("TILED_PROFILE_NAME", {}):
-    profile_name = iconfig.get("TILED_PROFILE_NAME")
-    tiled_client = from_profile(profile_name)
-
 bec, peaks = init_bec_peaks(iconfig)
 cat = init_catalog(iconfig)
 RE, sd = init_RE(iconfig, subscribers=[bec, cat])
@@ -98,29 +88,13 @@ else:
     from bluesky import plan_stubs as bps  # noqa: F401
     from bluesky import plans as bp  # noqa: F401
 
-
-# Check if an IOC is alive
-def ioc_alive(pv, timeout=0.5, retries=2):
-    """
-    Return True if a PV responds, False otherwise.
-    """
-    for _ in range(retries):
-        try:
-            val = caget(pv, timeout=timeout)
-            if val is not None:
-                return True
-        except Exception:
-            pass
-        time.sleep(0.1)
-    return False
-
 # Experiment specific logic, device and plan loading. # Create the devices.
 make_devices(clear=False, file="devices.yml", device_manager=instrument)
 make_devices(clear=False, file="devices_aps_only.yml", device_manager=instrument)
 make_devices(clear=False, file="ad_devices.yml", device_manager=instrument)
 
 # from apstools.devices import load_devices_from_yaml
-# from utils.ioc_utils import ioc_alive
+# from id8_common.utils.misc import ioc_alive
 
 # RIGAKU_TEST_PV = "8idRigaku3m:cam1:Manufacturer_RBV"
 # EIGER_TEST_PV = "8idEiger4m:cam1:Manufacturer_RBV"
@@ -128,16 +102,15 @@ make_devices(clear=False, file="ad_devices.yml", device_manager=instrument)
 # if ioc_alive(RIGAKU_TEST_PV):
 #     print("Rigaku3M IOC is up — loading detector")
 #     load_devices_from_yaml("ad_devices.yml", oregistry)
-    
+
 # else:
 #     print("Rigaku3M IOC not reachable — skipping detector load")
-    
 
-# LivePlot for area-detector ROI sum 
+
+# LivePlot for area-detector ROI sum
 try:
     from bluesky.callbacks import LivePlot
-    from apsbits.core.instrument_init import oregistry
-    from .utils.helper_functions import running_in_queueserver  # if available in your package
+    from apsbits.utils.helper_functions import running_in_queueserver
 
     if not running_in_queueserver():
         # Choose the detector name here; 'eiger4M', 'rigaku3M', etc.
@@ -209,6 +182,8 @@ from hklpy2.user import *
 from hklpy2.user import set_diffractometer
 set_diffractometer(psic)
 
+# from id8_common.utils.misc import stream_rois
+# stream_rois(eiger4M, stats_nums=(1,2,3), fields=("total",))
 
 if "stats1" not in eiger4M.read_attrs:
     eiger4M.read_attrs.append("stats1")

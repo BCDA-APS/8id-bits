@@ -6,7 +6,9 @@ ICONFIG_VERSION: 2.0.1
 # Add additional configuration for use with your instrument.
 
 ### The short name for the databroker catalog.
-DATABROKER_CATALOG: 8ide_xpcs
+# DATABROKER_CATALOG: 8ide_xpcs
+TILED_PROFILE_NAME: 8ide
+TILED_PATH_NAME: /raw
 
 ### RunEngine configuration
 RUN_ENGINE:
