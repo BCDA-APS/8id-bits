@@ -88,32 +88,13 @@ else:
     from bluesky import plan_stubs as bps  # noqa: F401
     from bluesky import plans as bp  # noqa: F401
 
-
-# Check if an IOC is alive
-def ioc_alive(pv, timeout=0.5, retries=2):
-    """
-    Return True if a PV responds, False otherwise.
-    """
-    import time
-    from epics import caget
-
-    for _ in range(retries):
-        try:
-            val = caget(pv, timeout=timeout)
-            if val is not None:
-                return True
-        except Exception:
-            pass
-        time.sleep(0.1)
-    return False
-
 # Experiment specific logic, device and plan loading. # Create the devices.
 make_devices(clear=False, file="devices.yml", device_manager=instrument)
 make_devices(clear=False, file="devices_aps_only.yml", device_manager=instrument)
 make_devices(clear=False, file="ad_devices.yml", device_manager=instrument)
 
 # from apstools.devices import load_devices_from_yaml
-# from utils.ioc_utils import ioc_alive
+# from id8_common.utils.misc import ioc_alive
 
 # RIGAKU_TEST_PV = "8idRigaku3m:cam1:Manufacturer_RBV"
 # EIGER_TEST_PV = "8idEiger4m:cam1:Manufacturer_RBV"
@@ -121,12 +102,12 @@ make_devices(clear=False, file="ad_devices.yml", device_manager=instrument)
 # if ioc_alive(RIGAKU_TEST_PV):
 #     print("Rigaku3M IOC is up — loading detector")
 #     load_devices_from_yaml("ad_devices.yml", oregistry)
-    
+
 # else:
 #     print("Rigaku3M IOC not reachable — skipping detector load")
-    
 
-# LivePlot for area-detector ROI sum 
+
+# LivePlot for area-detector ROI sum
 try:
     from bluesky.callbacks import LivePlot
     from apsbits.utils.helper_functions import running_in_queueserver
@@ -201,23 +182,5 @@ from hklpy2.user import *
 from hklpy2.user import set_diffractometer
 set_diffractometer(psic)
 
-
-def stream_rois(det, stats_nums=(1, 2, 3), fields=("total",), hinted=("total",)):
-    det.read_attrs = [a for a in det.read_attrs if "." not in a]
-    for n in stats_nums:
-        stats_attr = f"stats{n}"
-
-        if stats_attr not in det.read_attrs:
-            det.read_attrs.append(stats_attr)
-
-        stats = getattr(det, stats_attr)
-
-        stats.kind = "hinted"
-
-        stats.read_attrs = list(fields)
-
-        for f in fields:
-            sig = getattr(stats, f)
-            sig.kind = "hinted" if f in hinted else "normal"
-
+# from id8_common.utils.misc import stream_rois
 # stream_rois(eiger4M, stats_nums=(1,2,3), fields=("total",))
