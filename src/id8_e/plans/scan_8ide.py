@@ -231,38 +231,87 @@ def eta_scan(
     yield from save_images(save_img)
 
     yield from showbeam()
-    yield from bp.rel_scan([det, eiger4M.stats1.total], huber.eta, rel_begin, rel_end, num_pts)
+    yield from bp.rel_scan([det], huber.eta, rel_begin, rel_end, num_pts)
     yield from blockbeam()
 
-# def l_scan(
-#     rel_begin: float = -3,
-#     rel_end: float = 3,
-#     num_pts: int = 60,
-#     att_ratio: int = 7,
-#     det: Device = eiger4M,
-# ):
-#     """Perform a relative scan along the sample Y axis.
 
-#     Args:
-#         rel_begin: Start position relative to current position (mm)
-#         rel_end: End position relative to current position (mm)
-#         num_pts: Number of points in the scan
-#         att_level: Attenuation level to use (0-15)
-#         det: Detector to use for the scan
-#     """
-#     yield from pre_align()
-#     yield from att(att_ratio)
+def dscan(
+    motor,
+    rel_begin,
+    rel_end,
+    num_pts,
+    count_time,
+    det=eiger4M,
+    att_ratio=7,
+    save_img=1,
+):
+    """SPEC-style relative scan.
 
-#     yield from showbeam()
-#     yield from bp.rel_scan([det], sample.eta, rel_begin, rel_end, num_pts)
-#     yield from blockbeam()
+    usage:
+        RE(dscan(motor, rel_begin, rel_end, num_pts, count_time))
 
-# def l_scan(det, sixc, h0, k0, l0, dh, dk, dl, npts):
-#     ts = linspace(-0.5, 0.5, npts)
-#     for t in ts:
-#         yield from bps.mv(
-#             sixc.h, h0 + t * dh,
-#             sixc.k, k0 + t * dk,
-#             sixc.l, l0 + t * dl,
-#         )
-#         yield from bps.trigger_and_read([det])
+    args:
+        motor: ophyd positioner (e.g. huber.eta, sample.y)
+        rel_begin: relative start (motor units)
+        rel_end: relative end (motor units)
+        num_pts: number of points
+        count_time: detector acquisition time per point (s)
+        det: detector (default: eiger4M)
+        att_ratio: attenuation ratio
+        save_img: toggle saving images
+    """
+    yield from pre_align()
+    yield from att(att_ratio)
+
+    # set detector timing
+    yield from bps.mv(det.cam.acquire_time, count_time)
+    yield from bps.mv(det.cam.acquire_period, count_time)
+
+    yield from save_images(save_img)
+
+    yield from showbeam()
+    yield from bp.rel_scan([det], motor, rel_begin, rel_end, num_pts)
+    yield from blockbeam()
+
+def d2scan(
+    motor1,
+    rel_begin1,
+    rel_end1,
+    motor2,
+    rel_begin2,
+    rel_end2,
+    num_pts,
+    count_time,
+    det=eiger4M,
+    att_ratio=7,
+    save_img=1,
+):
+    """SPEC-style relative 2-motor scan.
+
+    usage:
+        RE(d2scan(m1, s1, f1, m2, s2, f2, npts, ct))
+
+    args:
+        motor1, motor2: ophyd positioners (e.g. huber.eta, huber.chi)
+        rel_begin1, rel_end1: relative start/end for motor1
+        rel_begin2, rel_end2: relative start/end for motor2
+        num_pts: number of points
+        count_time: detector acquisition time per point (s)
+        det: detector (default: eiger4M)
+        att_ratio: attenuation ratio
+        save_img: toggle saving images
+    """
+    yield from pre_align()
+    yield from att(att_ratio)
+
+    # set detector timing
+    yield from bps.mv(det.cam.acquire_time, count_time)
+    yield from bps.mv(det.cam.acquire_period, count_time)
+
+    yield from save_images(save_img)
+
+    yield from showbeam()
+    yield from bp.rel_scan([det], motor1, rel_begin1, rel_end1, motor2, rel_begin2, rel_end2, num_pts)
+    yield from blockbeam()
+    
+

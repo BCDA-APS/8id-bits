@@ -65,13 +65,13 @@ RE, sd = init_RE(iconfig, subscribers=[bec, cat])
 
 # Optional SPEC callback block
 # delete this block if not using SPEC
-if iconfig.get("SPEC_DATA_FILES", {}).get("ENABLE", False):
-    from .callbacks.demo_spec_callback import init_specwriter_with_RE
-    from .callbacks.demo_spec_callback import newSpecFile  # noqa: F401
-    from .callbacks.demo_spec_callback import spec_comment  # noqa: F401
-    from .callbacks.demo_spec_callback import specwriter  # noqa: F401
+# if iconfig.get("SPEC_DATA_FILES", {}).get("ENABLE", False):
+#     from .callbacks.demo_spec_callback import init_specwriter_with_RE
+#     from .callbacks.demo_spec_callback import newSpecFile  # noqa: F401
+#     from .callbacks.demo_spec_callback import spec_comment  # noqa: F401
+#     from .callbacks.demo_spec_callback import specwriter  # noqa: F401
 
-    init_specwriter_with_RE(RE)
+    # init_specwriter_with_RE(RE)
 
 # These imports must come after the above setup.
 # Queue server block
@@ -119,7 +119,7 @@ try:
         if det is None:
             print(f"LivePlot: detector {det_name!r} not in oregistry; skipping LivePlot.")
         else:
-            plugin = getattr(det, "roi1", None) or getattr(det, "stats1", None) or getattr(det, "image", None)
+            plugin = getattr(det, "roi1", None) or getattr(det, "stats2", None) or getattr(det, "image", None)
             if plugin is None:
                 print(f"LivePlot: detector {det_name} has no roi1/stats1/image plugin attribute; available: {det.component_names}")
             else:
@@ -184,3 +184,17 @@ set_diffractometer(psic)
 
 # from id8_common.utils.misc import stream_rois
 # stream_rois(eiger4M, stats_nums=(1,2,3), fields=("total",))
+
+if "stats1" not in eiger4M.read_attrs:
+    eiger4M.read_attrs.append("stats1")
+
+eiger4M.stats1.read_attrs = ["total"]
+eiger4M.stats1.kind = "hinted"
+eiger4M.stats1.total.kind = "hinted"
+
+if "stats1" not in lambda2M.read_attrs:
+    lambda2M.read_attrs.append("stats1")
+
+lambda2M.stats1.read_attrs = ["total"]
+lambda2M.stats1.kind = "hinted"
+lambda2M.stats1.total.kind = "hinted"
