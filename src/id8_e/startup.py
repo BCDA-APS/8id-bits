@@ -115,7 +115,7 @@ try:
     if not running_in_queueserver():
         # Choose the detector name here; 'eiger4M', 'rigaku3M', etc.
         det_name = "eiger4M"  # change to the detector you want to plot
-        det = oregistry.get(det_name)
+        det = oregistry.find(det_name, allow_none=True)
         if det is None:
             print(f"LivePlot: detector {det_name!r} not in oregistry; skipping LivePlot.")
         else:
@@ -146,7 +146,8 @@ try:
                     print(f"LivePlot: couldn't find numeric field in {det_name}.roi1; plugin components: {plugin.component_names}")
                 else:
                     # Use 'seq_num' as x axis; for position-based scans you can use the motor signal instead
-                    lp = LivePlot(field, plugin, x="seq_num")
+                    _signal = getattr(plugin, field)
+                    lp = LivePlot(_signal.name, x="seq_num")
                     RE.subscribe(lp)
                     print(f"LivePlot subscribed: {det_name}.roi1.{field} vs seq_num")
     else:
