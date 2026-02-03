@@ -20,16 +20,18 @@ class EpicsPvStorageRegisters(Device):
     file_name = Component(EpicsSignal, "StrReg3", string=True)
     metadata_full_path = Component(EpicsSignal, "StrReg4", string=True)
     file_path = Component(EpicsSignal, "StrReg5", string=True)
-    # analysis_type = Component(EpicsSignal, "StrReg20", string=True)
+    analysis_type = Component(EpicsSignal, "StrReg7", string=True)
 
     experiment_name = Component(EpicsSignal, "StrReg6", string=True)
-    spec_file = Component(EpicsSignal, "StrReg7", string=True)
+    # spec_file = Component(EpicsSignal, "StrReg7", string=True)
     mount_point = Component(EpicsSignal, "StrReg8", string=True)
     cycle_name = Component(EpicsSignal, "StrReg9", string=True)
     qmap_file = Component(EpicsSignal, "StrReg10", string=True)
 
     analysis_machine = Component(EpicsSignal, "StrReg11", string=True)
     workflow_name = Component(EpicsSignal, "StrReg12", string=True)
+    use_subfolder = Component(EpicsSignal, "StrReg13", string=True)
+
 
     measurement_num = Component(EpicsSignal, "Reg1")
     sample_index = Component(EpicsSignal, "Reg2")

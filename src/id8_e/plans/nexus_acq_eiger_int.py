@@ -29,14 +29,14 @@ def setup_eiger_int_series(acq_time, num_frames, file_header, file_name):
         num_frames: Number of frames to acquire
         file_name: Base name for the output files
     """
-    # cycle_name = pv_registers.cycle_name.get()
-    # exp_name = pv_registers.experiment_name.get()
-    # mount_point = pv_registers.mount_point.get()
+    cycle_name = pv_registers.cycle_name.get()
+    exp_name = pv_registers.experiment_name.get()
+    mount_point = pv_registers.mount_point.get()
 
-    # file_path = f"{mount_point}{cycle_name}/{exp_name}/data/{file_header}/{file_name}"
-    base_test_dir = "/home/beams/8IDIUSER/sdmarks/waxpcs_test_dir/eiger"
-    file_path = f"{base_test_dir}/{file_header}/{file_name}"
-
+    file_path = f"{mount_point}{cycle_name}/{exp_name}/data/{file_header}/{file_name}"
+    
+    # base_test_dir = "/home/beams/8IDIUSER/sdmarks/waxpcs_test_dir/eiger"
+    # file_path = f"{base_test_dir}/{file_header}/{file_name}"
 
     acq_period = acq_time
 
@@ -110,8 +110,8 @@ def eiger_acq_int_series(
     for ii in range(num_rep):
         yield from bps.sleep(wait_time)
 
-        if sample_move:
-            yield from mesh_grid_move()
+        # if sample_move:
+        #     yield from mesh_grid_move()
 
         file_header = f"{folder_prefix}_f{num_frames:06d}"
         file_name = f"{folder_prefix}_f{num_frames:06d}_r{ii+1:05d}"

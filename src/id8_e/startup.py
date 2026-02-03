@@ -30,6 +30,10 @@ from apsbits.utils.helper_functions import register_bluesky_magics
 from apsbits.utils.helper_functions import running_in_queueserver
 from apsbits.utils.logging_setup import configure_logging
 
+# from apstools.devices import load_devices_from_yaml
+# from id8_common.utils.misc import ioc_alive
+from id8_common.utils.misc import stream_rois
+
 # Configuration block
 # Get the path to the instrument package
 # Load configuration to be used by the instrument.
@@ -93,8 +97,7 @@ make_devices(clear=False, file="devices.yml", device_manager=instrument)
 make_devices(clear=False, file="devices_aps_only.yml", device_manager=instrument)
 make_devices(clear=False, file="ad_devices.yml", device_manager=instrument)
 
-# from apstools.devices import load_devices_from_yaml
-# from id8_common.utils.misc import ioc_alive
+stream_rois(oregistry["eiger4M"])
 
 # RIGAKU_TEST_PV = "8idRigaku3m:cam1:Manufacturer_RBV"
 # EIGER_TEST_PV = "8idEiger4m:cam1:Manufacturer_RBV"
@@ -175,6 +178,8 @@ from .plans.sample_info_unpack import *
 from .plans.scan_8ide import *
 # from .plans.qnw_plans import *
 from .plans.nexus_acq_eiger_int import *
+# from .plans.nexus_acq_eiger_ext import *
+
 # from .plans.nexus_acq_rigaku_zdt import *
 
 psic = oregistry["psic"]
@@ -183,19 +188,5 @@ from hklpy2.user import *
 from hklpy2.user import set_diffractometer
 set_diffractometer(psic)
 
-# from id8_common.utils.misc import stream_rois
-# stream_rois(eiger4M, stats_nums=(1,2,3), fields=("total",))
 
-if "stats1" not in eiger4M.read_attrs:
-    eiger4M.read_attrs.append("stats1")
 
-eiger4M.stats1.read_attrs = ["total"]
-eiger4M.stats1.kind = "hinted"
-eiger4M.stats1.total.kind = "hinted"
-
-if "stats1" not in lambda2M.read_attrs:
-    lambda2M.read_attrs.append("stats1")
-
-lambda2M.stats1.read_attrs = ["total"]
-lambda2M.stats1.kind = "hinted"
-lambda2M.stats1.total.kind = "hinted"

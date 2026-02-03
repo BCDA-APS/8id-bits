@@ -3,7 +3,7 @@ Module for selecting samples and reading sample information from a JSON
 configuration file. Supports both rheometer and regular sample stages.
 """
 
-import json
+import yaml
 from pathlib import Path
 from typing import Dict
 from typing import Union
@@ -12,14 +12,12 @@ import numpy as np
 from apsbits.core.instrument_init import oregistry
 from bluesky import plan_stubs as bps
 
-# sample = oregistry["sample"]
-# rheometer = oregistry["rheometer"]
+sample = oregistry["sample"]
 filter = oregistry["filter_8ide"]
 pv_registers = oregistry["pv_registers"]
 huber = oregistry["huber"]
 
-SAMPLE_INFO_PATH = Path("/home/beams/8IDIUSER/bluesky/src/user_plans/sample_info.json")
-
+SAMPLE_INFO_PATH = Path("/home/beams/8IDIUSER/bluesky/src/id8_e/plans/sample_info.yaml")
 
 def select_sample(env: int):
     """Select and move to a sample position.
@@ -35,18 +33,18 @@ def select_sample(env: int):
         Generator: Bluesky plan messages
     """
     with open(SAMPLE_INFO_PATH, "r") as f:
-        loaded_dict = json.load(f)
+        loaded_dict = yaml.safe_load(f)
 
     sample_key = f"sample_{env}"
     x_cen = loaded_dict[sample_key]["x_cen"]
-    y_cen = loaded_dict[sample_key]["y_cen"]
+    z_cen = loaded_dict[sample_key]["z_cen"]
 
-    print(f"Moving {sample_key} x to {x_cen} and y to {y_cen}")
+    print(f"Moving {sample_key} x to {x_cen} and z to {z_cen}")
 
     if env == 0:
         yield from bps.mv(huber.sample_x, x_cen, huber.sample_z, z_cen)
     elif 1 <= env <= 27:
-        yield from bps.mv(huber.sample_x, x_cen, huber.sample_y, y_cen)
+        yield from bps.mv(huber.sample_x, x_cen, huber.sample_z, z_cen)
     # elif env == 31:
     #     yield from bps.mv(huber.sample_x, x_cen, huber.sample_y, y_cen)
     # # elif 31 <= env <= 38:
@@ -57,10 +55,49 @@ def select_sample(env: int):
     # yield from bps.mv(pv_registers.qnw_index, env)
 
 
+# def sort_qnw() -> Dict[str, Union[int, float, str]]:
+#     """Read and organize sample information from the configuration file.
+
+#     This function reads the sample information YAML file and returns a dictionary
+#     containing the current sample's metadata, including position, dimensions,
+#     and measurement parameters.
+
+#     Returns:
+#         Dictionary containing sample metadata with the following keys:
+#         - qnw_index: Sample environment index
+#         - meas_num: Measurement number
+#         - sample_name: Name of the sample
+#         - header: Measurement header prefix
+#         - x_cen, y_cen: Center position coordinates
+#         - x_radius, y_radius: Scan range in each direction
+#         - x_pts, y_pts: Number of points in each direction
+#         - temp_zone: Temperature zone information
+#     """
+#     qnw_index = int(pv_registers.qnw_index.get())
+#     sample_key = f"sample_{qnw_index}"
+#     with open(SAMPLE_INFO_PATH, "r") as f:
+#         loaded_dict = yaml.safe_load(f)
+
+#     sam_dict = {
+#         "qnw_index": int(pv_registers.qnw_index.get()),
+#         "meas_num": int(pv_registers.measurement_num.get()),
+#         "sample_name": loaded_dict[sample_key]["sample_name"],
+#         "header": loaded_dict[sample_key]["header"],
+#         "x_cen": float(loaded_dict[sample_key]["x_cen"]),
+#         "y_cen": float(loaded_dict[sample_key]["y_cen"]),
+#         "x_radius": float(loaded_dict[sample_key]["x_radius"]),
+#         "y_radius": float(loaded_dict[sample_key]["y_radius"]),
+#         "x_pts": int(loaded_dict[sample_key]["x_pts"]),
+#         "y_pts": int(loaded_dict[sample_key]["y_pts"]),
+#         "temp_zone": loaded_dict[sample_key]["temp_zone"],
+#     }
+
+#     return sam_dict
+
 def gen_dict() -> Dict[str, Union[int, float, str]]:
     """Read and organize sample information from the configuration file.
 
-    This function reads the sample information JSON file and returns a dictionary
+    This function reads the sample information JSON/YAML file and returns a dictionary
     containing the current sample's metadata, including position, dimensions,
     and measurement parameters.
 
@@ -78,7 +115,7 @@ def gen_dict() -> Dict[str, Union[int, float, str]]:
     sample_index = int(pv_registers.sample_index.get())
     sample_key = f"sample_{sample_index}"
     with open(SAMPLE_INFO_PATH, "r") as f:
-        loaded_dict = json.load(f)
+        loaded_dict = yaml.safe_load(f)
 
     sam_dict = {
         "sample_index": int(pv_registers.sample_index.get()),
@@ -86,11 +123,11 @@ def gen_dict() -> Dict[str, Union[int, float, str]]:
         "sample_name": loaded_dict[sample_key]["sample_name"],
         "header": loaded_dict[sample_key]["header"],
         "x_cen": float(loaded_dict[sample_key]["x_cen"]),
-        "y_cen": float(loaded_dict[sample_key]["y_cen"]),
+        "z_cen": float(loaded_dict[sample_key]["z_cen"]),
         "x_radius": float(loaded_dict[sample_key]["x_radius"]),
-        "y_radius": float(loaded_dict[sample_key]["y_radius"]),
+        "z_radius": float(loaded_dict[sample_key]["z_radius"]),
         "x_pts": int(loaded_dict[sample_key]["x_pts"]),
-        "y_pts": int(loaded_dict[sample_key]["y_pts"]),
+        "z_pts": int(loaded_dict[sample_key]["z_pts"]),
         "temp_zone": loaded_dict[sample_key]["temp_zone"],
     }
     return sam_dict
@@ -120,48 +157,45 @@ def gen_folder_prefix() -> str:
     return folder_name
 
 
-# def mesh_grid_move():
-#     """Move to the next position in a mesh grid scan.
+def mesh_grid_move():
+    """Move to the next position in a mesh grid scan.
 
-#     This plan calculates and moves to the next position in a mesh grid pattern,
-#     using either the rheometer or sample stage depending on the current
-#     environment.
+    This plan calculates and moves to the next position in a mesh grid pattern,
+    using either the rheometer or sample stage depending on the current
+    environment.
 
-#     Yields:
-#         Generator: Bluesky plan messages
-#     """
-#     sam_dict = sort_qnw()
+    Yields:
+        Generator: Bluesky plan messages
+    """
+    sam_dict = gen_dict()
 
-#     # sample_pos_register = pv_registers.sample_position_register(sam_dict["qnw_index"])
-#     sam_pos = int(sample_pos_register.get())
+    # sample_pos_register = pv_registers.sample_position_register(sam_dict["qnw_index"])
+    sam_pos = int(sample_pos_register.get())
 
-#     samx_list = np.linspace(
-#         sam_dict["x_cen"] - sam_dict["x_radius"],
-#         sam_dict["x_cen"] + sam_dict["x_radius"],
-#         num=sam_dict["x_pts"],
-#     )
-#     samy_list = np.linspace(
-#         sam_dict["y_cen"] - sam_dict["y_radius"],
-#         sam_dict["y_cen"] + sam_dict["y_radius"],
-#         num=sam_dict["y_pts"],
-#     )
+    samx_list = np.linspace(
+        sam_dict["x_cen"] - sam_dict["x_radius"],
+        sam_dict["x_cen"] + sam_dict["x_radius"],
+        num=sam_dict["x_pts"],
+    )
+    samy_list = np.linspace(
+        sam_dict["z_cen"] - sam_dict["z_radius"],
+        sam_dict["z_cen"] + sam_dict["z_radius"],
+        num=sam_dict["y_pts"],
+    )
 
-#     pos_index = np.mod(sam_pos + 1, sam_dict["x_pts"] * sam_dict["y_pts"])
-#     x_pos = samx_list[np.mod(pos_index, sam_dict["x_pts"])]
-#     y_pos = samy_list[int(np.floor(pos_index / sam_dict["x_pts"]))]
+    pos_index = np.mod(sam_pos + 1, sam_dict["x_pts"] * sam_dict["z_pts"])
+    x_pos = samx_list[np.mod(pos_index, sam_dict["x_pts"])]
+    z_pos = samy_list[int(np.floor(pos_index / sam_dict["x_pts"]))]
 
-#     if sam_dict["qnw_index"] == 0:
-#         yield from bps.mv(rheometer.x, x_pos, rheometer.y, y_pos)
+    if sam_dict["qnw_index"] == 0:
+        yield from bps.mv(huber.sample_x, x_pos, huber.sample_z, z_pos)
+
+    # elif sam_dict["qnw_index"] == 31:
+    #     yield from bps.mv(huber.sample_x, x_pos, huber.sample_y, y_pos)
     
-#     elif sam_dict["qnw_index"] >= 1 and sam_dict["qnw_index"] <= 27:
-#         yield from bps.mv(sample.x, x_pos, sample.y, y_pos)
+    # elif sam_dict["qnw_index"] == 28:
+    #     yield from bps.mv(huber.sample_x, x_pos, huber.sample_y, y_pos)
+    # else:
+    #     pass
 
-#     elif sam_dict["qnw_index"] == 31:
-#         yield from bps.mv(huber.sample_x, x_pos, huber.sample_y, y_pos)
-    
-#     elif sam_dict["qnw_index"] == 28:
-#         yield from bps.mv(huber.sample_x, x_pos, huber.sample_y, y_pos)
-#     else:
-#         pass
-
-#     yield from bps.mv(sample_pos_register, pos_index)
+    yield from bps.mv(sample_pos_register, pos_index)

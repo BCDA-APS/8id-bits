@@ -1,0 +1,11 @@
+sample_1:
+  sample_name: test
+  x_cen: 0
+  z_cen: 0
+  x_radius: 1
+  z_radius: 1
+  x_pts: 10
+  z_pts: 10
+  header: R
+  temp_zone: 300K
+

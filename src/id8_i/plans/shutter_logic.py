@@ -1,58 +1,50 @@
 """
-Shutter control logic for the 8ID-I beamline.
+Shutter control logic for the 8ID-E beamline.
 
 This module provides plans for controlling the beam shutter and safety interlocks
-using the LabJack device.
+at the 8ID-E station.
 """
 
-import epics as pe
 from apsbits.core.instrument_init import oregistry
+import epics as pe
 import time
 
-labjack = oregistry["labjack"]
+shutter_8ide = oregistry["shutter_8ide"]
 
 
 def showbeam():
     """Open the beam shutter to show the beam."""
-    if labjack.operation.get(use_cache=False) != 0:
-        labjack.operation.put(0)
+    shutter_8ide.operation.put(0)
     time.sleep(0.5)
 
 
 def blockbeam():
     """Block the beam by closing the shutter."""
-    if labjack.operation.get(use_cache=False) != 1:
-        labjack.operation.put(1)
+    shutter_8ide.operation.put(1)
     time.sleep(0.5)
 
 
 def shutteron():
     """Enable the shutter control logic."""
-    labjack.logic.put(0)
+    shutter_8ide.logic.put(0)
     time.sleep(0.5)
 
 
 def shutteroff():
     """Disable the shutter control logic."""
-    labjack.logic.put(1)
+    shutter_8ide.logic.put(1)
     time.sleep(0.5)
 
 
 def post_align():
-    """Configure system for post-alignment state.
-
-    Sets flight tube output and blocks the beam.
-    """
+    """Configure system for post-alignment state by blocking the beam."""
     pe.caput("8idiSoft:FLIGHT:bo1:8", 1)
     blockbeam()
     time.sleep(0.5)
 
 
 def pre_align():
-    """Configure system for pre-alignment state.
-
-    Clears flight tube output and disables shutter control.
-    """
+    """Configure system for pre-alignment state by disabling shutter control."""
     pe.caput("8idiSoft:FLIGHT:bo1:8", 0)
     shutteroff()
     time.sleep(0.5)

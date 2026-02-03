@@ -35,15 +35,13 @@ apsbits.utils.sim_creator.predefined_device:
 # #   x_motor: m13
 # #   y_motor: m12
 
-# id8_common.devices.fast_shutter.FastShutter:
-# - name: shutter_8ide
-#   prefix: "8ideSoft:fastshutter:"
+id8_common.devices.fast_shutter.FastShutter:
+- name: shutter_8ide
+  prefix: "8ideSoft:fastshutter:"
 
 id8_common.devices.avs_filters.AVSfilters:
 - name: filter_8ide
   prefix: "8idPyFilter:FL2:"
-# - name: filter_8idi
-#   prefix: "8idPyFilter:FL3:"
 
 id8_common.devices.granite.granite_device:
 - name: granite

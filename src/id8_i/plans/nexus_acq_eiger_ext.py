@@ -6,9 +6,9 @@ trigger mode, including setup of the detector, softglue triggers, and data
 acquisition workflows.
 """
 from datetime import datetime
+import time
 
 from apsbits.core.instrument_init import oregistry
-from bluesky import plan_stubs as bps
 
 from ..utils.dm_util import dm_run_job
 from ..utils.dm_util import dm_setup
@@ -57,38 +57,43 @@ def setup_eiger_ext_trig(
     else: 
         print("Sub folder options can only be either Yes or No")
     
-    yield from bps.mv(eiger4M.cam.acquire_time, acq_time)
-    yield from bps.mv(eiger4M.cam.acquire_period, acq_period)
-    yield from bps.mv(eiger4M.hdf1.file_name, file_name)
-    yield from bps.mv(eiger4M.hdf1.file_path, file_path)
-    yield from bps.mv(eiger4M.hdf1.num_capture, num_frames)
-    yield from bps.mv(pv_registers.file_name, file_name)
-    yield from bps.mv(pv_registers.metadata_full_path, f"{file_path}/{file_name}_metadata.hdf")
+    eiger4M.cam.acquire_time.put(acq_time)
+    eiger4M.cam.acquire_period.put(acq_period)
+    eiger4M.hdf1.file_name.put(file_name)
+    eiger4M.hdf1.file_path.put(file_path)
+    eiger4M.hdf1.num_capture.put(num_frames)
+    pv_registers.file_name.put(file_name)
+    pv_registers.metadata_full_path.put(f"{file_path}/{file_name}_metadata.hdf")
 
     # Unique for External Mode
-    yield from bps.mv(eiger4M.cam.num_triggers, num_frames)
-    yield from bps.mv(eiger4M.cam.trigger_mode, "External Enable")
-    yield from bps.mv(softglue_8idi.acq_time, acq_time)
-    yield from bps.mv(softglue_8idi.acq_period, acq_period)
-    yield from bps.mv(softglue_8idi.num_triggers, num_frames)
+    eiger4M.cam.num_triggers.put(num_frames)
+    eiger4M.cam.trigger_mode.put("External Enable")
+    softglue_8idi.acq_time.put(acq_time)
+    softglue_8idi.acq_period.put(acq_period)
+    softglue_8idi.num_triggers.put(num_frames)
 
 ############# Homebrew acquisition plan #############
 def eiger_acquire():
     """Acquire data from Eiger4M using external triggers."""
-    yield from showbeam()
-    yield from bps.sleep(0.1)
-    yield from bps.mv(eiger4M.hdf1.capture, 1)
-    yield from bps.mv(eiger4M.cam.acquire, 1)
+    showbeam()
+    time.sleep(0.1)
+    eiger4M.hdf1.capture.put(1)
+    eiger4M.cam.acquire.put(1)
 
-    yield from bps.mv(softglue_8idi.start_pulses, "1!")
+    softglue_8idi.start_pulses.put("1!")
 
     while True:
+        #### QZ on 2026/01/06 ####
+        # without the 0.5 s wait time, the repeating acqs go out of sync. 
+        # Don't know why and maybe the 0.5 s can be made shorter
+        #### QZ on 2026/01/06 ####
+        time.sleep(0.5)
         det_status = eiger4M.cam.acquire_busy.get()
         if det_status == 1:
-            yield from bps.sleep(0.1)
+            time.sleep(0.1)
         if det_status == 0:
             break
-    yield from blockbeam()
+    blockbeam()
 
     frame_num_set = eiger4M.hdf1.queue_size.get()
     count = 0
@@ -97,7 +102,7 @@ def eiger_acquire():
         if frame_num_processed == frame_num_set:
             break
         else:
-            yield from bps.sleep(0.1)
+            time.sleep(0.1)
             count = +1
         eiger4M.hdf1.capture.put(0)
 
@@ -121,44 +126,44 @@ def eiger_acq_ext_trig(
         num_reps: Number of repetitions
         wait_time: Time to wait between repetitions
         sample_move: Whether to move sample between repetitions
-        process: Whether to process data after acquisition
     """
-    # try:
-        # yield from setup_softglue_ext_trig(acq_time, acq_period, num_frames)
-    yield from post_align()
-    yield from shutteron()
+    try:
+        post_align()
+        shutteron()
 
-    workflowProcApi, dmuser = dm_setup()
-    folder_prefix = gen_folder_prefix()
+        workflowProcApi, dmuser = dm_setup()
+        folder_prefix = gen_folder_prefix()
 
-    for ii in range(num_reps):
-        yield from bps.sleep(wait_time)
+        for ii in range(num_reps):
+            time.sleep(wait_time)
 
-        if sample_move:
-            yield from mesh_grid_move()
+            if sample_move:
+                mesh_grid_move()
 
-        qnw_temp=int(qnw_controllers[find_qnw_index()-1].setpoint.get())
-        file_header = f"{folder_prefix}_t{qnw_temp:03d}C_f{num_frames:06d}"
-        file_name = f"{folder_prefix}_t{qnw_temp:03d}C_f{num_frames:06d}_r{ii+1:05d}"
+            qnw_temp=int(qnw_controllers[find_qnw_index()-1].setpoint.get())
+            file_header = f"{folder_prefix}_t{qnw_temp:03d}C_f{num_frames:06d}"
+            file_name = f"{folder_prefix}_t{qnw_temp:03d}C_f{num_frames:06d}_r{ii+1:05d}"
 
-        yield from setup_eiger_ext_trig(acq_time, acq_period, num_frames, file_header, file_name)
+            setup_eiger_ext_trig(acq_time, acq_period, num_frames, file_header, file_name)
 
-        _ = datetime.now()
-        time_now = _.strftime("%Y-%m-%d %H:%M:%S")
-        print(f"\n{time_now}, Starting measurement {file_name}")
-        yield from eiger_acquire()
-        _ = datetime.now()
-        time_now = _.strftime("%Y-%m-%d %H:%M:%S")
-        print(f"{time_now}, Complete measurement {file_name}")
+            _ = datetime.now()
+            time_now = _.strftime("%Y-%m-%d %H:%M:%S")
+            print(f"\n{time_now}, Starting measurement {file_name}")
+            eiger_acquire()
+            _ = datetime.now()
+            time_now = _.strftime("%Y-%m-%d %H:%M:%S")
+            print(f"{time_now}, Complete measurement {file_name}")
 
-        metadata_fname = pv_registers.metadata_full_path.get()
-        create_nexus_format_metadata(metadata_fname, det=eiger4M)
+            metadata_fname = pv_registers.metadata_full_path.get()
+            create_nexus_format_metadata(metadata_fname, det=eiger4M)
 
-        dm_run_job(workflowProcApi, dmuser)
-    # except KeyboardInterrupt as err:
-    #     raise RuntimeError("\n Bluesky plan stopped by user (Ctrl+C).") from err
-    # except Exception as e:
-    #     print(f"Error occurred during measurement: {e}")
-    #     raise Exception from e
-    # finally:
-    #     pass
+            dm_run_job(workflowProcApi, dmuser)
+    except KeyboardInterrupt:
+        softglue_8idi.stop_pulses.put("1!")
+        eiger4M.cam.acquire.put(0)
+        eiger4M.hdf1.capture.put(0)
+        raise RuntimeError("\n Bluesky plan stopped by user (Ctrl+C).")
+    except Exception as e:
+        print(f"Error occurred during measurement: {e}")
+    finally:
+        pass

@@ -147,7 +147,7 @@ def eiger_acq_int_series(
 
             dm_run_job(workflowProcApi, dmuser)
     except KeyboardInterrupt:
-        raise RuntimeError("\n Sam wants Bluesky plan stopped by user (Ctrl+C).")
+        raise RuntimeError("\n Bluesky plan stopped by user (Ctrl+C).")
     except Exception as e:
         print(f"Error occurred during measurement: {e}")
     finally:

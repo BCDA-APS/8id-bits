@@ -13,7 +13,7 @@ cd bluesky
 
 ```bash
 export ENV_NAME=bs_8id_main
-conda create -y -n $ENV_NAME python=3.11 pyepics
+conda create -y -n $ENV_NAME python=3.11 pyepics apsu::aps-dm-api
 conda activate $ENV_NAME
 pip install -e ."[all]"
 ```

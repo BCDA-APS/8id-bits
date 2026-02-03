@@ -26,16 +26,10 @@ def _get_ring_current():
     return float(machine.current.get())
     
 
-
 # detector = oregistry["detector"]
-# sample = oregistry["sample"]
 filter_8ide = oregistry["filter_8ide"]
 lakeshore1 = oregistry["lakeshore1"]
-flight_path_8idi = oregistry["flight_path_8idi"]
 mono_8id = oregistry["mono_8id"]
-# qnw_env1 = oregistry["qnw_env1"]
-# qnw_env2 = oregistry["qnw_env2"]
-# qnw_env3 = oregistry["qnw_env3"]
 tetramm1 = oregistry["tetramm1"]
 pv_registers = oregistry["pv_registers"]
 # undulator_upstream = oregistry["undulator_upstream"]
@@ -43,7 +37,11 @@ pv_registers = oregistry["pv_registers"]
 huber = oregistry["huber"]
 sl4 = oregistry["sl4"]
 xbpm1 = oregistry["xbpm1"]
-# aps = oregistry["aps"]
+sl4 = oregistry["sl4"]
+sl7 = oregistry["sl7"]
+wb_slit = oregistry["wb_slit"]
+mono_slit = oregistry["mono_slit"]
+xbpm1 = oregistry["xbpm1"]
 
 default_units_keymap = {
     "NX_COUNT": "one",  # Used for frame_sum, frame_average, delay_difference
@@ -161,40 +159,51 @@ def create_runtime_metadata_dict(
         "/entry/start_time": str(datetime.datetime.now()),
         "/entry/end_time": str(datetime.datetime.now()),  # fixme later
         "/entry/instrument/datamanagement/workflow_name": pv_registers.workflow_name.get(),
-        "/entry/instrument/detector_1/beam_center_x": pv_registers.current_db_x0.get(),
-        "/entry/instrument/detector_1/beam_center_y": pv_registers.current_db_y0.get(),
-        # All lengths changed to unit of meters
-        "/entry/instrument/detector_1/beam_center_position_x": pv_registers.current_det_x0.get() / 1000.0,
-        "/entry/instrument/detector_1/beam_center_position_y": pv_registers.current_det_y0.get() / 1000.0,
+
+        # TODO: Change the detector direct beam position and detector position to real numbers
+        # "/entry/instrument/detector_1/beam_center_x": pv_registers.current_db_x0.get(),
+        # "/entry/instrument/detector_1/beam_center_y": pv_registers.current_db_y0.get(),
+        # "/entry/instrument/detector_1/beam_center_position_x": pv_registers.current_det_x0.get() / 1000.0,
+        # "/entry/instrument/detector_1/beam_center_position_y": pv_registers.current_det_y0.get() / 1000.0,
         # "/entry/instrument/detector_1/position_x": detector.x.position / 1000.0,
         # "/entry/instrument/detector_1/position_y": detector.y.position / 1000.0,
+        # "/entry/instrument/detector_1/x_pixel_size": pv_registers.det_pixel_size.get(),
+        # "/entry/instrument/detector_1/y_pixel_size": pv_registers.det_pixel_size.get(),
+        "/entry/instrument/detector_1/beam_center_x": 1,
+        "/entry/instrument/detector_1/beam_center_y": 1,
+        "/entry/instrument/detector_1/beam_center_position_x": 1,
+        "/entry/instrument/detector_1/beam_center_position_y": 1,
+        "/entry/instrument/detector_1/position_x": 1,
+        "/entry/instrument/detector_1/position_y": 1,
+        "/entry/instrument/detector_1/distance": 2.2,
+        "/entry/instrument/detector_1/flightpath_swing": -huber.delta.position,
         "/entry/instrument/detector_1/count_time": det.cam.acquire_time.get(),
         "/entry/instrument/detector_1/frame_time": det.cam.acquire_period.get(),
         "/entry/instrument/detector_1/detector_name": pv_registers.det_name.get(),
         "/entry/instrument/detector_1/qmap_file": pv_registers.qmap_file.get(),
-        "/entry/instrument/detector_1/distance": 2.02,
-        # "/entry/instrument/detector_1/distance": flight_path_8idi.length.position / 1000.0,  # Not calibrated
-        # "/entry/instrument/detector_1/flightpath_swing": flight_path_8idi.swing.position,
-        "/entry/instrument/detector_1/flightpath_swing": -huber.delta.position,
-        "/entry/instrument/detector_1/x_pixel_size": pv_registers.det_pixel_size.get(),
-        "/entry/instrument/detector_1/y_pixel_size": pv_registers.det_pixel_size.get(),
-        "/entry/instrument/beam_stop/x_position": flight_path_8idi.ds_x.position,
-        "/entry/instrument/beam_stop/y_position": flight_path_8idi.ds_y.position,
-        "/entry/instrument/slits_4/vertical_gap": sl4.v.size.position,
-        "/entry/instrument/slits_4/vertical_center": sl4.v.center.position,
-        "/entry/instrument/slits_4/horizontal_gap": sl4.h.size.position,
-        "/entry/instrument/slits_4/horizontal_center": sl4.h.center.position,
+        # "/entry/instrument/wb_slit/vertical_gap": wb_slit.vgap.position,
+        # "/entry/instrument/wb_slit/vertical_center": wb_slit.vcen.position,
+        # "/entry/instrument/wb_slit/horizontal_gap": wb_slit.hgap.position,
+        # "/entry/instrument/wb_slit/horizontal_center": wb_slit.hcen.position,
+        # "/entry/instrument/mono_slit/vertical_gap": mono_slit.vgap.position,
+        # "/entry/instrument/mono_slit/vertical_center": mono_slit.vcen.position,
+        # "/entry/instrument/mono_slit/horizontal_gap": mono_slit.hgap.position,
+        # "/entry/instrument/mono_slit/horizontal_center": mono_slit.hcen.position,
+        # "/entry/instrument/sl4/vertical_gap": sl4.v.size.position,
+        # "/entry/instrument/sl4/vertical_center": sl4.v.center.position,
+        # "/entry/instrument/sl4/horizontal_gap": sl4.h.size.position,
+        # "/entry/instrument/sl4/horizontal_center": sl4.h.center.position,
+        # "/entry/instrument/sl7/vertical_gap": sl7.v.size.position,
+        # "/entry/instrument/sl7/vertical_center": sl7.v.center.position,
+        # "/entry/instrument/sl7/horizontal_gap": sl7.h.size.position,
+        # "/entry/instrument/sl7/horizontal_center": sl7.h.center.position,
         "/entry/instrument/monochromator/energy": mono_8id.energy_readback.get(),
         "/entry/instrument/monochromator/wavelength": mono_8id.energy_readback.get() / 12.4,
         "/entry/instrument/incident_beam/incident_energy": mono_8id.energy_readback.get(),
         "/entry/instrument/incident_beam/incident_energy_spread": 0.0001,
-        "/entry/instrument/incident_beam/incident_beam_intensity": (
-            xbpm1.current1.mean_value.get() / xbpm1.current_scales.ch1.get()
-            + xbpm1.current2.mean_value.get() / xbpm1.current_scales.ch2.get()
-            + xbpm1.current3.mean_value.get() / xbpm1.current_scales.ch3.get()
-            + xbpm1.current4.mean_value.get() / xbpm1.current_scales.ch4.get()
-        ),
-        "/entry/instrument/incident_beam/ring_current": _get_ring_current(),        
+        "/entry/instrument/incident_beam/incident_beam_intensity": tetramm1.current2.mean_value.get()*1e-9,
+        # "/entry/instrument/incident_beam/ring_current": aps.current.get(),
+        # "/entry/instrument/undulator_1/gap": undulator_upstream.gap.position,
         # "/entry/instrument/undulator_1/energy": undulator_upstream.energy.position,
         # "/entry/instrument/undulator_1/taper": undulator_upstream.gap_taper.position,
         # "/entry/instrument/undulator_2/gap": undulator_downstream.gap.position,
@@ -204,12 +213,6 @@ def create_runtime_metadata_dict(
         "/entry/instrument/attenuator_1/attenuator_index": (filter_8ide.index.readback.get()),
         "/entry/instrument/attenuator_2/attenuator_transmission": (0),
         "/entry/instrument/attenuator_2/attenuator_index": (0),
-        "/entry/sample/position_x": sample.x.position,
-        "/entry/sample/position_y": sample.y.position,
-        "/entry/sample/position_z": sample.z.position,
-        "/entry/sample/position_rheo_x": rheometer.x.position,
-        "/entry/sample/position_rheo_y": rheometer.y.position,
-        "/entry/sample/position_rheo_z": rheometer.z.position,
         "/entry/sample/huber_nu": huber.nu.position,
         "/entry/sample/huber_delta": huber.delta.position,
         "/entry/sample/huber_mu": huber.mu.position,
@@ -219,18 +222,10 @@ def create_runtime_metadata_dict(
         "/entry/sample/huber_y": huber.sample_y.position,
         "/entry/sample/huber_z": huber.sample_z.position,
         "/entry/sample/huber_x": huber.sample_x.position,
-        "/entry/sample/qnw_lakeshore": lakeshore1.readback_ch3.get(),
-        # "/entry/sample/qnw1_temperature": qnw_env1.readback.get(),  # Air QNW
-        # "/entry/sample/qnw1_temperature_set": qnw_env1.setpoint.get(),
-        # "/entry/sample/qnw2_temperature": qnw_env2.readback.get(),
-        # "/entry/sample/qnw2_temperature_set": qnw_env2.setpoint.get(),
-        # "/entry/sample/qnw3_temperature": qnw_env3.readback.get(),
-        # "/entry/sample/qnw3_temperature_set": qnw_env3.setpoint.get(),
         "/entry/instrument/bluesky/parent_folder": (
             f"{pv_registers.mount_point.get()}/{pv_registers.cycle_name.get()}/"
             f"{pv_registers.experiment_name.get()}/data/"
         ),
-        "/entry/instrument/bluesky/spec_file": pv_registers.spec_file.get(),
     }
     # update the runtime metadata with the runtime updates
     runtime_metadata.update(runtime_updates)

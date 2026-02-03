@@ -292,10 +292,10 @@ id8_common.devices.idt_mono.IDTMono:
 # - name: undulator_downstream
 #   prefix: "S08ID:DSID:"
 
-# id8_common.devices.aerotech_stages.AerotechSampleStage:
-# - name: sample
-#   prefix: "8idiAerotech:"
-#   labels: ["sample", "stage"]
+id8_common.devices.aerotech_stages.AerotechSampleStage:
+- name: sample
+  prefix: "8idiAerotech:"
+  labels: ["sample", "stage"]
 
 # id8_common.devices.aerotech_stages.AerotechDetectorStage:
 # - name: detector
