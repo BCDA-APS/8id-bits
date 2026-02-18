@@ -40,6 +40,8 @@ def save_images(det, save_img, num_frames=1, file_path=None):
     file_path: override base path (default uses a safe local path)
     """
 
+    det.cam.trigger_mode.put(0)
+
     if save_img not in (0, 1):
         raise valueerror("save_img must be 1 or 0 (to save or not to save)")
 
