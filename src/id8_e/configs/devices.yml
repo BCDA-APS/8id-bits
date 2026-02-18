@@ -185,6 +185,12 @@ id8_common.devices.softglue.SoftGlue:  # This has to be reviewed
   pv_start_pulses: "8idi:softGlueA:MUX2-1_IN0_Signal"
   pv_stop_pulses: "8idi:softGlueA:OR-1_IN2_Signal"
 
+id8_common.devices.softglue.SoftGlue_MZ2:  
+- name: "softglue_8id_mz2"
+  prefix: ""
+  # load: "8idMZ2:SG:DnCntr-1_LOAD_Signal"
+  # preset: "8idMZ2:SG:DnCntr-1_PRESET"
+
 id8_common.devices.transfocator.Transfocator:
 - name: rl1
   prefix: "8iddSoft:TRANS:"
@@ -219,14 +225,6 @@ id8_common.devices.transfocator.Transfocator:
   pv_lens8: "m22"
   pv_lens9: "m23"
   pv_lens10: "m24"
-
-# id8_common.devices.func_gen.Function_Generator:
-# - name: dpKeysight
-#   prefix: "dpKeysight:KEY1:"
-
-id8_common.devices.func_gen.Function_Generator:
-- name: 8idKeysight
-  prefix: "8idKeysight:KEY1:"
 
 id8_common.devices.huber_diffractometer.Huber_Diffractometer:
 - name: huber
@@ -286,11 +284,9 @@ id8_common.devices.idt_mono.IDTMono:
   pitch_piezo: "LJT703:Ao2"
   roll_piezo: "LJT703:Ao3"
 
-# apstools.devices.aps_undulator.Revolver_Undulator:
-# - name: undulator_upstream
-#   prefix: "S08ID:USID:"
-# - name: undulator_downstream
-#   prefix: "S08ID:DSID:"
+id8_common.devices.undulator.Undulator:
+- name: undulator
+  prefix: "S08ID:"
 
 id8_common.devices.aerotech_stages.AerotechSampleStage:
 - name: sample
@@ -398,3 +394,25 @@ hklpy2.creator:
     phi: m9
     nu: m4
     delta: m5
+
+id8_common.devices.keithley.Keithley:
+- name: keithley_chA
+  prefix: "8idKeithley2600:SMU:A:"
+- name: keithley_chB
+  prefix: "8idKeithley2600:SMU:B:"
+
+id8_common.devices.bk_powersupply.bk_pid:
+- name: bk_pid
+  prefix: "8idiSoft:BPMpid."
+
+id8_common.devices.pin_diode.PIND:
+- name: pd
+  prefix: "8ideSoft:pdu1:"
+
+# id8_common.devices.func_gen.Function_Generator:
+# - name: dpKeysight
+#   prefix: "dpKeysight:KEY1:"
+
+id8_common.devices.func_gen.Function_Generator:
+- name: keysight
+  prefix: "8idKeysight:KEY1:"

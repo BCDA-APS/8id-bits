@@ -66,6 +66,7 @@ def setup_eiger_int_series(acq_time, num_frames, file_header, file_name):
 ############# Homebrew acquisition plan #############
 def eiger_acquire():
     """Homebrew plan to acquire data with Eiger detector in internal mode."""
+    shutteroff()
     showbeam()
     time.sleep(0.1)
     eiger4M.hdf1.capture.put(1)

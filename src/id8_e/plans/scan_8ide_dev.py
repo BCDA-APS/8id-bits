@@ -15,10 +15,13 @@ from bluesky.plans import tune_centroid
 from bluesky.callbacks.fitting import PeakStats
 from apstools.plans.alignment import lineup2
 
-from .shutter_logic import blockbeam, pre_align, showbeam, PIND_status
+from .shutter_logic import blockbeam, pre_align, showbeam, PIND_out
+from .shutter_logic import pre_align
+from .shutter_logic import showbeam
 from .sample_info_unpack import gen_folder_prefix
 from .nexus_acq_eiger_int import setup_eiger_int_series
 import time
+
 
 huber = oregistry["huber"]
 filter_beam = oregistry["filter_8ide"]
@@ -43,82 +46,69 @@ def save_images(det, save_img, num_frames=1, file_path=None):
     if save_img not in (0, 1):
         raise valueerror("save_img must be 1 or 0 (to save or not to save)")
 
+    def _has(obj, attr):
+        return getattr(obj, attr, None) is not None
+
     if file_path is None:
-        file_path = "/gdata/dm/8ID/8IDE/2026-1/zhou202602/data/bluesky/"
+        file_path = "/gdata/dm/8ID/8IDE/2026-1/kisiel202602/data/bluesky/"
 
     is_eiger = ("eiger" in det.name.lower()) or ("eiger" in det.prefix.lower())
     is_lambda = ("lambda" in det.name.lower()) or ("lambda" in det.prefix.lower())
 
-    def _detector(obj, attr):
-        return getattr(obj, attr, None) is not None
-
-        
-    # if det == "tetramm1":
-    #     print("tetramm1 does not have image saving capability, skipping save configuration.")
-    #     return  
-    
     if save_img == 1:
-
-        if "tetramm" in det.name:
-            print("tetramm does not have image saving capability, skipping save configuration.")
-            return 
-        
-        det.hdf1.stage_sigs["enable"] = 1
-        if _detector(det.cam, "fw_enable"):
+        if _has(det.cam, "fw_enable"):
             yield from bps.mv(det.cam.fw_enable, 1)
-        if _detector(det.cam, "save_files"):
+        if _has(det.cam, "save_files"):
             yield from bps.mv(det.cam.save_files, 1)
 
         folder_prefix = gen_folder_prefix()
         file_header = f"{folder_prefix}"
         file_name = f"{folder_prefix}"
 
-        if _detector(det, "hdf1"):
-            if _detector(det.hdf1, "num_capture"):
+        if _has(det, "hdf1"):
+            if _has(det.hdf1, "num_capture"):
                 yield from bps.mv(det.hdf1.num_capture, num_frames)
 
             yield from bps.mv(pv_registers.file_name, file_name)
             yield from bps.mv(pv_registers.file_path, file_path)
-            yield from bps.mv(pv_registers.metadata_full_path,f"{file_path}/{file_name}_metadata.hdf",)
+            yield from bps.mv(
+                pv_registers.metadata_full_path,
+                f"{file_path}/{file_name}_metadata.hdf",
+            )
 
-            if _detector(det.hdf1, "file_name"):
+            if _has(det.hdf1, "file_name"):
                 yield from bps.mv(det.hdf1.file_name, file_name)
-            if _detector(det.hdf1, "file_path"):
+            if _has(det.hdf1, "file_path"):
                 yield from bps.mv(det.hdf1.file_path, file_path)
 
         if is_eiger:
-            if _detector(det.cam, "trigger_mode"):
+            if _has(det.cam, "trigger_mode"):
                 yield from bps.mv(det.cam.trigger_mode, "Internal Enable")
-            if _detector(det.cam, "num_triggers"):
+            if _has(det.cam, "num_triggers"):
                 yield from bps.mv(det.cam.num_triggers, 1)
-            if _detector(det.cam, "num_images"):
+            if _has(det.cam, "num_images"):
                 yield from bps.mv(det.cam.num_images, num_frames)
 
             # eiger internal series configuration 
             yield from setup_eiger_int_series(
-                acq_time=float(det.cam.acquire_time.get()) if _detector(det.cam, "acquire_time") else 1.0,
+                acq_time=float(det.cam.acquire_time.get()) if _has(det.cam, "acquire_time") else 1.0,
                 num_frames=num_frames,
                 file_header=file_header,
                 file_name=file_name,
             )
 
         else:
-            if _detector(det.cam, "num_images"):
+            if _has(det.cam, "num_images"):
                 yield from bps.mv(det.cam.num_images, num_frames)
 
     else:
         # disable writing 
-        if "tetramm" in det.name:
-            print("tetramm1 does not have image saving capability, skipping save configuration.")
-            return 
-        det.hdf1.stage_sigs["enable"] = 0
-
-        # elif _detector(det.cam, "fw_enable"):
-        #     yield from bps.mv(det.cam.fw_enable, 0)
-        # elif _detector(det.cam, "save_files"):
-        #     yield from bps.mv(det.cam.save_files, 0)
-        # elif _detector(det, "hdf1") and _detector(det.hdf1, "enable"):
-        #     yield from bps.mv(det.hdf1.enable, 0)
+        if _has(det.cam, "fw_enable"):
+            yield from bps.mv(det.cam.fw_enable, 0)
+        if _has(det.cam, "save_files"):
+            yield from bps.mv(det.cam.save_files, 0)
+        if _has(det, "hdf1") and _has(det.hdf1, "enable"):
+            yield from bps.mv(det.hdf1.enable, 0)
 
 def att(att_ratio: Optional[float] = None):
     """Set the attenuation ratio with multiple attempts.
@@ -184,28 +174,15 @@ def dscan(motor,
     """
     pre_align()
     att(att_ratio)
-    PIND_status(0)
-
-    if det == eiger4M:
-        yield from bps.mv(
-            det.cam.num_images, 1,
-            det.cam.acquire_time, count_time,
-            det.cam.acquire_period, count_time,
-        )
-    elif det == lambda2M:
-        yield from bps.mv(
-            det.cam.num_images, 1,
-            det.cam.acquire_time, count_time,
-            det.cam.acquire_period, 1,
-        )
-    else:
-        print('tetramm1 or other detector with simple acquire trigger')
+    PIND_out()
+    det.cam.num_images.put(1)
+    det.cam.acquire_time.put(count_time)
+    det.cam.acquire_period.put(count_time)
 
     yield from save_images(det, save_img)
     showbeam()
     yield from bp.rel_scan([det], motor, rel_begin, rel_end, num_pts)
     blockbeam()
-    det.hdf1.stage_sigs["enable"] = 1
 
 def d2scan(
     motor1, 
@@ -236,7 +213,6 @@ def d2scan(
     """
     pre_align()
     att(att_ratio)
-    PIND_out()
     yield from bps.mv(det.cam.num_images, 1)
     yield from bps.mv(det.cam.acquire_time, count_time)
     yield from bps.mv(det.cam.acquire_period, count_time)
@@ -244,7 +220,6 @@ def d2scan(
     showbeam()
     yield from bp.rel_scan([det], motor1, rel_begin1, rel_end1, motor2, rel_begin2, rel_end2, num_pts)
     blockbeam()
-    det.hdf1.stage_sigs["enable"] = 1
     
 
 def ascan(motor, 
@@ -254,8 +229,7 @@ def ascan(motor,
           count_time, 
           det=eiger4M, 
           att_ratio=7, 
-          save_img=1
-          ):
+          save_img=1):
     
     """
     usage:
@@ -273,7 +247,6 @@ def ascan(motor,
     """
     pre_align()
     att(att_ratio)
-    PIND_status(0)
     yield from bps.mv(eiger4M.cam.num_images, 1)
     yield from bps.mv(det.cam.acquire_time, count_time)
     yield from bps.mv(det.cam.acquire_period, count_time)
@@ -281,7 +254,6 @@ def ascan(motor,
     showbeam()
     yield from bp.scan([det], motor, rel_begin, rel_end, num_pts)
     blockbeam()
-    det.hdf1.stage_sigs["enable"] = 1
 
 def a2scan(
     motor1, 
@@ -312,7 +284,6 @@ def a2scan(
     """
     pre_align()
     att(att_ratio)
-    PIND_status(0)
     yield from bps.mv(eiger4M.cam.num_images, 1)
     yield from bps.mv(det.cam.acquire_time, count_time)
     yield from bps.mv(det.cam.acquire_period, count_time)
@@ -320,7 +291,6 @@ def a2scan(
     showbeam()
     yield from bp.scan([det], motor1, rel_begin1, rel_end1, motor2, rel_begin2, rel_end2, num_pts)
     blockbeam()
-    det.hdf1.stage_sigs["enable"] = 1
 
 
 def lineup_8id(motor, 
@@ -330,6 +300,7 @@ def lineup_8id(motor,
           count_time=1, 
           det=lambda2M, 
           att_ratio=1, 
+          save_img=1
           ):
     
     """
@@ -348,15 +319,16 @@ def lineup_8id(motor,
     """
     pre_align()
     att(att_ratio)
-    PIND_status(0)
     yield from bps.mv(
         det.cam.num_images, 1,
         det.cam.acquire_time, count_time,
         det.cam.acquire_period, 1,
     )
+    # det.cam.num_images.put(1)
+    # det.cam.acquire_time.put(count_time)
+    # det.cam.acquire_period.put(1)
 
     yield from save_images(det, save_img)
     showbeam()
     yield from lineup2([det.stats2.total, det], motor, rel_begin, rel_end, num_pts)
     blockbeam()
-    det.hdf1.stage_sigs["enable"] = 1

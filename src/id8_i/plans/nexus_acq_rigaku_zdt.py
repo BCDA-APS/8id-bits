@@ -1,13 +1,13 @@
 """
-Simple, modular Bluesky plans for users.
+Simple, modular Ophyd scripts for users.
 """
 
 import os
-
-from apsbits.core.instrument_init import oregistry
-from bluesky import plan_stubs as bps
+import time
 import subprocess
 import shlex
+
+from apsbits.core.instrument_init import oregistry
 
 from ..utils.dm_util import dm_run_job
 from ..utils.dm_util import dm_setup
@@ -47,53 +47,54 @@ def setup_rigaku_ZDT_series(acq_time, num_frames, file_header, file_name):
 
     acq_period = acq_time
 
-    yield from bps.mv(rigaku3M.cam.acquire_time, acq_time)
-    yield from bps.mv(rigaku3M.cam.acquire_period, acq_period)
-    yield from bps.mv(rigaku3M.cam.fast_file_name, f"{file_name}.bin")
-    yield from bps.mv(rigaku3M.cam.fast_file_path, file_path)
-    yield from bps.mv(rigaku3M.cam.num_images, num_frames)
-    yield from bps.mv(rigaku3M.cam.output_control, 'Sparsified')
-    yield from bps.mv(rigaku3M.cam.output_resolution, '2 Bit')
+    rigaku3M.cam.acquire_time.put(acq_time)
+    rigaku3M.cam.acquire_period.put(acq_period)
+    rigaku3M.cam.fast_file_name.put(f"{file_name}.bin")
+    rigaku3M.cam.fast_file_path.put(file_path)
+    rigaku3M.cam.num_images.put(num_frames)
+    rigaku3M.cam.output_control.put('Sparsified')
+    rigaku3M.cam.output_resolution.put('2 Bit')
 
-    yield from bps.mv(pv_registers.file_name, file_name)
-    yield from bps.mv(
-        pv_registers.metadata_full_path,
-        f"/gdata/dm/8ID/8IDI/{cycle_name}/{file_path}/{file_name}_metadata.hdf",
+    pv_registers.file_name.put(file_name)
+    pv_registers.metadata_full_path.put(
+        f"/gdata/dm/8ID/8IDE/{cycle_name}/{file_path}/{file_name}_metadata.hdf"
     )
 
-    os.makedirs(f"/gdata/dm/8ID/8IDI/{cycle_name}/{file_path}", mode=0o770, exist_ok=True)
+    os.makedirs(f"/gdata/dm/8ID/8IDE/{cycle_name}/{file_path}", mode=0o770, exist_ok=True)
 
-    full_path = f"/gdata/dm/8ID/8IDI/{cycle_name}/{file_path}"
-    remote_cmd = f"mkdir -m 770 -p {shlex.quote(full_path)}"
-    subprocess.run(
-    ["ssh", "s8ididm", remote_cmd],
-    check=True,
-    )
+    # full_path = f"/gdata/dm/8ID/8IDI/{cycle_name}/{file_path}"
+    # remote_cmd = f"mkdir -m 770 -p {shlex.quote(full_path)}"
+    # subprocess.run(
+    #     ["ssh", "s8ididm", remote_cmd],
+    #     check=True,
+    # )
 
 
 ############# Homebrew acquisition plan #############
 def rigaku_zdt_acquire():
     """Run the Rigaku ZDT acquisition sequence."""
-    yield from showbeam()
-    yield from bps.sleep(0.1)
-    yield from bps.mv(rigaku3M.cam.acquire, 1)
-    # yield from bps.sleep(2.0)
+    showbeam()
+    time.sleep(0.1)
+    rigaku3M.cam.acquire.put(1)
+    # time.sleep(2.0)
 
+    # Wait for detector to start (status == 1)
     while True:
         det_status = rigaku3M.cam.detector_state.get()
         if det_status != 1:
-            yield from bps.sleep(0.1)
+            time.sleep(0.1)
         if det_status == 1:
             break
 
+    # Wait for detector to finish (status == 0)
     while True:
         det_status = rigaku3M.cam.detector_state.get()
         if det_status != 0:
-            yield from bps.sleep(0.1)
+            time.sleep(0.1)
         if det_status == 0:
             break
 
-    yield from blockbeam()
+    blockbeam()
 
 
 ############# Homebrew acquisition plan ends #############
@@ -118,22 +119,23 @@ def rigaku_acq_ZDT_series(
         sample_move: Whether to move sample between repetitions
     """
     # try:
-    yield from post_align()
-    yield from shutteroff()
+    post_align()
+    shutteroff()
     workflowProcApi, dmuser = dm_setup()
     folder_prefix = gen_folder_prefix()
 
     for ii in range(num_reps):
         if sample_move:
-            yield from mesh_grid_move()
+            mesh_grid_move()
 
         file_header = f"{folder_prefix}_f{num_frames:06d}"
         file_name = f"{folder_prefix}_f{num_frames:06d}_r{ii+1:05d}"
         print(file_name)
-        yield from setup_rigaku_ZDT_series(acq_time, num_frames, file_header, file_name)
+        
+        setup_rigaku_ZDT_series(acq_time, num_frames, file_header, file_name)
 
         print(f"\nStarting Measurement {file_name}")
-        yield from rigaku_zdt_acquire()
+        rigaku_zdt_acquire()
         print(f"Measurement {file_name} Complete")
 
         metadata_fname = pv_registers.metadata_full_path.get()
@@ -141,7 +143,7 @@ def rigaku_acq_ZDT_series(
 
         dm_run_job(workflowProcApi, dmuser)
 
-        yield from bps.sleep(wait_time)
+        time.sleep(wait_time)
 
     # except Exception as e:
     #     print(f"Error occurred during measurement: {e}")

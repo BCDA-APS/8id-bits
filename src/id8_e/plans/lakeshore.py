@@ -1,5 +1,5 @@
 """
-Lakeshore 336 (temperature readout and control)
+Lakeshore 336 (temperature readout only)
 """
 
 from ophyd import Component

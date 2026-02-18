@@ -41,7 +41,14 @@ sl7 = oregistry["sl7"]
 wb_slit = oregistry["wb_slit"]
 mono_slit = oregistry["mono_slit"]
 xbpm1 = oregistry["xbpm1"]
-# aps = oregistry["aps"]
+aps = oregistry["aps"]
+
+def _get_ring_current():
+   
+    aps_list = list(oregistry.findall(name="aps"))
+    machine = aps_list[0]
+
+    return float(machine.current.get())
 
 default_units_keymap = {
     "NX_COUNT": "one",  # Used for frame_sum, frame_average, delay_difference
@@ -176,10 +183,10 @@ def create_runtime_metadata_dict(
         "/entry/instrument/detector_1/y_pixel_size": pv_registers.det_pixel_size.get(),
         "/entry/instrument/beam_stop/x_position": flight_path_8idi.ds_x.position,
         "/entry/instrument/beam_stop/y_position": flight_path_8idi.ds_y.position,
-        "/entry/instrument/slits_4/vertical_gap": sl4.v.size.position,
-        "/entry/instrument/slits_4/vertical_center": sl4.v.center.position,
-        "/entry/instrument/slits_4/horizontal_gap": sl4.h.size.position,
-        "/entry/instrument/slits_4/horizontal_center": sl4.h.center.position,
+        "/entry/instrument/sl4/vertical_gap": sl4.v.size.position,
+        "/entry/instrument/sl4/vertical_center": sl4.v.center.position,
+        "/entry/instrument/sl4/horizontal_gap": sl4.h.size.position,
+        "/entry/instrument/sl4/horizontal_center": sl4.h.center.position,
         "/entry/instrument/monochromator/energy": mono_8id.energy_readback.get(),
         "/entry/instrument/monochromator/wavelength": mono_8id.energy_readback.get() / 12.4,
         "/entry/instrument/incident_beam/incident_energy": mono_8id.energy_readback.get(),
@@ -189,7 +196,8 @@ def create_runtime_metadata_dict(
             + xbpm1.current2.mean_value.get() / xbpm1.current_scales.ch2.get()
             + xbpm1.current3.mean_value.get() / xbpm1.current_scales.ch3.get()
             + xbpm1.current4.mean_value.get() / xbpm1.current_scales.ch4.get()
-        ),        
+        ),  
+        "/entry/instrument/incident_beam/ring_current": aps.current.get(),      
         # "/entry/instrument/undulator_1/energy": undulator_upstream.energy.position,
         # "/entry/instrument/undulator_1/taper": undulator_upstream.gap_taper.position,
         # "/entry/instrument/undulator_2/gap": undulator_downstream.gap.position,
@@ -206,7 +214,7 @@ def create_runtime_metadata_dict(
         "/entry/sample/position_rheo_x": rheometer.x.position,
         "/entry/sample/position_rheo_y": rheometer.y.position,
         "/entry/sample/position_rheo_z": rheometer.z.position,
-        "/entry/sample/qnw_lakeshore": lakeshore1.readback_ch3.get(),
+        # "/entry/sample/qnw_lakeshore": lakeshore1.readback_ch3.get(),
         "/entry/sample/qnw1_temperature": qnw_env1.readback.get(),  # Air QNW
         "/entry/sample/qnw1_temperature_set": qnw_env1.setpoint.get(),
         "/entry/sample/qnw2_temperature": qnw_env2.readback.get(),

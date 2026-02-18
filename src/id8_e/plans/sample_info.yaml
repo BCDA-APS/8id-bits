@@ -1,11 +1,25 @@
-sample_1:
-  sample_name: test
-  x_cen: 0
-  z_cen: 0
-  x_radius: 1
-  z_radius: 1
+sample_0:
+  sample_name: Cu3Au
+  x_cen: 1.8
+  z_cen: -9.75
+  x_radius: 0.05
+  z_radius: 0.05
   x_pts: 10
   z_pts: 10
-  header: R
+  header: C
   temp_zone: 300K
+  voltage_chA: 0 # V
+  current_chA: 0.001 # mA
 
+sample_1:
+  sample_name: HZO
+  x_cen: 1.8
+  z_cen: -9.75
+  x_radius: 0.05
+  z_radius: 0.05
+  x_pts: 10
+  z_pts: 10
+  header: C
+  temp_zone: 300K
+  voltage_chA: 0 # V
+  current_chA: 0.001 # mA

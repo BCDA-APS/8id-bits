@@ -53,6 +53,8 @@ def dm_run_job(workflowProcApi: WorkflowProcApi, dmuser: str):
             filepath = f"{file_name}.bin.000"
         elif det_name == "eiger4M":
             filepath = f"{file_name}.h5"
+        elif det_name == "lambda2M":
+            filepath = f"{file_name}.h5"
         elif det_name == "tempus":
             filepath = f"{file_name}.bin"
         else:

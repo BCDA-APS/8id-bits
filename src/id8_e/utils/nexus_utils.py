@@ -18,14 +18,6 @@ from apsbits.core.instrument_init import oregistry
 from .default_metadata import default_metadata
 from .xpcs_schema import xpcs_schema
 
-def _get_ring_current():
-   
-    aps_list = list(oregistry.findall(name="aps"))
-    machine = aps_list[0]
-
-    return float(machine.current.get())
-    
-
 # detector = oregistry["detector"]
 filter_8ide = oregistry["filter_8ide"]
 lakeshore1 = oregistry["lakeshore1"]
@@ -42,6 +34,18 @@ sl7 = oregistry["sl7"]
 wb_slit = oregistry["wb_slit"]
 mono_slit = oregistry["mono_slit"]
 xbpm1 = oregistry["xbpm1"]
+# aps = oregistry["aps"]
+keithley_chA = oregistry["keithley_chA"]
+keithley_chB = oregistry["keithley_chB"]
+bk_pid = oregistry["bk_pid"]
+keysight = oregistry["keysight"]
+
+def _get_ring_current():
+   
+    aps_list = list(oregistry.findall(name="aps"))
+    machine = aps_list[0]
+
+    return float(machine.current.get())
 
 default_units_keymap = {
     "NX_COUNT": "one",  # Used for frame_sum, frame_average, delay_difference
@@ -54,6 +58,7 @@ default_units_keymap = {
     "NX_CURRENT": "mA",  # Used for current, milliamper
     "NX_ANY": "any",  # Used for G2_unnormalized, two_time_corr_func
     "NX_ANGLE": "degree",  # Used for rotation_x, rotation_y, rotation_z
+    "NX_VOLTAGE": "V"
 }
 
 
@@ -181,6 +186,33 @@ def create_runtime_metadata_dict(
         "/entry/instrument/detector_1/frame_time": det.cam.acquire_period.get(),
         "/entry/instrument/detector_1/detector_name": pv_registers.det_name.get(),
         "/entry/instrument/detector_1/qmap_file": pv_registers.qmap_file.get(),
+        "/entry/sample/lakeshore1": lakeshore1.readback_ch1.get(),
+        "/entry/sample/keithley_chA_SrcLevelV": keithley_chA.SrcLevelV_AO.value,
+        "/entry/sample/keithley_chA_SrcLevelI": keithley_chA.SrcLevelI_AO.value,
+        "/entry/sample/keithley_chB_SrcLevelV": keithley_chB.SrcLevelV_AO.value,
+        "/entry/sample/keithley_chB_SrcLevelI": keithley_chB.SrcLevelI_AO.value,
+        "/entry/sample/keithley_chA_MeasRangeV": keithley_chA.MeasRangeV_AO.value,
+        "/entry/sample/keithley_chA_MeasRangeI": keithley_chA.MeasRangeI_AO.value,
+        "/entry/sample/keithley_chB_MeasRangeV": keithley_chB.MeasRangeV_AO.value,
+        "/entry/sample/keithley_chB_MeasRangeI": keithley_chB.MeasRangeI_AO.value,
+        "/entry/sample/bk_pid_VAL": bk_pid.VAL.value,
+        "/entry/sample/bk_pid_RDBK": bk_pid.RDBK.value,
+        "/entry/sample/keysight_func": keysight.func_rbv.value,
+        "/entry/sample/keysight_freq": keysight.frequency_rbv.value,
+        "/entry/sample/keysight_amp": keysight.amplitude_rbv.value,
+        "/entry/sample/keysight_phase": keysight.phase_rbv.value,
+        "/entry/sample/keysight_pulse_width": keysight.pulse_width_rbv.value,
+        "/entry/sample/keysight_trigg_source": keysight.trigger_source_rbv.value,
+        "/entry/sample/keysight_trigg_edge": keysight.trigger_edge_rbv.value,
+        "/entry/sample/keysight_burst_count": keysight.burst_count_rbv.value,
+        "/entry/sample/keysight_burst_mode": keysight.burst_mode_rbv.value,
+        "/entry/sample/keysight_burst_state": keysight.burst_state_rbv.value,
+        "/entry/sample/keysight_output": keysight.output_rbv.value,
+        
+        
+
+        
+        
         # "/entry/instrument/wb_slit/vertical_gap": wb_slit.vgap.position,
         # "/entry/instrument/wb_slit/vertical_center": wb_slit.vcen.position,
         # "/entry/instrument/wb_slit/horizontal_gap": wb_slit.hgap.position,
@@ -189,20 +221,25 @@ def create_runtime_metadata_dict(
         # "/entry/instrument/mono_slit/vertical_center": mono_slit.vcen.position,
         # "/entry/instrument/mono_slit/horizontal_gap": mono_slit.hgap.position,
         # "/entry/instrument/mono_slit/horizontal_center": mono_slit.hcen.position,
-        # "/entry/instrument/sl4/vertical_gap": sl4.v.size.position,
-        # "/entry/instrument/sl4/vertical_center": sl4.v.center.position,
-        # "/entry/instrument/sl4/horizontal_gap": sl4.h.size.position,
-        # "/entry/instrument/sl4/horizontal_center": sl4.h.center.position,
-        # "/entry/instrument/sl7/vertical_gap": sl7.v.size.position,
-        # "/entry/instrument/sl7/vertical_center": sl7.v.center.position,
-        # "/entry/instrument/sl7/horizontal_gap": sl7.h.size.position,
-        # "/entry/instrument/sl7/horizontal_center": sl7.h.center.position,
+        "/entry/instrument/sl4/vertical_gap": sl4.v.size.position,
+        "/entry/instrument/sl4/vertical_center": sl4.v.center.position,
+        "/entry/instrument/sl4/horizontal_gap": sl4.h.size.position,
+        "/entry/instrument/sl4/horizontal_center": sl4.h.center.position,
+        "/entry/instrument/sl7/vertical_gap": sl7.v.size.position,
+        "/entry/instrument/sl7/vertical_center": sl7.v.center.position,
+        "/entry/instrument/sl7/horizontal_gap": sl7.h.size.position,
+        "/entry/instrument/sl7/horizontal_center": sl7.h.center.position,
         "/entry/instrument/monochromator/energy": mono_8id.energy_readback.get(),
         "/entry/instrument/monochromator/wavelength": mono_8id.energy_readback.get() / 12.4,
         "/entry/instrument/incident_beam/incident_energy": mono_8id.energy_readback.get(),
         "/entry/instrument/incident_beam/incident_energy_spread": 0.0001,
-        "/entry/instrument/incident_beam/incident_beam_intensity": tetramm1.current2.mean_value.get()*1e-9,
-        # "/entry/instrument/incident_beam/ring_current": aps.current.get(),
+        "/entry/instrument/incident_beam/incident_beam_intensity": (
+            xbpm1.current1.mean_value.get() / xbpm1.current_scales.ch1.get()
+            + xbpm1.current2.mean_value.get() / xbpm1.current_scales.ch2.get()
+            + xbpm1.current3.mean_value.get() / xbpm1.current_scales.ch3.get()
+            + xbpm1.current4.mean_value.get() / xbpm1.current_scales.ch4.get()
+        ), 
+        "/entry/instrument/incident_beam/ring_current": _get_ring_current(),
         # "/entry/instrument/undulator_1/gap": undulator_upstream.gap.position,
         # "/entry/instrument/undulator_1/energy": undulator_upstream.energy.position,
         # "/entry/instrument/undulator_1/taper": undulator_upstream.gap_taper.position,

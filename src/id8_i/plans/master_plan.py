@@ -2,11 +2,13 @@
 import yaml 
 import re
 
-from id8_i.plans.nexus_acq_eiger_int import eiger_acq_int_series
 from id8_i.plans.sample_info_unpack import select_sample
 from id8_i.plans.select_detector import select_detector
 from id8_i.plans.scan_8idi import att
-from id8_i.plans.nexus_acq_eiger_ext import eiger_acq_ext_trig
+from id8_i.plans.nexus_acq_eiger_ext import *
+from id8_i.plans.nexus_acq_eiger_int import *
+from id8_i.plans.nexus_acq_rigaku_zdt import *
+
 
 def run_measurement_info(file_name="measurement_info.yaml"):
     """Run measurement based on measurement_info.yaml file."""
@@ -77,9 +79,19 @@ def run_measurement_info(file_name="measurement_info.yaml"):
                             )
                         else:
                             print("Error: use acquition period larger than 0.1 s for Eiger Ext Trig mode")
-                    
+
+                    if det_name == "rigaku3M":
+                        if acq_time == acq_period:
+                            print(f"Using rigaku zdt series")
+                            rigaku_acq_ZDT_series(
+                                acq_time=acq_time,
+                                num_frames=num_frames,
+                                num_reps=num_reps,
+                                wait_time=wait_time,
+                                sample_move=sample_move_yes,
+                            )       
                     else:
-                        print("Detector name must be eiger4M, rigaku3M, or aeon750k")
+                        print("Invalid Detector Name")
 
     except KeyboardInterrupt as err:
         raise RuntimeError("\n Bluesky plan stopped by user (Ctrl+C).") from err

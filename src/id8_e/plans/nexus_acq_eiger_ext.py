@@ -72,7 +72,7 @@ def setup_eiger_ext_trig(
     softglue_8idi.acq_time.put(acq_time)
     softglue_8idi.acq_period.put(acq_period)
     softglue_8idi.num_triggers.put(num_frames)
-
+    
 ############# Homebrew acquisition plan #############
 def eiger_acquire():
     """Acquire data from Eiger4M using external triggers."""
@@ -96,16 +96,27 @@ def eiger_acquire():
             break
     blockbeam()
 
-    frame_num_set = eiger4M.hdf1.queue_size.get()
-    count = 0
-    while count < 100:
-        frame_num_processed = eiger4M.hdf1.queue_free.get()
-        if frame_num_processed == frame_num_set:
+    while True:
+        #### QZ on 2026/02/18 ####
+        # Suresh suggested to just check for hdf plugin done status
+        #### QZ on 2026/02/18 ####
+        time.sleep(0.05)
+        det_plugin_status = eiger4M.hdf1.capture.get()
+        if det_plugin_status == 1:
+            time.sleep(0.05)
+        if det_plugin_status == 0:
             break
-        else:
-            time.sleep(0.1)
-            count = +1
-        eiger4M.hdf1.capture.put(0)
+
+    # frame_num_set = eiger4M.hdf1.queue_size.get()
+    # count = 0
+    # while count < 100:
+    #     frame_num_processed = eiger4M.hdf1.queue_free.get()
+    #     if frame_num_processed == frame_num_set:
+    #         break
+    #     else:
+    #         time.sleep(0.1)
+    #         count = +1
+    #     eiger4M.hdf1.capture.put(0)
 
 ############# Homebrew acquisition plan ends #############
 

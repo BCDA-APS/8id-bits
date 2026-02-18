@@ -34,6 +34,8 @@ from apsbits.utils.logging_setup import configure_logging
 # from id8_common.utils.misc import ioc_alive
 from id8_common.utils.misc import stream_rois
 
+from .plans.lakeshore import *
+
 # Configuration block
 # Get the path to the instrument package
 # Load configuration to be used by the instrument.
@@ -97,6 +99,7 @@ make_devices(clear=False, file="devices.yml", device_manager=instrument)
 make_devices(clear=False, file="devices_aps_only.yml", device_manager=instrument)
 make_devices(clear=False, file="ad_devices.yml", device_manager=instrument)
 
+stream_rois(oregistry["lambda2M"])
 stream_rois(oregistry["eiger4M"])
 
 # RIGAKU_TEST_PV = "8idRigaku3m:cam1:Manufacturer_RBV"
@@ -111,52 +114,52 @@ stream_rois(oregistry["eiger4M"])
 
 
 # LivePlot for area-detector ROI sum
-try:
-    from bluesky.callbacks import LivePlot
-    from apsbits.utils.helper_functions import running_in_queueserver
+# try:
+#     from bluesky.callbacks import LivePlot
+#     from apsbits.utils.helper_functions import running_in_queueserver
 
-    if not running_in_queueserver():
-        # Choose the detector name here; 'eiger4M', 'rigaku3M', etc.
-        det_name = "eiger4M"  # change to the detector you want to plot
-        det = oregistry.find(det_name, allow_none=True)
-        if det is None:
-            print(f"LivePlot: detector {det_name!r} not in oregistry; skipping LivePlot.")
-        else:
-            plugin = getattr(det, "roi1", None) or getattr(det, "stats2", None) or getattr(det, "image", None)
-            if plugin is None:
-                print(f"LivePlot: detector {det_name} has no roi1/stats1/image plugin attribute; available: {det.component_names}")
-            else:
-                # Find a numeric field to plot. Common choices: 'sum', 'total', 'value', 'mean_value'
-                candidates = ["sum", "total", "value", "mean_value", "total_value"]
-                field = None
-                for c in candidates:
-                    if c in plugin.component_names or hasattr(plugin, c):
-                        field = c
-                        break
-                # fallback: look for any readable attribute that returns a scalar
-                if field is None:
-                    for name in plugin.component_names:
-                        try:
-                            val = getattr(plugin, name).get()
-                            # scalar numeric test
-                            if isinstance(val, (int, float)):
-                                field = name
-                                break
-                        except Exception:
-                            continue
+#     if not running_in_queueserver():
+#         # Choose the detector name here; 'eiger4M', 'rigaku3M', etc.
+#         det_name = "lambda2M"  # change to the detector you want to plot
+#         det = oregistry.find(det_name, allow_none=True)
+#         if det is None:
+#             print(f"LivePlot: detector {det_name!r} not in oregistry; skipping LivePlot.")
+#         else:
+#             plugin = getattr(det, "roi1", None) or getattr(det, "stats2", None) or getattr(det, "image", None)
+#             if plugin is None:
+#                 print(f"LivePlot: detector {det_name} has no roi1/stats1/image plugin attribute; available: {det.component_names}")
+#             else:
+#                 # Find a numeric field to plot. Common choices: 'sum', 'total', 'value', 'mean_value'
+#                 candidates = ["sum", "total", "value", "mean_value", "total_value"]
+#                 field = None
+#                 for c in candidates:
+#                     if c in plugin.component_names or hasattr(plugin, c):
+#                         field = c
+#                         break
+#                 # fallback: look for any readable attribute that returns a scalar
+#                 if field is None:
+#                     for name in plugin.component_names:
+#                         try:
+#                             val = getattr(plugin, name).get()
+#                             # scalar numeric test
+#                             if isinstance(val, (int, float)):
+#                                 field = name
+#                                 break
+#                         except Exception:
+#                             continue
 
-                if field is None:
-                    print(f"LivePlot: couldn't find numeric field in {det_name}.roi1; plugin components: {plugin.component_names}")
-                else:
-                    # Use 'seq_num' as x axis; for position-based scans you can use the motor signal instead
-                    _signal = getattr(plugin, field)
-                    lp = LivePlot(_signal.name, x="seq_num")
-                    RE.subscribe(lp)
-                    print(f"LivePlot subscribed: {det_name}.roi1.{field} vs seq_num")
-    else:
-        print("Running in queueserver mode; skipping LivePlot setup.")
-except Exception as e:
-    print("LivePlot setup failed:", e)
+#                 if field is None:
+#                     print(f"LivePlot: couldn't find numeric field in {det_name}.roi1; plugin components: {plugin.component_names}")
+#                 else:
+#                     # Use 'seq_num' as x axis; for position-based scans you can use the motor signal instead
+#                     _signal = getattr(plugin, field)
+#                     lp = LivePlot(_signal.name, x="seq_num")
+#                     RE.subscribe(lp)
+#                     print(f"LivePlot subscribed: {det_name}.roi1.{field} vs seq_num")
+#     else:
+#         print("Running in queueserver mode; skipping LivePlot setup.")
+# except Exception as e:
+#     print("LivePlot setup failed:", e)
 
 if host_on_aps_subnet():
     make_devices(clear=False, file="devices_aps_only.yml", device_manager=instrument)
@@ -171,22 +174,16 @@ from .plans.sim_plan import sim_count_plan  # noqa: E402, F401
 from .plans.sim_plan import sim_print_plan  # noqa: E402, F401
 from .plans.sim_plan import sim_rel_scan_plan  # noqa: E402, F401
 
-# from .plans.master_plan import run_measurement_info
-# from .plans.select_sample_env import select_sample_env
+from .plans.master_plan import run_measurement_info, set_temp_lakeshore2
 from .plans.sample_info_unpack import *
-# from .plans.select_detector import *
 from .plans.scan_8ide import *
-# from .plans.qnw_plans import *
 from .plans.nexus_acq_eiger_int import *
+from .plans.nexus_acq_lambda_int import *
+from .plans.nexus_acq_lambda_ext import *
 # from .plans.nexus_acq_eiger_ext import *
-
 # from .plans.nexus_acq_rigaku_zdt import *
 
-psic = oregistry["psic"]
-import hklpy2
-from hklpy2.user import *
-from hklpy2.user import set_diffractometer
-set_diffractometer(psic)
-
-
+from hklpy2.user import *  
+from .plans.hklpy2_setup import configure_hklpy2
+configure_hklpy2(oregistry)
 

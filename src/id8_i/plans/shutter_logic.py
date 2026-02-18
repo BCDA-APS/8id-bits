@@ -1,6 +1,4 @@
 """
-Shutter control logic for the 8ID-E beamline.
-
 This module provides plans for controlling the beam shutter and safety interlocks
 at the 8ID-E station.
 """

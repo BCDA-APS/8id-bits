@@ -20,7 +20,7 @@ class EpicsPvStorageRegisters(Device):
     file_name = Component(EpicsSignal, "StrReg3", string=True)
     metadata_full_path = Component(EpicsSignal, "StrReg4", string=True)
     file_path = Component(EpicsSignal, "StrReg5", string=True)
-    analysis_type = Component(EpicsSignal, "StrReg7", string=True)
+    
 
     experiment_name = Component(EpicsSignal, "StrReg6", string=True)
     # spec_file = Component(EpicsSignal, "StrReg7", string=True)
@@ -31,7 +31,7 @@ class EpicsPvStorageRegisters(Device):
     analysis_machine = Component(EpicsSignal, "StrReg11", string=True)
     workflow_name = Component(EpicsSignal, "StrReg12", string=True)
     use_subfolder = Component(EpicsSignal, "StrReg13", string=True)
-
+    analysis_type = Component(EpicsSignal, "StrReg14", string=True)
 
     measurement_num = Component(EpicsSignal, "Reg1")
     sample_index = Component(EpicsSignal, "Reg2")

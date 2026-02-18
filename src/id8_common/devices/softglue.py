@@ -13,8 +13,8 @@ Example acquisition sequence::
 
 """
 
-from ophyd import Device
-from ophyd import EpicsSignal
+from ophyd import Device, Component
+from ophyd import EpicsSignal, EpicsSignalRO
 from ophyd import FormattedComponent as FCpt
 
 
@@ -69,3 +69,10 @@ class SoftGlue(Device):
         kind="omitted",
         string=True,
     )
+
+class SoftGlue_MZ2(Device):
+
+    preset = Component(EpicsSignal, "8idMZ2:SG:DnCntr-1_PRESET")
+    load = Component(EpicsSignal, "8idMZ2:SG:DnCntr-1_LOAD_Signal")
+
+    
