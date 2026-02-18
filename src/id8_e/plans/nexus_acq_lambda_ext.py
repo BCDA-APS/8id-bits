@@ -70,7 +70,7 @@ def lambda_acquire():
     # Adding 1 second of sleep time because it can take a while for the detector tp stop
     # Comment this out if running rapid repeats
     lambda2M.cam.acquire.put(0)
-    time.sleep(0.5)
+    time.sleep(1.0)
 
     showbeam()
     time.sleep(0.1)
