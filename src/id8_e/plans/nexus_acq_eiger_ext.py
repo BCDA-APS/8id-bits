@@ -18,7 +18,7 @@ from .sample_info_unpack import mesh_grid_move
 from .shutter_logic import blockbeam
 from .shutter_logic import post_align
 from .shutter_logic import showbeam
-from .shutter_logic import shutteron
+from .shutter_logic import shutteron, shutteroff
 # from .qnw_plans import find_qnw_index
 
 eiger4M = oregistry["eiger4M"]
@@ -64,7 +64,8 @@ def setup_eiger_ext_trig(
     eiger4M.hdf1.file_path.put(file_path)
     eiger4M.hdf1.num_capture.put(num_frames)
     pv_registers.file_name.put(file_name)
-    pv_registers.metadata_full_path.put(f"{file_path}/{file_name}_metadata.hdf")
+    # pv_registers.metadata_full_path.put(f"{file_path}/{file_name}_metadata.hdf")
+    pv_registers.metadata_full_path.put(f"{file_name}_metadata.hdf")
 
     # Unique for External Mode
     eiger4M.cam.num_triggers.put(num_frames)
@@ -74,10 +75,16 @@ def setup_eiger_ext_trig(
     softglue_8idi.num_triggers.put(num_frames)
     
 ############# Homebrew acquisition plan #############
-def eiger_acquire():
+def eiger_acquire_ext(acq_time, acq_period):
     """Acquire data from Eiger4M using external triggers."""
     showbeam()
     time.sleep(0.1)
+
+    if acq_time >= 0.05 and acq_period-acq_time >= 0.45:
+        shutteron()
+    else:
+        shutteroff()
+
     eiger4M.hdf1.capture.put(1)
     eiger4M.cam.acquire.put(1)
 
@@ -94,6 +101,8 @@ def eiger_acquire():
             time.sleep(0.1)
         if det_status == 0:
             break
+
+    shutteroff()
     blockbeam()
 
     while True:
@@ -162,12 +171,13 @@ def eiger_acq_ext_trig(
             _ = datetime.now()
             time_now = _.strftime("%Y-%m-%d %H:%M:%S")
             print(f"\n{time_now}, Starting measurement {file_name}")
-            eiger_acquire()
+            eiger_acquire_ext(acq_time, acq_period)
             _ = datetime.now()
             time_now = _.strftime("%Y-%m-%d %H:%M:%S")
             print(f"{time_now}, Complete measurement {file_name}")
 
-            metadata_fname = pv_registers.metadata_full_path.get()
+            # metadata_fname = pv_registers.metadata_full_path.get()          
+            metadata_fname = f"{eiger4M.hdf1.file_path.get()}/{pv_registers.metadata_full_path.get()}"
             create_nexus_format_metadata(metadata_fname, det=eiger4M)
 
             dm_run_job(workflowProcApi, dmuser)
@@ -175,7 +185,7 @@ def eiger_acq_ext_trig(
         softglue_8idi.stop_pulses.put("1!")
         eiger4M.cam.acquire.put(0)
         eiger4M.hdf1.capture.put(0)
-        raise RuntimeError("\n Bluesky plan stopped by user (Ctrl+C).")
+        raise RuntimeError("\n Bluesky plan stopped by 8-ID user (Ctrl+C).")
     except Exception as e:
         print(f"Error occurred during measurement: {e}")
     finally:

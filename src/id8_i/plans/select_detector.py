@@ -53,7 +53,7 @@ def select_detector(det: Literal["eiger4M", "rigaku3M"]):
         if pv_registers.det_name.get() == det:
             pass
         else:
-            pv_registers.workflow_name.put("xpcs8-boost-corr-voyager-copy")
+            pv_registers.workflow_name.put("xpcs8-boost-corr")
             pv_registers.qmap_file.put("rigaku3m_qmap_default.hdf")
 
             det_x_position = pv_registers.rigaku_det_x0.get()

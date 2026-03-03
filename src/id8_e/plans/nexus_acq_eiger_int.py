@@ -34,7 +34,14 @@ def setup_eiger_int_series(acq_time, num_frames, file_header, file_name):
     exp_name = pv_registers.experiment_name.get()
     mount_point = pv_registers.mount_point.get()
 
-    file_path = f"{mount_point}{cycle_name}/{exp_name}/data/{file_header}/{file_name}"
+    use_subfolder = pv_registers.use_subfolder.get()
+
+    if use_subfolder == "Yes":
+        file_path = f"{mount_point}{cycle_name}/{exp_name}/data/{file_header}/{file_name}" 
+    elif use_subfolder == "No":   
+        file_path = f"{mount_point}{cycle_name}/{exp_name}/data/{file_name}"
+    else: 
+        print("Sub folder options can only be either Yes or No") 
     
     acq_period = acq_time
 
@@ -52,7 +59,8 @@ def setup_eiger_int_series(acq_time, num_frames, file_header, file_name):
     eiger4M.hdf1.num_capture.put(num_frames)
 
     pv_registers.file_name.put(file_name)
-    pv_registers.metadata_full_path.put(f"{file_path}/{file_name}_metadata.hdf")
+    # pv_registers.metadata_full_path.put(f"{file_path}/{file_name}_metadata.hdf")
+    pv_registers.metadata_full_path.put(f"{file_name}_metadata.hdf")
 
 
 ############# Homebrew acquisition plan #############
@@ -145,7 +153,8 @@ def eiger_acq_int_series(
             time_now = _.strftime("%Y-%m-%d %H:%M:%S")
             print(f"{time_now}, Complete measurement {file_name}")
 
-            metadata_fname = pv_registers.metadata_full_path.get()
+            # metadata_fname = pv_registers.metadata_full_path.get()
+            metadata_fname = f"{eiger4M.hdf1.file_path.get()}/{pv_registers.metadata_full_path.get()}"
             create_nexus_format_metadata(metadata_fname, det=eiger4M)
 
             dm_run_job(workflowProcApi, dmuser)
@@ -154,7 +163,7 @@ def eiger_acq_int_series(
         blockbeam()
         eiger4M.cam.acquire.put(0)
         eiger4M.hdf1.capture.put(0)
-        raise RuntimeError("\n Script stopped by user (Ctrl+C).")
+        raise RuntimeError("\n Script stopped by 8-ID user (Ctrl+C).")
     except Exception as e:
         print(f"Error occurred during measurement: {e}")
     finally:

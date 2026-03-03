@@ -199,7 +199,7 @@ time.sleep(90)
 eiger_acq_int_series(.00025, 5*60*4000, 1, 0, False)
 time.sleep(90)
 eiger_acq_int_series(.00025, 5*60*4000, 1, 0, False)
-
+333333333333333333333333333333333333333333333333333333333333333333
 # eiger_acq_int_series(.2, 5*60*5, 1, 0, False)
 # eiger_acq_int_series(.2, 5*60*5, 1, 0, False)
 # eiger_acq_int_series(.2, 5*60*5, 1, 0, False)

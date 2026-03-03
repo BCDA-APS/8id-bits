@@ -43,9 +43,9 @@ def select_sample(env: int):
     # volt = loaded_dict[sample_key]["voltage_chA"]
     # curr = loaded_dict[sample_key]["current_chA"]
 
-    print(f"Moving {sample_key} x to {x_cen} and z to {z_cen}")
-    huber.sample_x.move(x_cen)
-    huber.sample_z.move(z_cen)
+    # print(f"Moving {sample_key} x to {x_cen} and z to {z_cen}")
+    # huber.sample_x.move(x_cen)
+    # huber.sample_z.move(z_cen)
     
     # print(f'Setting Keithley_chA to {volt} V')
     # keithley_chA.SrcLevelI_AO.put(curr)
@@ -117,12 +117,18 @@ def gen_folder_prefix() -> str:
     # temp = f"{lakeshore2.readback_ch1.value:.1f}".replace('.', 'p')
     # temp = f"{bk_pid.RDBK.value:.1f}".replace('.', 'p') 
     temp = "300"
-    volt = f"{keysight.amplitude_rbv.value:.2f}".replace('.', 'p')
+    volt = f"{keysight.amplitude_rbv.value:.3f}".replace('.', 'p')
+    freq = f"{keysight.frequency_rbv.value:.3f}".replace('.', 'p')
+    cycles = f"{int(keysight.burst_count_rbv.value):06d}"    
+
     # curr = f"{keithley_chA.SrcLevelI_AO.value*1e3:.1f}".replace('.', 'p')
 
     header_name = f'{sam_dict["header"]}{sam_dict["meas_num"]:04d}'
     # folder_name = f"{header_name}_{sample_name}_a{att_level:04}_{temp}K"
-    folder_name = f"{header_name}_{sample_name}_a{att_level:04}_{temp}K_{volt}V"
+    #folder_name = f"{header_name}_{sample_name}_a{att_level:04}_{temp}K_{volt}V"
+    # folder_name = f"{header_name}_{sample_name}_a{att_level:04}_{freq}Hz_{volt}V_Cyc{cycles}"  
+    folder_name = f"{header_name}_{sample_name}_a{att_level:04}"   
+    # folder_name = f"{header_name}_{sample_name}"   
     print(folder_name)
 
     return folder_name

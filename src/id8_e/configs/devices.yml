@@ -185,11 +185,13 @@ id8_common.devices.softglue.SoftGlue:  # This has to be reviewed
   pv_start_pulses: "8idi:softGlueA:MUX2-1_IN0_Signal"
   pv_stop_pulses: "8idi:softGlueA:OR-1_IN2_Signal"
 
-id8_common.devices.softglue.SoftGlue_MZ2:  
+id8_common.devices.softglue.softglue_mz2:  
 - name: "softglue_8id_mz2"
   prefix: ""
-  # load: "8idMZ2:SG:DnCntr-1_LOAD_Signal"
-  # preset: "8idMZ2:SG:DnCntr-1_PRESET"
+
+id8_common.devices.softglue.softglue_acq8id:  
+- name: "softglue_8id_acq"
+  prefix: ""
 
 id8_common.devices.transfocator.Transfocator:
 - name: rl1

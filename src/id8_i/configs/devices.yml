@@ -35,6 +35,12 @@ apsbits.utils.sim_creator.predefined_device:
 # #   x_motor: m13
 # #   y_motor: m12
 
+id8_common.devices.xy_motors.XY_Motors:
+- name: cam_stage_8idi
+  prefix: ""
+  x_motor: 8ide:m13
+  y_motor: 8idiSoft:CR8-I2:m15
+
 id8_common.devices.fast_shutter.FastShutter:
 - name: shutter_8ide
   prefix: "8ideSoft:fastshutter:"

@@ -70,9 +70,11 @@ class SoftGlue(Device):
         string=True,
     )
 
-class SoftGlue_MZ2(Device):
+class softglue_mz2(Device):
 
     preset = Component(EpicsSignal, "8idMZ2:SG:DnCntr-1_PRESET")
     load = Component(EpicsSignal, "8idMZ2:SG:DnCntr-1_LOAD_Signal")
 
-    
+class softglue_acq8id(Device):
+    preset = Component(EpicsSignal, "acq8id:SG:DnCntr-1_PRESET")
+    load = Component(EpicsSignal, "acq8id:SG:DnCntr-1_LOAD_Signal")

@@ -1,7 +1,20 @@
-sample_0:
-  sample_name: Cu3Au
-  x_cen: 1.8
-  z_cen: -9.75
+sample_1:
+  sample_name: CsPbBr3_CellA_d1p93gpa_PeakB
+  x_cen: 0.134 
+  z_cen: 42.23
+  x_radius: 0.05
+  z_radius: 0.05
+  x_pts: 10
+  z_pts: 10
+  header: B
+  temp_zone: 300K
+  voltage_chA: 0 # V
+  current_chA: 0.001 # mA
+
+sample_2:
+  sample_name: CsPbBr3_CellA_1p93gpa_PeakC
+  x_cen: 0.765
+  z_cen: 0.794
   x_radius: 0.05
   z_radius: 0.05
   x_pts: 10
@@ -11,10 +24,38 @@ sample_0:
   voltage_chA: 0 # V
   current_chA: 0.001 # mA
 
-sample_1:
-  sample_name: HZO
-  x_cen: 1.8
-  z_cen: -9.75
+sample_3:
+  sample_name: CsPbBr3_CellA_d1p93gpa_PeakA
+  x_cen: 0.765
+  z_cen: 0.794
+  x_radius: 0.05
+  z_radius: 0.05
+  x_pts: 10
+  z_pts: 10
+  header: A
+  temp_zone: 300K
+  voltage_chA: 0 # V
+  current_chA: 0.001 # mA
+
+
+sample_4:
+  sample_name: DirectBeam
+  x_cen: 0.765
+  z_cen: 0.794
+  x_radius: 0.05
+  z_radius: 0.05
+  x_pts: 10
+  z_pts: 10
+  header: C
+  temp_zone: 300K
+  voltage_chA: 0 # V
+  current_chA: 0.001 # mA
+
+
+sample_5:
+  sample_name: Test
+  x_cen: 0.765
+  z_cen: 0.794
   x_radius: 0.05
   z_radius: 0.05
   x_pts: 10

@@ -18,10 +18,10 @@ lambda2M = oregistry["lambda2M"]
 pv_registers = oregistry["pv_registers"]
 keysight = oregistry["keysight"]
 softglue_8idi = oregistry["softglue_8idi"]
-softglue_8id_mz2 = oregistry["softglue_8id_mz2"]
+softglue_8id_acq = oregistry["softglue_8id_acq"]
 
 
-def setup_lambda_ext_series(acq_time, num_frames, file_header, file_name, frames_before_voltage=50):
+def setup_lambda_ext_series(acq_time, acq_period, num_frames, file_header, file_name, frames_before_voltage=50):
     """Setup the Lambda2M for internal series acquisition.
 
     Configure the detector's cam module for internal acquisition mode and
@@ -36,9 +36,16 @@ def setup_lambda_ext_series(acq_time, num_frames, file_header, file_name, frames
     exp_name = pv_registers.experiment_name.get()
     mount_point = pv_registers.mount_point.get()
 
-    file_path = f"{mount_point}{cycle_name}/{exp_name}/data/{file_header}/{file_name}"
+    use_subfolder = pv_registers.use_subfolder.get()
+
+    if use_subfolder == "Yes":
+        file_path = f"{mount_point}{cycle_name}/{exp_name}/data/{file_header}/{file_name}" 
+    elif use_subfolder == "No":   
+        file_path = f"{mount_point}{cycle_name}/{exp_name}/data/{file_name}"
+    else: 
+        print("Sub folder options can only be either Yes or No") 
     
-    acq_period = acq_time
+    # acq_period = acq_time
 
     # Use .put() for signals
     lambda2M.hdf1.enable.put(1)
@@ -53,24 +60,30 @@ def setup_lambda_ext_series(acq_time, num_frames, file_header, file_name, frames
     lambda2M.hdf1.num_capture.put(num_frames)
 
     pv_registers.file_name.put(file_name)
-    pv_registers.metadata_full_path.put(f"{file_path}/{file_name}_metadata.hdf")
+    # pv_registers.metadata_full_path.put(f"{file_path}/{file_name}_metadata.hdf")
+    pv_registers.metadata_full_path.put(f"{file_name}_metadata.hdf")
 
     lambda2M.cam.trigger_mode.put("External_ImagePer") # 
     # lambda2M.cam.trigger_mode.put("External_SequencePer") # 
     softglue_8idi.acq_time.put(acq_time)
-    softglue_8idi.acq_period.put(acq_period+0.01)
+    softglue_8idi.acq_period.put(acq_period)
     softglue_8idi.num_triggers.put(num_frames)
-    softglue_8id_mz2.preset.put(frames_before_voltage)
+    softglue_8id_acq.preset.put(frames_before_voltage)
 
 ############# Homebrew acquisition plan #############
-def lambda_acquire():
-    """Homebrew script to acquire data with Lambda2M detector in internal mode."""\
+def lambda_acquire_ext(acq_time, acq_period):
+    """Homebrew script to acquire data with Lambda2M detector in external mode."""\
     
     # First stop any TV mode that might be running. 
     # Adding 1 second of sleep time because it can take a while for the detector tp stop
     # Comment this out if running rapid repeats
     lambda2M.cam.acquire.put(0)
     time.sleep(1.0)
+
+    if acq_time >= 0.05 and acq_period-acq_time >= 0.45:
+        shutteron()
+    else:
+        shutteroff()
 
     showbeam()
     time.sleep(0.1)
@@ -79,7 +92,7 @@ def lambda_acquire():
     lambda2M.hdf1.capture.put(1)
     lambda2M.cam.acquire.put(1)
     time.sleep(0.5)
-    softglue_8id_mz2.load.put("1!")
+    softglue_8id_acq.load.put("1!")
     softglue_8idi.start_pulses.put("1!")
 
     while True:
@@ -94,6 +107,8 @@ def lambda_acquire():
             time.sleep(0.1)
         if det_status == 0:
             break
+
+    shutteroff()
     blockbeam()
 
     while True:
@@ -124,6 +139,7 @@ def lambda_acquire():
 
 def lambda_acq_ext_series(
     acq_time=1,
+    acq_period=2,
     num_frames=10,
     num_reps=3,
     wait_time=0,
@@ -157,6 +173,7 @@ def lambda_acq_ext_series(
             
             setup_lambda_ext_series(
                 acq_time,
+                acq_period,
                 num_frames,
                 file_header,
                 file_name,
@@ -168,13 +185,14 @@ def lambda_acq_ext_series(
             print(f"\n{time_now}, Starting measurement {file_name}")
         
             
-            lambda_acquire()
+            lambda_acquire_ext(acq_time, acq_period)
             
             _ = datetime.now()
             time_now = _.strftime("%Y-%m-%d %H:%M:%S")
             print(f"{time_now}, Complete measurement {file_name}")
 
-            metadata_fname = pv_registers.metadata_full_path.get()
+            # metadata_fname = pv_registers.metadata_full_path.get()
+            metadata_fname = f"{lambda2M.hdf1.file_path.get()}/{pv_registers.metadata_full_path.get()}"
             create_nexus_format_metadata(metadata_fname, det=lambda2M)
 
             dm_run_job(workflowProcApi, dmuser)
@@ -185,7 +203,7 @@ def lambda_acq_ext_series(
         blockbeam()
         lambda2M.cam.acquire.put(0)
         lambda2M.hdf1.capture.put(0)
-        raise RuntimeError("\n Script stopped by user (Ctrl+C).")
+        raise RuntimeError("\n Script stopped by 8-ID user (Ctrl+C).")
     except Exception as e:
         print(f"Error occurred during measurement: {e}")
     finally:

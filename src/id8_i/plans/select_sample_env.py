@@ -23,14 +23,6 @@ def select_sample_env(env: Literal["qnw", "rheometer", "robot"]):
     sample environment. For the robot environment, it also moves the sample stage.
     The granite valve is enabled during motion and disabled afterward.
 
-    Args:
-        env: Sample environment to select ("qnw", "rheometer", or "robot")
-
-    Raises:
-        KeyError: If an unknown environment is specified
-
-    Yields:
-        Generator: Bluesky plan messages
     """
     # choices = {
     #     "qnw": 923.0,

@@ -88,8 +88,27 @@ def dm_run_job(workflowProcApi: WorkflowProcApi, dmuser: str):
             "saveG2": "False",
             "download": "False",
             "useSubdir": use_subfolder_flag,
+            #"suffix": "suffix_added",
             # "downloadDirectory": f"/home/8-id-i/{cycle_name}/{exp_name}/analysis/{analysis_type}/"
         }
 
+        argsDict1 = {
+            "experimentName": exp_name,
+            "filePath": filepath,
+            "qmap": "D0053_qmap_peak2_ellipse_S30x1_D1x1_new.hdf",
+            "analysisMachine": machine_name,
+            "gpuID": gpuID,
+            "demand": "True",
+            "type": analysis_type,
+            "saveG2": "False",
+            "download": "False",
+            "useSubdir": use_subfolder_flag,
+            "suffix": "Peak2",
+            # "downloadDirectory": f"/home/8-id-i/{cycle_name}/{exp_name}/analysis/{analysis_type}/"
+        }
+        
         job = workflowProcApi.startProcessingJob(dmuser, f"{workflow_name}", argsDict=argsDict)
-        print(f"Job {job['id']} processing {file_name}")
+        print(f"Job {job['id']} processing qmap1: {file_name}")
+
+        #job1 = workflowProcApi.startProcessingJob(dmuser, f"{workflow_name}", argsDict=argsDict1)
+        #print(f"Job {job1['id']} processing qmap2: {file_name}")
