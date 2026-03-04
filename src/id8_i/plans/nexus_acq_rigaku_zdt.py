@@ -37,6 +37,7 @@ def setup_rigaku_ZDT_series(acq_time, num_frames, file_header, file_name):
     cycle_name = pv_registers.cycle_name.get()
     exp_name = pv_registers.experiment_name.get()
     use_subfolder = pv_registers.use_subfolder.get()
+    mount_point = pv_registers.mount_point.get()
 
     if use_subfolder == 'Yes':
         file_path = f"{exp_name}/data/{file_header}/{file_name}"
@@ -57,10 +58,10 @@ def setup_rigaku_ZDT_series(acq_time, num_frames, file_header, file_name):
 
     pv_registers.file_name.put(file_name)
     pv_registers.metadata_full_path.put(
-        f"/gdata/dm/8ID/8IDE/{cycle_name}/{file_path}/{file_name}_metadata.hdf"
+        f"{mount_point}/{cycle_name}/{file_path}/{file_name}_metadata.hdf"
     )
 
-    os.makedirs(f"/gdata/dm/8ID/8IDE/{cycle_name}/{file_path}", mode=0o770, exist_ok=True)
+    os.makedirs(f"{mount_point}/{cycle_name}/{file_path}", mode=0o770, exist_ok=True)
 
     # full_path = f"/gdata/dm/8ID/8IDI/{cycle_name}/{file_path}"
     # remote_cmd = f"mkdir -m 770 -p {shlex.quote(full_path)}"
