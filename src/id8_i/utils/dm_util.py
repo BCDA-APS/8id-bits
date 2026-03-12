@@ -99,7 +99,7 @@ def dm_run_job(workflowProcApi: WorkflowProcApi, dmuser: str):
                 "gpuID": gpuID,
                 "demand": "True",
                 "type": analysis_type,
-                "saveG2": "False",
+                "saveG2": "True",
                 "download": "False",
                 "useSubdir": use_subfolder_flag,
                 "normalizeFrame": "False"

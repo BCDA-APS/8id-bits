@@ -89,7 +89,7 @@ def gen_dict() -> Dict[str, Union[int, float, str]]:
         "z_radius": float(loaded_dict[sample_key]["z_radius"]),
         "x_pts": int(loaded_dict[sample_key]["x_pts"]),
         "z_pts": int(loaded_dict[sample_key]["z_pts"]),
-        "temp_zone": loaded_dict[sample_key]["temp_zone"],
+        # "temp_zone": loaded_dict[sample_key]["temp_zone"],
         # "voltage": loaded_dict[sample_key]["voltage"],
         # "current": loaded_dict[sample_key]["current"],
         
@@ -109,8 +109,9 @@ def gen_folder_prefix() -> str:
     sam_dict = gen_dict()
     pv_registers.measurement_num.put(int(sam_dict["meas_num"]) + 1)
 
-    pv_registers.sample_name.put(sam_dict["sample_name"])
-    sample_name = sam_dict["sample_name"]
+    # pv_registers.sample_name.put(sam_dict["sample_name"])
+    # sample_name = sam_dict["sample_name"]
+    sample_name = pv_registers.sample_name.get()
 
     att_level = int(filter.attenuation.readback.get())
 
@@ -159,22 +160,22 @@ def mesh_grid_move():
     
     # However, to be safe and simple, I will leave the variable usage as is, assuming global or previous definition logic from the user's environment.
     
-    sam_pos = int(sample_pos_register.get())
+    # sam_pos = int(sample_pos_register.get())
 
-    samx_list = np.linspace(
-        sam_dict["x_cen"] - sam_dict["x_radius"],
-        sam_dict["x_cen"] + sam_dict["x_radius"],
-        num=sam_dict["x_pts"],
-    )
-    samy_list = np.linspace(
-        sam_dict["z_cen"] - sam_dict["z_radius"],
-        sam_dict["z_cen"] + sam_dict["z_radius"],
-        num=sam_dict["y_pts"],
-    )
+    # samx_list = np.linspace(
+    #     sam_dict["x_cen"] - sam_dict["x_radius"],
+    #     sam_dict["x_cen"] + sam_dict["x_radius"],
+    #     num=sam_dict["x_pts"],
+    # )
+    # samy_list = np.linspace(
+    #     sam_dict["z_cen"] - sam_dict["z_radius"],
+    #     sam_dict["z_cen"] + sam_dict["z_radius"],
+    #     num=sam_dict["y_pts"],
+    # )
 
-    pos_index = np.mod(sam_pos + 1, sam_dict["x_pts"] * sam_dict["z_pts"])
-    x_pos = samx_list[np.mod(pos_index, sam_dict["x_pts"])]
-    z_pos = samy_list[int(np.floor(pos_index / sam_dict["x_pts"]))]
+    # pos_index = np.mod(sam_pos + 1, sam_dict["x_pts"] * sam_dict["z_pts"])
+    # x_pos = samx_list[np.mod(pos_index, sam_dict["x_pts"])]
+    # z_pos = samy_list[int(np.floor(pos_index / sam_dict["x_pts"]))]
 
     if sam_dict["qnw_index"] == 0:
         huber.sample_x.move(x_pos)

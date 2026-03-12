@@ -33,7 +33,6 @@ def run_measurement_info(file_name="measurement_info.yaml"):
             wait_time_list = block_value.get("wait_time_list")
             num_reps_list = block_value.get("num_reps_list")
             sample_move_yes_list = block_value.get("sample_move_yes_list")
-            # volt_list = block_value.get('volt_list')
 
             print(f"\n --- Measurement Block {block_key} ---")
 
@@ -70,7 +69,7 @@ def run_measurement_info(file_name="measurement_info.yaml"):
                                 num_reps=num_reps,
                                 wait_time=wait_time,
                                 sample_move=sample_move_yes,
-                                voltage=voltage,
+                                # voltage=voltage,
                             )
                         elif acq_time != acq_period and acq_period >= 0.1:
                             print(f"Using eiger external trigger series")
@@ -81,7 +80,7 @@ def run_measurement_info(file_name="measurement_info.yaml"):
                                 num_reps=num_reps,
                                 wait_time=wait_time,
                                 sample_move=sample_move_yes,
-                                voltage=voltage,
+                                # voltage=voltage,
                             )
                         else:
                             print("Error: use acquition period larger than 0.1 s for Eiger Ext Trig mode")

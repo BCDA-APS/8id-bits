@@ -38,6 +38,7 @@ def run_measurement_info(file_name="measurement_info.yaml"):
             select_sample(sam_index)
 
             print(f"Detector name: {det_name}")
+            print(f'\n Detector in use is {det_name}:\n')
             select_detector(det_name)
 
             for ii in range(len(att_list)):
@@ -90,7 +91,7 @@ def run_measurement_info(file_name="measurement_info.yaml"):
                                 wait_time=wait_time,
                                 sample_move=sample_move_yes,
                             )       
-                    else:
+                    elif det_name != "eiger4M" and det_name != "rigaku3M":
                         print("Invalid Detector Name")
 
     except KeyboardInterrupt as err:

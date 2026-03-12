@@ -1,15 +1,15 @@
 sample_1:
-  sample_name: CsPbBr3_CellA_d1p93gpa_PeakB
+  sample_name: background_leadtape
   x_cen: 0.134 
   z_cen: 42.23
   x_radius: 0.05
   z_radius: 0.05
   x_pts: 10
   z_pts: 10
-  header: B
-  temp_zone: 300K
-  voltage_chA: 0 # V
-  current_chA: 0.001 # mA
+  header: A
+#  temp_zone: 300K
+#  voltage_chA: 0 # V
+#  current_chA: 0.001 # mA
 
 sample_2:
   sample_name: CsPbBr3_CellA_1p93gpa_PeakC

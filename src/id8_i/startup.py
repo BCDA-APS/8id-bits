@@ -140,7 +140,4 @@ from .plans.select_detector import *
 from .plans.scan_8idi import *
 from .plans.shutter_logic import *
 from .plans.qnw_plans import *
-# from .plans.nexus_acq_eiger_int import *
-# from .plans.nexus_acq_rigaku_int_fly import *
-# from .plans.nexus_acq_rigaku_zdt import *
-# from .plans.nexus_acq_aeon import *
+from .plans.nexus_acq_eiger_int import *

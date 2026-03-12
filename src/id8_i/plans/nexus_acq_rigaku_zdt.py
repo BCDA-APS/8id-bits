@@ -23,6 +23,7 @@ rigaku3M = oregistry["rigaku3M"]
 pv_registers = oregistry["pv_registers"]
 
 
+
 def setup_rigaku_ZDT_series(acq_time, num_frames, file_header, file_name):
     """Setup the Rigaku3M for ZDT series acquisition.
 

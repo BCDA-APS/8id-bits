@@ -19,7 +19,7 @@ def select_diagnostics(name: str):
         cam_stage_8idi.x.move(105.545)
         cam_stage_8idi.y.move(-0.184)
     if name == "wavefront":
-        cam_stage_8idi.x.move(105.75)
+        cam_stage_8idi.x.move(-105.75)
         cam_stage_8idi.y.move(-0.184)
     else:
         print("Diagnostic names must be microscope, pind or wavefront")

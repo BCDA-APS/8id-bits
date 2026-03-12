@@ -286,9 +286,9 @@ id8_common.devices.idt_mono.IDTMono:
   pitch_piezo: "LJT703:Ao2"
   roll_piezo: "LJT703:Ao3"
 
-id8_common.devices.undulator.Undulator:
-- name: undulator
-  prefix: "S08ID:"
+# id8_common.devices.undulator.Undulator:
+# - name: undulator
+#   prefix: "S08ID:"
 
 id8_common.devices.aerotech_stages.AerotechSampleStage:
 - name: sample

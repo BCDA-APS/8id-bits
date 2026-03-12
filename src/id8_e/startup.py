@@ -30,11 +30,10 @@ from apsbits.utils.helper_functions import register_bluesky_magics
 from apsbits.utils.helper_functions import running_in_queueserver
 from apsbits.utils.logging_setup import configure_logging
 
+from tiled.client import from_profile
+
 # from apstools.devices import load_devices_from_yaml
 # from id8_common.utils.misc import ioc_alive
-from id8_common.utils.misc import stream_rois
-
-from .plans.lakeshore import *
 
 # Configuration block
 # Get the path to the instrument package
@@ -98,9 +97,6 @@ else:
 make_devices(clear=False, file="devices.yml", device_manager=instrument)
 make_devices(clear=False, file="devices_aps_only.yml", device_manager=instrument)
 make_devices(clear=False, file="ad_devices.yml", device_manager=instrument)
-
-stream_rois(oregistry["lambda2M"])
-stream_rois(oregistry["eiger4M"])
 
 # RIGAKU_TEST_PV = "8idRigaku3m:cam1:Manufacturer_RBV"
 # EIGER_TEST_PV = "8idEiger4m:cam1:Manufacturer_RBV"
@@ -174,16 +170,20 @@ from .plans.sim_plan import sim_count_plan  # noqa: E402, F401
 from .plans.sim_plan import sim_print_plan  # noqa: E402, F401
 from .plans.sim_plan import sim_rel_scan_plan  # noqa: E402, F401
 
-from .plans.master_plan import run_measurement_info, set_temp_lakeshore2
+from id8_common.utils.misc import stream_rois
+stream_rois(oregistry["lambda2M"])
+stream_rois(oregistry["eiger4M"])
+from id8_e.plans.lakeshore import *
+from .plans.master_plan import run_measurement_info #, set_temp_lakeshore2
 from .plans.sample_info_unpack import *
 from .plans.scan_8ide import *
 from .plans.nexus_acq_eiger_int import *
 from .plans.nexus_acq_lambda_int import *
 from .plans.nexus_acq_lambda_ext import *
-# from .plans.nexus_acq_eiger_ext import *
+from .plans.nexus_acq_eiger_ext import *
 # from .plans.nexus_acq_rigaku_zdt import *
 
-from hklpy2.user import *  
-from .plans.hklpy2_setup import configure_hklpy2
-configure_hklpy2(oregistry)
+# from hklpy2.user import *  
+# from .utils.hklpy2_setup import configure_hklpy2
+# configure_hklpy2(oregistry)
 

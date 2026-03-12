@@ -9,7 +9,6 @@ from datetime import datetime
 import time
 
 from apsbits.core.instrument_init import oregistry
-
 from ..utils.dm_util import dm_run_job
 from ..utils.dm_util import dm_setup
 from ..utils.nexus_utils import create_nexus_format_metadata
@@ -37,6 +36,7 @@ def setup_eiger_ext_trig(
     num_frames: int,
     file_header: str,
     file_name: str,
+    segment_length: int = 400
 ):
     """Setup the Eiger4M for external trigger mode.
 
@@ -72,13 +72,14 @@ def setup_eiger_ext_trig(
     eiger4M.cam.trigger_mode.put("External Enable")
     softglue_8idi.acq_time.put(acq_time)
     softglue_8idi.acq_period.put(acq_period)
-    softglue_8idi.num_triggers.put(num_frames)
+    # softglue_8idi.num_triggers.put(num_frames)
+    softglue_8idi.num_triggers.put(segment_length)
     
 ############# Homebrew acquisition plan #############
 def eiger_acquire_ext(acq_time, acq_period):
     """Acquire data from Eiger4M using external triggers."""
-    showbeam()
-    time.sleep(0.1)
+    #showbeam()
+    #time.sleep(0.1)
 
     if acq_time >= 0.05 and acq_period-acq_time >= 0.45:
         shutteron()
@@ -87,8 +88,11 @@ def eiger_acquire_ext(acq_time, acq_period):
 
     eiger4M.hdf1.capture.put(1)
     eiger4M.cam.acquire.put(1)
+    
+    showbeam()
 
-    softglue_8idi.start_pulses.put("1!")
+    if eiger4M.hdf1.capture.get()==1 and eiger4M.cam.acquire.get()==1:
+        softglue_8idi.start_pulses.put("1!")
 
     while True:
         #### QZ on 2026/01/06 ####
@@ -98,7 +102,7 @@ def eiger_acquire_ext(acq_time, acq_period):
         time.sleep(0.5)
         det_status = eiger4M.cam.acquire_busy.get()
         if det_status == 1:
-            time.sleep(0.1)
+            time.sleep(0.5)
         if det_status == 0:
             break
 
@@ -109,10 +113,10 @@ def eiger_acquire_ext(acq_time, acq_period):
         #### QZ on 2026/02/18 ####
         # Suresh suggested to just check for hdf plugin done status
         #### QZ on 2026/02/18 ####
-        time.sleep(0.05)
+        time.sleep(0.5)
         det_plugin_status = eiger4M.hdf1.capture.get()
         if det_plugin_status == 1:
-            time.sleep(0.05)
+            time.sleep(0.5)
         if det_plugin_status == 0:
             break
 
@@ -136,7 +140,8 @@ def eiger_acq_ext_trig(
     num_frames: int = 10,
     num_reps: int = 2,
     wait_time: float = 0,
-    sample_move: bool = True,
+    sample_move: bool = False,
+    segment_length: int = 400,
 ):
     """Run an external trigger acquisition sequence.
 
@@ -158,15 +163,15 @@ def eiger_acq_ext_trig(
         for ii in range(num_reps):
             time.sleep(wait_time)
 
-            if sample_move:
-                mesh_grid_move()
+            # if sample_move:
+            #     mesh_grid_move()
 
             sam_temp = lakeshore.readback_ch1.value
             sam_temp_i = int(round(sam_temp))
             file_header = f"{folder_prefix}_t{sam_temp_i:03d}C_f{num_frames:06d}"
             file_name   = f"{folder_prefix}_t{sam_temp_i:03d}C_f{num_frames:06d}_r{ii+1:05d}"
 
-            setup_eiger_ext_trig(acq_time, acq_period, num_frames, file_header, file_name)
+            setup_eiger_ext_trig(acq_time, acq_period, num_frames, file_header, file_name, segment_length)
 
             _ = datetime.now()
             time_now = _.strftime("%Y-%m-%d %H:%M:%S")
