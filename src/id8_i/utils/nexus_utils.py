@@ -24,7 +24,7 @@ sample = oregistry["sample"]
 filter_8ide = oregistry["filter_8ide"]
 lakeshore1 = oregistry["lakeshore1"]
 flight_path_8idi = oregistry["flight_path_8idi"]
-mono_8id = oregistry["mono_8id"]
+# mono_8id = oregistry["mono_8id"]
 qnw_env1 = oregistry["qnw_env1"]
 qnw_env2 = oregistry["qnw_env2"]
 qnw_env3 = oregistry["qnw_env3"]
@@ -40,7 +40,7 @@ sl4 = oregistry["sl4"]
 sl7 = oregistry["sl7"]
 wb_slit = oregistry["wb_slit"]
 mono_slit = oregistry["mono_slit"]
-xbpm1 = oregistry["xbpm1"]
+# xbpm1 = oregistry["xbpm1"]
 aps = oregistry["aps"]
 
 def _get_ring_current():
@@ -187,16 +187,16 @@ def create_runtime_metadata_dict(
         "/entry/instrument/sl4/vertical_center": sl4.v.center.position,
         "/entry/instrument/sl4/horizontal_gap": sl4.h.size.position,
         "/entry/instrument/sl4/horizontal_center": sl4.h.center.position,
-        "/entry/instrument/monochromator/energy": mono_8id.energy_readback.get(),
-        "/entry/instrument/monochromator/wavelength": mono_8id.energy_readback.get() / 12.4,
-        "/entry/instrument/incident_beam/incident_energy": mono_8id.energy_readback.get(),
+        # "/entry/instrument/monochromator/energy": mono_8id.energy_readback.get(),
+        # "/entry/instrument/monochromator/wavelength": mono_8id.energy_readback.get() / 12.4,
+        # "/entry/instrument/incident_beam/incident_energy": mono_8id.energy_readback.get(),
         "/entry/instrument/incident_beam/incident_energy_spread": 0.0001,
-        "/entry/instrument/incident_beam/incident_beam_intensity": (
-            xbpm1.current1.mean_value.get() / xbpm1.current_scales.ch1.get()
-            + xbpm1.current2.mean_value.get() / xbpm1.current_scales.ch2.get()
-            + xbpm1.current3.mean_value.get() / xbpm1.current_scales.ch3.get()
-            + xbpm1.current4.mean_value.get() / xbpm1.current_scales.ch4.get()
-        ),  
+        # "/entry/instrument/incident_beam/incident_beam_intensity": (
+        #     xbpm1.current1.mean_value.get() / xbpm1.current_scales.ch1.get()
+        #     + xbpm1.current2.mean_value.get() / xbpm1.current_scales.ch2.get()
+        #     + xbpm1.current3.mean_value.get() / xbpm1.current_scales.ch3.get()
+        #     + xbpm1.current4.mean_value.get() / xbpm1.current_scales.ch4.get()
+        # ),  
         "/entry/instrument/incident_beam/ring_current": aps.current.get(),      
         # "/entry/instrument/undulator_1/energy": undulator_upstream.energy.position,
         # "/entry/instrument/undulator_1/taper": undulator_upstream.gap_taper.position,

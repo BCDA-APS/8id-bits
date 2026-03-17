@@ -1,0 +1,51 @@
+"""
+Plan that allows for moving to pre-programmed positions seen as strings.
+
+This module provides plans for moving the upstream diagnostics 
+among microscope, wavefront sensor, and pind.
+"""
+
+import time
+from apsbits.core.instrument_init import oregistry
+
+idt_mono = oregistry["idt_mono"]
+
+
+def select_mono(name: str):
+
+    if name == "111":
+        idt_mono.coarse_pitch.move()
+        idt_mono.y_slide.move()
+        idt_mono.coarse_roll.move()
+
+    if name == "311":
+        idt_mono.coarse_pitch.move()
+        idt_mono.y_slide.move()
+        idt_mono.coarse_roll.move()
+    else:
+        print("Mono names must be 111 or 311")
+
+    time.sleep(2.0)
+
+
+def select_wb_stripe(energy: float):
+
+# The coatings are Si, Cr, Rh, Pt. Each coating is 10 mm wide. 
+# All coatings other than Si have Cr as an underlayer
+
+    if energy < 10.0:  # Si
+        mr1.y.move()
+        mr2.y.move()
+    if energy >= 10.0 and energy < 16:  # Cr
+        mr1.y.move()
+        mr2.y.move()
+    if energy >= 16.0 and energy < 20.0:  # Rh
+        mr1.y.move()
+        mr2.y.move()
+    if energy >= 20.0 and energy < 30:  # Cr
+        mr1.y.move()
+        mr2.y.move()
+    else:
+        print("Energy range must be within 8 to 30 keV")
+
+    time.sleep(2.0)
