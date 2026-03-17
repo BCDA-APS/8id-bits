@@ -14,14 +14,14 @@ idt_mono = oregistry["idt_mono"]
 def select_mono(name: str):
 
     if name == "111":
-        idt_mono.coarse_pitch.move()
-        idt_mono.y_slide.move()
-        idt_mono.coarse_roll.move()
+        idt_mono.y_slide.move(-7.0)
+        idt_mono.coarse_roll.move(6.522)
+        idt_mono.coarse_pitch.move(0.14)
 
     if name == "311":
-        idt_mono.coarse_pitch.move()
-        idt_mono.y_slide.move()
-        idt_mono.coarse_roll.move()
+        idt_mono.y_slide.move(5.3)
+        idt_mono.coarse_pitch.move(-0.264)
+        idt_mono.coarse_roll.move(7.67)
     else:
         print("Mono names must be 111 or 311")
 
