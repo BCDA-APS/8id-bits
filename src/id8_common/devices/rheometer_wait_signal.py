@@ -14,4 +14,5 @@ class Rheometer_Wait(Device):
     finishes its current program. It provides read-only access to the pulse count.
     """
 
-    pulse_count = Component(EpicsSignalRO, "UpCntr-1_COUNTS")
+    pulse_count = Component(EpicsSignalRO, "8idMZ4:SG:UpCntr-1_COUNTS")
+    rheo_output = Component(EpicsSignalRO, "8idiSoft:LJT705:Ai4")

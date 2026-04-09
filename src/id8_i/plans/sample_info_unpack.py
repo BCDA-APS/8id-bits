@@ -10,6 +10,7 @@ from typing import Union
 
 import numpy as np
 from apsbits.core.instrument_init import oregistry
+from .select_sample_env import select_sample_env
 # from bluesky import plan_stubs as bps
 
 sample = oregistry["sample"]
@@ -45,9 +46,12 @@ def select_sample(env: int):
     print(f"Moving {sample_key} x to {x_cen} and y to {y_cen}")
 
     if env == 0:
+        # select_sample_env('rheometer')
         rheometer.x.move(x_cen)
         rheometer.y.move(y_cen)
     elif 1 <= env <= 27:
+        # TODO: Add PV register that checks current sample environment
+        # select_sample_env('qnw')
         sample.x.move(x_cen)
         sample.y.move(y_cen)
     elif env == 31:

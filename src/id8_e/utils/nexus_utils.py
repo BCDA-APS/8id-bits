@@ -28,17 +28,17 @@ pv_registers = oregistry["pv_registers"]
 # undulator_downstream = oregistry["undulator_downstream"]
 huber = oregistry["huber"]
 sl4 = oregistry["sl4"]
-xbpm1 = oregistry["xbpm1"]
+# xbpm1 = oregistry["xbpm1"]
 sl4 = oregistry["sl4"]
 sl7 = oregistry["sl7"]
 wb_slit = oregistry["wb_slit"]
 mono_slit = oregistry["mono_slit"]
-xbpm1 = oregistry["xbpm1"]
+# xbpm1 = oregistry["xbpm1"]
 # aps = oregistry["aps"]
 keithley_chA = oregistry["keithley_chA"]
 keithley_chB = oregistry["keithley_chB"]
 bk_pid = oregistry["bk_pid"]
-keysight = oregistry["keysight"]
+# keysight = oregistry["keysight"]
 
 def _get_ring_current():
    
@@ -197,17 +197,17 @@ def create_runtime_metadata_dict(
         "/entry/sample/keithley_chB_MeasRangeI": keithley_chB.MeasRangeI_AO.value,
         "/entry/sample/bk_pid_VAL": bk_pid.VAL.value,
         "/entry/sample/bk_pid_RDBK": bk_pid.RDBK.value,
-        "/entry/sample/keysight_func": keysight.func_rbv.value,
-        "/entry/sample/keysight_freq": keysight.frequency_rbv.value,
-        "/entry/sample/keysight_amp": keysight.amplitude_rbv.value,
-        "/entry/sample/keysight_phase": keysight.phase_rbv.value,
-        "/entry/sample/keysight_pulse_width": keysight.pulse_width_rbv.value,
-        "/entry/sample/keysight_trigg_source": keysight.trigger_source_rbv.value,
-        "/entry/sample/keysight_trigg_edge": keysight.trigger_edge_rbv.value,
-        "/entry/sample/keysight_burst_count": keysight.burst_count_rbv.value,
-        "/entry/sample/keysight_burst_mode": keysight.burst_mode_rbv.value,
-        "/entry/sample/keysight_burst_state": keysight.burst_state_rbv.value,
-        "/entry/sample/keysight_output": keysight.output_rbv.value,
+        # "/entry/sample/keysight_func": keysight.func_rbv.value,
+        # "/entry/sample/keysight_freq": keysight.frequency_rbv.value,
+        # "/entry/sample/keysight_amp": keysight.amplitude_rbv.value,
+        # "/entry/sample/keysight_phase": keysight.phase_rbv.value,
+        # "/entry/sample/keysight_pulse_width": keysight.pulse_width_rbv.value,
+        # "/entry/sample/keysight_trigg_source": keysight.trigger_source_rbv.value,
+        # "/entry/sample/keysight_trigg_edge": keysight.trigger_edge_rbv.value,
+        # "/entry/sample/keysight_burst_count": keysight.burst_count_rbv.value,
+        # "/entry/sample/keysight_burst_mode": keysight.burst_mode_rbv.value,
+        # "/entry/sample/keysight_burst_state": keysight.burst_state_rbv.value,
+        # "/entry/sample/keysight_output": keysight.output_rbv.value,
         
         
 
@@ -233,12 +233,12 @@ def create_runtime_metadata_dict(
         "/entry/instrument/monochromator/wavelength": mono_8id.energy_readback.get() / 12.4,
         "/entry/instrument/incident_beam/incident_energy": mono_8id.energy_readback.get(),
         "/entry/instrument/incident_beam/incident_energy_spread": 0.0001,
-        "/entry/instrument/incident_beam/incident_beam_intensity": (
-            xbpm1.current1.mean_value.get() / xbpm1.current_scales.ch1.get()
-            + xbpm1.current2.mean_value.get() / xbpm1.current_scales.ch2.get()
-            + xbpm1.current3.mean_value.get() / xbpm1.current_scales.ch3.get()
-            + xbpm1.current4.mean_value.get() / xbpm1.current_scales.ch4.get()
-        ), 
+        # "/entry/instrument/incident_beam/incident_beam_intensity": (
+        #     xbpm1.current1.mean_value.get() / xbpm1.current_scales.ch1.get()
+        #     + xbpm1.current2.mean_value.get() / xbpm1.current_scales.ch2.get()
+        #     + xbpm1.current3.mean_value.get() / xbpm1.current_scales.ch3.get()
+        #     + xbpm1.current4.mean_value.get() / xbpm1.current_scales.ch4.get()
+        # ), 
         "/entry/instrument/incident_beam/ring_current": _get_ring_current(),
         # "/entry/instrument/undulator_1/gap": undulator_upstream.gap.position,
         # "/entry/instrument/undulator_1/energy": undulator_upstream.energy.position,

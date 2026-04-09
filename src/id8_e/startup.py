@@ -32,6 +32,8 @@ from apsbits.utils.logging_setup import configure_logging
 
 from tiled.client import from_profile
 
+
+
 # from apstools.devices import load_devices_from_yaml
 # from id8_common.utils.misc import ioc_alive
 
@@ -166,6 +168,8 @@ pv_registers = oregistry["pv_registers"]
 # Devices with the label 'baseline' will be added to the baseline stream.
 setup_baseline_stream(sd, oregistry, connect=False)
 
+from .utils.check_file_dim import check_h5_shape
+
 from .plans.sim_plan import sim_count_plan  # noqa: E402, F401
 from .plans.sim_plan import sim_print_plan  # noqa: E402, F401
 from .plans.sim_plan import sim_rel_scan_plan  # noqa: E402, F401
@@ -181,6 +185,7 @@ from .plans.nexus_acq_eiger_int import *
 from .plans.nexus_acq_lambda_int import *
 from .plans.nexus_acq_lambda_ext import *
 from .plans.nexus_acq_eiger_ext import *
+from .plans.sample_info_unpack import *
 # from .plans.nexus_acq_rigaku_zdt import *
 
 # from hklpy2.user import *  

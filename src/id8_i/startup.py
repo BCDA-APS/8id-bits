@@ -141,3 +141,4 @@ from .plans.scan_8idi import *
 from .plans.shutter_logic import *
 from .plans.qnw_plans import *
 from .plans.nexus_acq_eiger_int import *
+from .plans.nexus_acq_eiger_int_wei import *

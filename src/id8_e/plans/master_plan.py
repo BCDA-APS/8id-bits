@@ -107,8 +107,8 @@ def run_measurement_info(file_name="measurement_info.yaml"):
                         #     )
                         else:
                             print("Error: acquisition time and acquisition period not the same")                   
-                    else:
-                        print("Detector name must be eiger4M, rigaku3M, or lambda2M")
+                    # else:
+                    #     print("Detector name must be eiger4M, rigaku3M, or lambda2M")
 
     except KeyboardInterrupt as err:
         raise RuntimeError("\n Bluesky plan stopped by user (Ctrl+C).") from err

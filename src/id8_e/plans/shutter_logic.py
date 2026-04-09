@@ -37,14 +37,17 @@ def shutteroff():
 
 def post_align():
     """Configure system for post-alignment state by blocking the beam."""
+    pe.caput("8idiSoft:FLIGHT:bo1:8", 1)
     blockbeam()
     time.sleep(0.5)
 
 
 def pre_align():
     """Configure system for pre-alignment state by disabling shutter control."""
+    pe.caput("8idiSoft:FLIGHT:bo1:8", 0)
     shutteroff()
     time.sleep(0.5)
+
 
 def PIND_status(status=0):
     """Remove the PIND from the beam path."""

@@ -1,5 +1,5 @@
 """
-Simple, modular Ophyd scripts for users.
+Simple, modular Bluesky plans for users.
 """
 
 from datetime import datetime
@@ -13,11 +13,16 @@ from ..utils.nexus_utils import create_nexus_format_metadata
 from .sample_info_unpack import gen_folder_prefix
 from .sample_info_unpack import mesh_grid_move
 from .shutter_logic import *
+from .qnw_plans import find_qnw_index
 
 eiger4M = oregistry["eiger4M"]
 pv_registers = oregistry["pv_registers"]
+filter = oregistry["filter_8ide"]
 
-
+qnw_env1 = oregistry["qnw_env1"]
+qnw_env2 = oregistry["qnw_env2"]
+qnw_env3 = oregistry["qnw_env3"]
+qnw_controllers = [qnw_env1, qnw_env2, qnw_env3]
 
 def setup_eiger_int_series(acq_time, num_frames, file_header, file_name):
     """Setup the Eiger4M for internal series acquisition.
@@ -33,7 +38,6 @@ def setup_eiger_int_series(acq_time, num_frames, file_header, file_name):
     cycle_name = pv_registers.cycle_name.get()
     exp_name = pv_registers.experiment_name.get()
     mount_point = pv_registers.mount_point.get()
-
     use_subfolder = pv_registers.use_subfolder.get()
 
     if use_subfolder == "Yes":
@@ -42,30 +46,28 @@ def setup_eiger_int_series(acq_time, num_frames, file_header, file_name):
         file_path = f"{mount_point}{cycle_name}/{exp_name}/data/{file_name}"
     else: 
         print("Sub folder options can only be either Yes or No") 
-    
-    acq_period = acq_time
 
-    # Use .put() for signals
-    eiger4M.hdf1.enable.put(1)
-    eiger4M.cam.save_files.put(0)
-    eiger4M.cam.fw_enable.put(1)
-    eiger4M.cam.trigger_mode.put("Internal Series")  # 0
     eiger4M.cam.acquire_time.put(acq_time)
+    # moved up by damian 2025-11-15, acq_period was defined after calling it:
+    acq_period = acq_time
     eiger4M.cam.acquire_period.put(acq_period)
     eiger4M.hdf1.file_name.put(file_name)
     eiger4M.hdf1.file_path.put(file_path)
-    eiger4M.cam.num_images.put(num_frames)
-    eiger4M.cam.num_triggers.put(1)  # Need to put num_trigger to 1 for internal mode
     eiger4M.hdf1.num_capture.put(num_frames)
-
     pv_registers.file_name.put(file_name)
-    # pv_regiZZZZters.metadata_full_path.put(f"{file_path}/{file_name}_metadata.hdf")
-    pv_registers.metadata_full_path.put(f"{file_name}_metadata.hdf")
+    pv_registers.metadata_full_path.put(f"{file_path}/{file_name}_metadata.hdf")
 
+    # Unique for Internal Mode
+    # moved up by damian 2025-11-15, to set internal series first:
+    eiger4M.cam.trigger_mode.put("Internal Series")  # 0
+    eiger4M.cam.num_images.put(num_frames)  # Needs to be set after the trigger mode
+    eiger4M.cam.num_triggers.put(1)  # Need to put num_trigger to 1 for internal mode
 
+    
 ############# Homebrew acquisition plan #############
 def eiger_acquire():
-    """Homebrew script to acquire data with Eiger detector in internal mode."""
+    """Homebrew plan to acquire data with Eiger detector in internal mode."""
+    shutteroff()
     showbeam()
     time.sleep(0.1)
     eiger4M.hdf1.capture.put(1)
@@ -84,45 +86,35 @@ def eiger_acquire():
             break
     blockbeam()
 
-    while True:
-        #### QZ on 2026/02/18 ####
-        # Suresh suggested to just check for hdf plugin done status
-        #### QZ on 2026/02/18 ####
-        time.sleep(0.05)
-        det_plugin_status = eiger4M.hdf1.capture.get()
-        if det_plugin_status == 1:
-            time.sleep(0.05)
-        if det_plugin_status == 0:
+    frame_num_set = eiger4M.hdf1.queue_size.get()
+    count = 0
+    while count < 100:
+        frame_num_processed = eiger4M.hdf1.queue_free.get()
+        if frame_num_processed == frame_num_set:
             break
-
-    # frame_num_set = eiger4M.hdf1.queue_size.get()
-    # count = 0
-    # while count < 100:
-    #     frame_num_processed = eiger4M.hdf1.queue_free.get()
-    #     if frame_num_processed == frame_num_set:
-    #         break
-    #     else:
-    #         time.sleep(0.1)
-    #         count = +1
-    #     eiger4M.hdf1.capture.put(0)
+        else:
+           time.sleep(0.1)
+        count = +1
+        eiger4M.hdf1.capture.put(0)
 
 
 ############# Homebrew acquisition plan ends #############
 
 
-def eiger_acq_int_series(
+def eiger_acq_int_series_wei(
     acq_time=1,
     num_frames=10,
     num_reps=3,
     wait_time=0,
-    sample_move=True,
+    sample_name=None,
+    sample_move=False,
 ):
     """Run internal series acquisition with the Eiger detector.
 
     Args:
         acq_time: Acquisition time per frame in seconds
         num_frames: Number of frames to acquire
-        num_rep: Number of repetitions
+        num_reps: Number of repetitions
         wait_time: Time to wait between repetitions
         process: Whether to process data after acquisition
         sample_move: Whether to move sample between repetitions
@@ -131,7 +123,16 @@ def eiger_acq_int_series(
         post_align()
         shutteroff()
         workflowProcApi, dmuser = dm_setup()
-        folder_prefix = gen_folder_prefix()
+
+        ############# QZ 2026/03/26: Adding option to change sample name from inside the acq code #############
+        meas_num = int(pv_registers.measurement_num.get())
+        pv_registers.measurement_num.put(meas_num+1)
+
+        att_level = int(filter.attenuation.readback.get())
+
+        header_name = f'R{meas_num:04d}'
+        folder_prefix = f"{header_name}_{sample_name}_a{att_level:04}"
+        ############# QZ 2026/03/26: Adding option to change sample name from inside the acq code #############
 
         for ii in range(num_reps):
             time.sleep(wait_time)
@@ -141,30 +142,23 @@ def eiger_acq_int_series(
 
             file_header = f"{folder_prefix}_f{num_frames:06d}"
             file_name = f"{folder_prefix}_f{num_frames:06d}_r{ii+1:05d}"
-            
+
             setup_eiger_int_series(acq_time, num_frames, file_header, file_name)
 
             _ = datetime.now()
             time_now = _.strftime("%Y-%m-%d %H:%M:%S")
             print(f"\n{time_now}, Starting measurement {file_name}")
-            
             eiger_acquire()
-            
             _ = datetime.now()
             time_now = _.strftime("%Y-%m-%d %H:%M:%S")
             print(f"{time_now}, Complete measurement {file_name}")
 
-            # metadata_fname = pv_registers.metadata_full_path.get()
-            metadata_fname = f"{eiger4M.hdf1.file_path.get()}/{pv_registers.metadata_full_path.get()}"
+            metadata_fname = pv_registers.metadata_full_path.get()
             create_nexus_format_metadata(metadata_fname, det=eiger4M)
 
             dm_run_job(workflowProcApi, dmuser)
     except KeyboardInterrupt:
-        shutteroff()
-        blockbeam()
-        eiger4M.cam.acquire.put(0)
-        eiger4M.hdf1.capture.put(0)
-        raise RuntimeError("\n Script stopped by 8-ID user (Ctrl+C).")
+        raise RuntimeError("\n Bluesky plan stopped by user (Ctrl+C).")
     except Exception as e:
         print(f"Error occurred during measurement: {e}")
     finally:

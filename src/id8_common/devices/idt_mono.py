@@ -74,10 +74,10 @@ class IDTMono(Device):
     # pitch_piezo = FCpt(EpicsMotor, "{motor_prefix}:{_pitch_piezo}", labels={"motors"})
     # roll_piezo = FCpt(EpicsMotor, "{motor_prefix}:{_roll_piezo}", labels={"motors"})
 
-    # energy = FCpt(KohzuSoftPositioner, "{motor_prefix}:BraggE", labels={"motors"})
-    # # Consider: Switch this to ophyd.PVPositioner?  for actuate signal
-    # # Additional components required for KohzuSoftPositioner
-    # moving = FCpt(EpicsSignalRO, "{motor_prefix}:KohzuMoving", kind="omitted")
-    # allstop_button = FCpt(EpicsSignal, "{motor_prefix}:allstop", string=True, kind="omitted")
-    # move_button = FCpt(EpicsSignal, "{motor_prefix}:KohzuPutBO", put_complete=True, kind="omitted")
+    energy = FCpt(KohzuSoftPositioner, "{motor_prefix}:BraggE", labels={"motors"})
+    # Consider: Switch this to ophyd.PVPositioner?  for actuate signal
+    # Additional components required for KohzuSoftPositioner
+    moving = FCpt(EpicsSignalRO, "{motor_prefix}:KohzuMoving", kind="omitted")
+    allstop_button = FCpt(EpicsSignal, "{motor_prefix}:allstop", string=True, kind="omitted")
+    move_button = FCpt(EpicsSignal, "{motor_prefix}:KohzuPutBO", put_complete=True, kind="omitted")
     # TODO: Allow for angular offset to BraggTheta soft motor

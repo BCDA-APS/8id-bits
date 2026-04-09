@@ -268,9 +268,9 @@ id8_common.devices.tetramm_picoammeter.MyTetrAMM:
   prefix: "8idTetra:QUAD4:"
   port_name: "QUAD4"
 
-id8_common.devices.sydor_tp4u.SydorTP4U:
-- name: xbpm1
-  prefix: "8ideSoft:T4U_BPM:"
+# id8_common.devices.sydor_tp4u.SydorTP4U:
+# - name: xbpm1
+#   prefix: "8ideSoft:T4U_BPM:"
 
 id8_common.devices.idt_mono.IDTMono:
 - name: idt_mono

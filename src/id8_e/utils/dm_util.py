@@ -88,6 +88,7 @@ def dm_run_job(workflowProcApi: WorkflowProcApi, dmuser: str):
             "saveG2": "False",
             "download": "False",
             "useSubdir": use_subfolder_flag,
+            "normalizeFrame": "False"
             #"suffix": "suffix_added",
             # "downloadDirectory": f"/home/8-id-i/{cycle_name}/{exp_name}/analysis/{analysis_type}/"
         }
@@ -104,6 +105,7 @@ def dm_run_job(workflowProcApi: WorkflowProcApi, dmuser: str):
             "download": "False",
             "useSubdir": use_subfolder_flag,
             "suffix": "Peak2",
+            "normalizeFrame": "False"
             # "downloadDirectory": f"/home/8-id-i/{cycle_name}/{exp_name}/analysis/{analysis_type}/"
         }
         

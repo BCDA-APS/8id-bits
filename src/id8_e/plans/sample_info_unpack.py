@@ -39,13 +39,13 @@ def select_sample(env: int):
 
     sample_key = f"sample_{env}"
     x_cen = loaded_dict[sample_key]["x_cen"]
-    z_cen = loaded_dict[sample_key]["z_cen"]
+    y_cen = loaded_dict[sample_key]["y_cen"]
     # volt = loaded_dict[sample_key]["voltage_chA"]
     # curr = loaded_dict[sample_key]["current_chA"]
 
-    # print(f"Moving {sample_key} x to {x_cen} and z to {z_cen}")
-    # huber.sample_x.move(x_cen)
-    # huber.sample_z.move(z_cen)
+    print(f"Moving {sample_key} x to {x_cen} and y to {y_cen}")
+    huber.sample_x.move(x_cen)
+    huber.sample_y.move(y_cen)
     
     # print(f'Setting Keithley_chA to {volt} V')
     # keithley_chA.SrcLevelI_AO.put(curr)
@@ -84,11 +84,11 @@ def gen_dict() -> Dict[str, Union[int, float, str]]:
         "sample_name": loaded_dict[sample_key]["sample_name"],
         "header": loaded_dict[sample_key]["header"],
         "x_cen": float(loaded_dict[sample_key]["x_cen"]),
-        "z_cen": float(loaded_dict[sample_key]["z_cen"]),
+        "y_cen": float(loaded_dict[sample_key]["y_cen"]),
         "x_radius": float(loaded_dict[sample_key]["x_radius"]),
-        "z_radius": float(loaded_dict[sample_key]["z_radius"]),
+        "y_radius": float(loaded_dict[sample_key]["y_radius"]),
         "x_pts": int(loaded_dict[sample_key]["x_pts"]),
-        "z_pts": int(loaded_dict[sample_key]["z_pts"]),
+        "y_pts": int(loaded_dict[sample_key]["y_pts"]),
         # "temp_zone": loaded_dict[sample_key]["temp_zone"],
         # "voltage": loaded_dict[sample_key]["voltage"],
         # "current": loaded_dict[sample_key]["current"],
@@ -109,18 +109,18 @@ def gen_folder_prefix() -> str:
     sam_dict = gen_dict()
     pv_registers.measurement_num.put(int(sam_dict["meas_num"]) + 1)
 
-    # pv_registers.sample_name.put(sam_dict["sample_name"])
-    # sample_name = sam_dict["sample_name"]
-    sample_name = pv_registers.sample_name.get()
+    pv_registers.sample_name.put(sam_dict["sample_name"])
+    sample_name = sam_dict["sample_name"]
+    # sample_name = pv_registers.sample_name.get()
 
     att_level = int(filter.attenuation.readback.get())
 
     # temp = f"{lakeshore2.readback_ch1.value:.1f}".replace('.', 'p')
     # temp = f"{bk_pid.RDBK.value:.1f}".replace('.', 'p') 
     temp = "300"
-    volt = f"{keysight.amplitude_rbv.value:.3f}".replace('.', 'p')
-    freq = f"{keysight.frequency_rbv.value:.3f}".replace('.', 'p')
-    cycles = f"{int(keysight.burst_count_rbv.value):06d}"    
+    # volt = f"{keysight.amplitude_rbv.value:.3f}".replace('.', 'p')
+    # freq = f"{keysight.frequency_rbv.value:.3f}".replace('.', 'p')
+    # cycles = f"{int(keysight.burst_count_rbv.value):06d}"    
 
     # curr = f"{keithley_chA.SrcLevelI_AO.value*1e3:.1f}".replace('.', 'p')
 
@@ -160,26 +160,30 @@ def mesh_grid_move():
     
     # However, to be safe and simple, I will leave the variable usage as is, assuming global or previous definition logic from the user's environment.
     
-    # sam_pos = int(sample_pos_register.get())
+    sample_pos_register = pv_registers.sample_position_register(sam_dict["sample_index"])
+    sam_pos = int(sample_pos_register.get())
 
-    # samx_list = np.linspace(
-    #     sam_dict["x_cen"] - sam_dict["x_radius"],
-    #     sam_dict["x_cen"] + sam_dict["x_radius"],
-    #     num=sam_dict["x_pts"],
-    # )
-    # samy_list = np.linspace(
-    #     sam_dict["z_cen"] - sam_dict["z_radius"],
-    #     sam_dict["z_cen"] + sam_dict["z_radius"],
-    #     num=sam_dict["y_pts"],
-    # )
+    samx_list = np.linspace(
+        sam_dict["x_cen"] - sam_dict["x_radius"],
+        sam_dict["x_cen"] + sam_dict["x_radius"],
+        num=sam_dict["x_pts"],
+    )
+    samy_list = np.linspace(
+        sam_dict["y_cen"] - sam_dict["y_radius"],
+        sam_dict["y_cen"] + sam_dict["y_radius"],
+        num=sam_dict["y_pts"],
+    )
 
-    # pos_index = np.mod(sam_pos + 1, sam_dict["x_pts"] * sam_dict["z_pts"])
-    # x_pos = samx_list[np.mod(pos_index, sam_dict["x_pts"])]
-    # z_pos = samy_list[int(np.floor(pos_index / sam_dict["x_pts"]))]
+    pos_index = np.mod(sam_pos + 1, sam_dict["x_pts"] * sam_dict["y_pts"])
+    x_pos = samx_list[np.mod(pos_index, sam_dict["x_pts"])]
+    y_pos = samy_list[int(np.floor(pos_index / sam_dict["x_pts"]))]
 
-    if sam_dict["qnw_index"] == 0:
-        huber.sample_x.move(x_pos)
-        huber.sample_z.move(z_pos)
+    huber.sample_x.move(x_pos)
+    huber.sample_y.move(y_pos)
+
+    # if sam_dict["sample_index"] == 0:
+    #     huber.sample_x.move(x_pos)
+    #     huber.sample_y.move(y_pos)
 
     # elif sam_dict["qnw_index"] == 31:
     #     huber.sample_x.move(x_pos)

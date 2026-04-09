@@ -11,12 +11,12 @@ from ..utils.dm_util import dm_run_job
 from ..utils.dm_util import dm_setup
 from ..utils.nexus_utils import create_nexus_format_metadata
 from .sample_info_unpack import gen_folder_prefix
-# from .sample_info_unpack import mesh_grid_move
+from .sample_info_unpack import mesh_grid_move
 from .shutter_logic import *
 
 lambda2M = oregistry["lambda2M"]
 pv_registers = oregistry["pv_registers"]
-keysight = oregistry["keysight"]
+# keysight = oregistry["keysight"]
 
 
 def setup_lambda_int_series(acq_time, num_frames, file_header, file_name):
@@ -135,6 +135,7 @@ def lambda_acq_int_series(
         sample_move: Whether to move sample between repetitions
     """
     try:
+        post_align()
         shutteroff()
         workflowProcApi, dmuser = dm_setup()
         folder_prefix = gen_folder_prefix()
@@ -142,8 +143,8 @@ def lambda_acq_int_series(
         for ii in range(num_reps):
             time.sleep(wait_time)
 
-            # if sample_move:
-            #     mesh_grid_move()
+            if sample_move:
+                mesh_grid_move()
 
             file_header = f"{folder_prefix}_f{num_frames:06d}"
             file_name = f"{folder_prefix}_f{num_frames:06d}_r{ii+1:05d}"
@@ -176,65 +177,65 @@ def lambda_acq_int_series(
     finally:
         pass
 
-def softtrig_lambda_acq_int_series(
-    acq_time=1,
-    num_frames=10,
-    num_reps=3,
-    wait_time=0,
-    sample_move=False,
-):
-    """Run internal series acquisition with the Lambda2M detector.
+# def softtrig_lambda_acq_int_series(
+#     acq_time=1,
+#     num_frames=10,
+#     num_reps=3,
+#     wait_time=0,
+#     sample_move=False,
+# ):
+#     """Run internal series acquisition with the Lambda2M detector.
 
-    Args:
-        acq_time: Acquisition time per frame in seconds
-        num_frames: Number of frames to acquire
-        num_rep: Number of repetitions
-        wait_time: Time to wait between repetitions
-        process: Whether to process data after acquisition
-        sample_move: Whether to move sample between repetitions
-    """
-    try:
-        PIND_status(0)
-        shutteroff()
-        workflowProcApi, dmuser = dm_setup()
-        folder_prefix = gen_folder_prefix()
+#     Args:
+#         acq_time: Acquisition time per frame in seconds
+#         num_frames: Number of frames to acquire
+#         num_rep: Number of repetitions
+#         wait_time: Time to wait between repetitions
+#         process: Whether to process data after acquisition
+#         sample_move: Whether to move sample between repetitions
+#     """
+#     try:
+#         PIND_status(0)
+#         shutteroff()
+#         workflowProcApi, dmuser = dm_setup()
+#         folder_prefix = gen_folder_prefix()
 
-        for ii in range(num_reps):
-            time.sleep(wait_time)
+#         for ii in range(num_reps):
+#             time.sleep(wait_time)
 
-            # if sample_move:
-            #     mesh_grid_move()
+#             # if sample_move:
+#             #     mesh_grid_move()
 
-            file_header = f"{folder_prefix}_f{num_frames:06d}"
-            file_name = f"{folder_prefix}_f{num_frames:06d}_r{ii+1:05d}"
+#             file_header = f"{folder_prefix}_f{num_frames:06d}"
+#             file_name = f"{folder_prefix}_f{num_frames:06d}_r{ii+1:05d}"
             
-            setup_lambda_int_series(acq_time, num_frames, file_header, file_name)
+#             setup_lambda_int_series(acq_time, num_frames, file_header, file_name)
 
-            _ = datetime.now()
-            time_now = _.strftime("%Y-%m-%d %H:%M:%S")
-            print(f"\n{time_now}, Starting measurement {file_name}")
+#             _ = datetime.now()
+#             time_now = _.strftime("%Y-%m-%d %H:%M:%S")
+#             print(f"\n{time_now}, Starting measurement {file_name}")
             
-            keysight.output.put(1)
-            lambda_acquire()
-            keysight.output.put(0)
+#             keysight.output.put(1)
+#             lambda_acquire()
+#             keysight.output.put(0)
             
-            _ = datetime.now()
-            time_now = _.strftime("%Y-%m-%d %H:%M:%S")
-            print(f"{time_now}, Complete measurement {file_name}")
+#             _ = datetime.now()
+#             time_now = _.strftime("%Y-%m-%d %H:%M:%S")
+#             print(f"{time_now}, Complete measurement {file_name}")
 
-            metadata_fname = pv_registers.metadata_full_path.get()
-            create_nexus_format_metadata(metadata_fname, det=lambda2M)
+#             metadata_fname = pv_registers.metadata_full_path.get()
+#             create_nexus_format_metadata(metadata_fname, det=lambda2M)
 
-            dm_run_job(workflowProcApi, dmuser)
+#             dm_run_job(workflowProcApi, dmuser)
         
 
-    except KeyboardInterrupt:
-        shutteroff()
-        blockbeam()
-        lambda2M.cam.acquire.put(0)
-        lambda2M.hdf1.capture.put(0)
-        raise RuntimeError("\n Script stopped by user (Ctrl+C).")
-    except Exception as e:
-        print(f"Error occurred during measurement: {e}")
-    finally:
-        pass
+#     except KeyboardInterrupt:
+#         shutteroff()
+#         blockbeam()
+#         lambda2M.cam.acquire.put(0)
+#         lambda2M.hdf1.capture.put(0)
+#         raise RuntimeError("\n Script stopped by user (Ctrl+C).")
+#     except Exception as e:
+#         print(f"Error occurred during measurement: {e}")
+#     finally:
+#         pass

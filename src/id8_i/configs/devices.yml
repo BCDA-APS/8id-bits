@@ -240,7 +240,7 @@ id8_common.devices.lakeshore.Lakeshore:
 
 id8_common.devices.rheometer_wait_signal.Rheometer_Wait:
 - name: mcr_wait_signal
-  prefix: "8idMZ4:SG:"
+  prefix: ""
 
 id8_common.devices.flight_path.FlightPath:
 - name: flight_path_8idi

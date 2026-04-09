@@ -30,7 +30,7 @@ pv_registers = oregistry["pv_registers"]
 
 ps = PeakStats('motor', 'det.stats2.total')
 
-def save_images(det, save_img, num_frames=1, file_path=None):
+def save_images(det, save_img, num_pts, num_frames=1, file_path=None):
     """
     toggle saving (1) or not saving (0) images for either eiger4m or lambda2m.
 
@@ -46,7 +46,7 @@ def save_images(det, save_img, num_frames=1, file_path=None):
         raise valueerror("save_img must be 1 or 0 (to save or not to save)")
 
     if file_path is None:
-        file_path = "/gdata/dm/8ID/8IDE/2026-1/zhou202602/data/bluesky/"
+        file_path = "/gdata/dm/8ID/8IDI/2026-1/zhang202604/data/bluesky/"
 
     is_eiger = ("eiger" in det.name.lower()) or ("eiger" in det.prefix.lower())
     is_lambda = ("lambda" in det.name.lower()) or ("lambda" in det.prefix.lower())
@@ -65,7 +65,7 @@ def save_images(det, save_img, num_frames=1, file_path=None):
             print("tetramm does not have image saving capability, skipping save configuration.")
             return 
         
-        det.hdf1.stage_sigs["enable"] = 1
+        # det.hdf1.stage_sigs["enable"] = 1
         if _detector(det.cam, "fw_enable"):
             yield from bps.mv(det.cam.fw_enable, 1)
         if _detector(det.cam, "save_files"):
@@ -77,7 +77,7 @@ def save_images(det, save_img, num_frames=1, file_path=None):
 
         if _detector(det, "hdf1"):
             if _detector(det.hdf1, "num_capture"):
-                yield from bps.mv(det.hdf1.num_capture, num_frames)
+                yield from bps.mv(det.hdf1.num_capture, num_pts)
 
             yield from bps.mv(pv_registers.file_name, file_name)
             yield from bps.mv(pv_registers.file_path, file_path)
@@ -94,7 +94,7 @@ def save_images(det, save_img, num_frames=1, file_path=None):
             if _detector(det.cam, "num_triggers"):
                 yield from bps.mv(det.cam.num_triggers, 1)
             if _detector(det.cam, "num_images"):
-                yield from bps.mv(det.cam.num_images, num_frames)
+                yield from bps.mv(det.cam.num_images, 1)
 
             # eiger internal series configuration 
             yield from setup_eiger_int_series(
@@ -113,7 +113,7 @@ def save_images(det, save_img, num_frames=1, file_path=None):
         if "tetramm" in det.name:
             print("tetramm1 does not have image saving capability, skipping save configuration.")
             return 
-        det.hdf1.stage_sigs["enable"] = 0
+        # det.hdf1.stage_sigs["enable"] = 0
 
         # elif _detector(det.cam, "fw_enable"):
         #     yield from bps.mv(det.cam.fw_enable, 0)
@@ -139,8 +139,8 @@ def att(att_ratio: Optional[float] = None):
 def x_lup(
     rel_begin: float = -3,
     rel_end: float = 3,
-    num_pts: int = 60,
-    att_ratio: int = 7,
+    num_pts: int = 61,
+    att_ratio: int = 5,
     det: Device = tetramm1,
 ):
     """Perform a relative scan along the sample X axis.
@@ -152,12 +152,36 @@ def x_lup(
         att_level: Attenuation level to use (0-15)
         det: Detector to use for the scan
     """
-    yield from pre_align()
-    yield from att(att_ratio)
+    pre_align()
+    att(att_ratio)
 
-    yield from showbeam()
+    showbeam()
     yield from bp.rel_scan([det], huber.sample_x, rel_begin, rel_end, num_pts)
-    yield from blockbeam()
+    blockbeam()
+
+
+def y_lup(
+    rel_begin: float = -3,
+    rel_end: float = 3,
+    num_pts: int = 61,
+    att_ratio: int = 5,
+    det: Device = tetramm1,
+):
+    """Perform a relative scan along the sample X axis.
+
+    Args:
+        rel_begin: Start position relative to current position (mm)
+        rel_end: End position relative to current position (mm)
+        num_pts: Number of points in the scan
+        att_level: Attenuation level to use (0-15)
+        det: Detector to use for the scan
+    """
+    pre_align()
+    att(att_ratio)
+
+    showbeam()
+    yield from bp.rel_scan([det], huber.sample_y, rel_begin, rel_end, num_pts)
+    blockbeam()
 
 
 def dscan(motor, 
@@ -166,7 +190,7 @@ def dscan(motor,
           num_pts, 
           count_time, 
           det=eiger4M, 
-          att_ratio=7, 
+          att_ratio=1e6, 
           save_img=1
           ):
     
@@ -198,16 +222,16 @@ def dscan(motor,
         yield from bps.mv(
             det.cam.num_images, 1,
             det.cam.acquire_time, count_time,
-            det.cam.acquire_period, 1,
+            det.cam.acquire_period, count_time,
         )
     else:
         print('tetramm1 or other detector with simple acquire trigger')
 
-    yield from save_images(det, save_img)
+    yield from save_images(det, save_img, num_pts)
     showbeam()
     yield from bp.rel_scan([det], motor, rel_begin, rel_end, num_pts)
     blockbeam()
-    det.hdf1.stage_sigs["enable"] = 1
+    # det.hdf1.stage_sigs["enable"] = 1
 
 def d2scan(
     motor1, 

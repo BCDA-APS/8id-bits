@@ -6,9 +6,10 @@ during measurements. It monitors a pulse count signal to detect state changes.
 """
 
 import datetime
+import time
 
 from apsbits.core.instrument_init import oregistry
-from bluesky import plan_stubs as bps
+# from bluesky import plan_stubs as bps
 
 mcr_wait_signal = oregistry["mcr_wait_signal"]
 
@@ -30,11 +31,12 @@ def wait_for_mcr(delay_time: float = 0.01):
     print(datetime.datetime.now())
 
     current_value = mcr_wait_signal.pulse_count.get()
+    print(current_value)
 
     while mcr_wait_signal.pulse_count.get() == current_value:
-        yield from bps.sleep(0.1)
+        time.sleep(0.1)
 
     print("MCR Rheometer changed to the NEW MEASUREMENT STATE")
     print(datetime.datetime.now())
 
-    yield from bps.sleep(delay_time)
+    time.sleep(0.1)

@@ -1,66 +1,45 @@
+
+
 sample_1:
-  sample_name: background_leadtape
-  x_cen: 0.134 
-  z_cen: 42.23
-  x_radius: 0.05
-  z_radius: 0.05
+  sample_name: G10-Eiger
+  x_cen: 0.374
+  y_cen: 46.1
+  x_radius: 0.5
+  y_radius: 0.5
   x_pts: 10
-  z_pts: 10
+  y_pts: 10
   header: A
-#  temp_zone: 300K
-#  voltage_chA: 0 # V
-#  current_chA: 0.001 # mA
 
 sample_2:
-  sample_name: CsPbBr3_CellA_1p93gpa_PeakC
-  x_cen: 0.765
-  z_cen: 0.794
-  x_radius: 0.05
-  z_radius: 0.05
+  sample_name: Sample4
+  x_cen: 0.4
+  y_cen: 42.6
+  x_radius: 0.5
+  y_radius: 0.5
   x_pts: 10
-  z_pts: 10
-  header: C
-  temp_zone: 300K
-  voltage_chA: 0 # V
-  current_chA: 0.001 # mA
+  y_pts: 10
+  header: B
 
 sample_3:
-  sample_name: CsPbBr3_CellA_d1p93gpa_PeakA
-  x_cen: 0.765
-  z_cen: 0.794
-  x_radius: 0.05
-  z_radius: 0.05
+  sample_name: Test3
+  x_cen: 0.374
+  y_cen: 46.1
+  x_radius: 0.5
+  y_radius: 0.5
   x_pts: 10
-  z_pts: 10
-  header: A
-  temp_zone: 300K
-  voltage_chA: 0 # V
-  current_chA: 0.001 # mA
-
-
-sample_4:
-  sample_name: DirectBeam
-  x_cen: 0.765
-  z_cen: 0.794
-  x_radius: 0.05
-  z_radius: 0.05
-  x_pts: 10
-  z_pts: 10
+  y_pts: 10
   header: C
-  temp_zone: 300K
-  voltage_chA: 0 # V
-  current_chA: 0.001 # mA
 
+# sample_1:
+#   sample_name: Bismuth_SAXS_Test
+#   x_cen: 0.216
+#   z_cen: 41.553
+#   x_radius: 0.05
+#   z_radius: 0.05
+#   x_pts: 10
+#   z_pts: 10
+#   header: A
+# #  temp_zone: 300K
+# #  voltage_chA: 0 # V
+# #  current_chA: 0.001 # mA
 
-sample_5:
-  sample_name: Test
-  x_cen: 0.765
-  z_cen: 0.794
-  x_radius: 0.05
-  z_radius: 0.05
-  x_pts: 10
-  z_pts: 10
-  header: C
-  temp_zone: 300K
-  voltage_chA: 0 # V
-  current_chA: 0.001 # mA

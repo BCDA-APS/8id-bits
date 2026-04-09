@@ -24,19 +24,19 @@ def select_sample_env(env: Literal["qnw", "rheometer", "robot"]):
     The granite valve is enabled during motion and disabled afterward.
 
     """
-    # choices = {
-    #     "qnw": 923.0,
-    #     "rheometer": 65,
-    #     "robot": 62,
-    # }
-
-    ## QZ changed on 08/01 for Naomi's horizontal capillary setup
     choices = {
         "qnw": 923.0,
-        "rheometer": 88,
+        "rheometer": 73.7,
         "robot": 62,
-        "clip": 859
     }
+
+    ## QZ changed on 08/01 for Naomi's horizontal capillary setup
+    # choices = {
+    #     "qnw": 923.0,
+    #     "rheometer": 88,
+    #     "robot": 62,
+    #     "clip": 859
+    # }
 
     target = choices.get(env)
     if target is None:
