@@ -178,8 +178,8 @@ def mesh_grid_move():
     x_pos = samx_list[np.mod(pos_index, sam_dict["x_pts"])]
     y_pos = samy_list[int(np.floor(pos_index / sam_dict["x_pts"]))]
 
-    huber.sample_x.move(x_pos)
-    huber.sample_y.move(y_pos)
+    # huber.sample_x.move(x_pos)
+    # huber.sample_y.move(y_pos)
 
     # if sam_dict["sample_index"] == 0:
     #     huber.sample_x.move(x_pos)

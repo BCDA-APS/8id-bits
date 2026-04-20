@@ -1,45 +1,51 @@
 
 
 sample_1:
-  sample_name: G10-Eiger
-  x_cen: 0.374
-  y_cen: 46.1
-  x_radius: 0.5
-  y_radius: 0.5
-  x_pts: 10
-  y_pts: 10
-  header: A
+  sample_name: STO50
+  x_cen: -0.4987
+  y_cen: 16.579
+  x_radius: 0.05
+  y_radius: 0.05
+  x_pts: 5
+  y_pts: 5
+  header: L
 
 sample_2:
-  sample_name: Sample4
-  x_cen: 0.4
-  y_cen: 42.6
-  x_radius: 0.5
-  y_radius: 0.5
-  x_pts: 10
-  y_pts: 10
-  header: B
+  sample_name: NCO_1
+  x_cen: 9.7
+  y_cen: 50.64
+  x_radius: 0.00
+  y_radius: 0.00
+  x_pts: 5
+  y_pts: 5
+  header: D
 
 sample_3:
-  sample_name: Test3
-  x_cen: 0.374
-  y_cen: 46.1
-  x_radius: 0.5
-  y_radius: 0.5
-  x_pts: 10
-  y_pts: 10
-  header: C
+  sample_name: NMC_cell1
+  x_cen: 9.733000
+  y_cen: 50.54
+  x_radius: 0.00
+  y_radius: 0.00
+  x_pts: 5
+  y_pts: 5
+  header: E
 
-# sample_1:
-#   sample_name: Bismuth_SAXS_Test
-#   x_cen: 0.216
-#   z_cen: 41.553
-#   x_radius: 0.05
-#   z_radius: 0.05
-#   x_pts: 10
-#   z_pts: 10
-#   header: A
-# #  temp_zone: 300K
-# #  voltage_chA: 0 # V
-# #  current_chA: 0.001 # mA
+sample_4:
+  sample_name: SNM
+  x_cen: 9.432
+  y_cen: 51.216
+  x_radius: 0.00
+  y_radius: 0.00
+  x_pts: 5
+  y_pts: 5
+  header: F
 
+sample_5:
+  sample_name: CCO
+  x_cen: 9.674
+  y_cen: 51.08
+  x_radius: 0.00
+  y_radius: 0.00
+  x_pts: 5
+  y_pts: 5
+  header: G

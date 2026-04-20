@@ -46,7 +46,7 @@ def save_images(det, save_img, num_pts, num_frames=1, file_path=None):
         raise valueerror("save_img must be 1 or 0 (to save or not to save)")
 
     if file_path is None:
-        file_path = "/gdata/dm/8ID/8IDI/2026-1/zhang202604/data/bluesky/"
+        file_path = "/gdata/dm/8ID/8IDE/2026-1/marks202604/data/bluesky/"
 
     is_eiger = ("eiger" in det.name.lower()) or ("eiger" in det.prefix.lower())
     is_lambda = ("lambda" in det.name.lower()) or ("lambda" in det.prefix.lower())
@@ -97,7 +97,7 @@ def save_images(det, save_img, num_pts, num_frames=1, file_path=None):
                 yield from bps.mv(det.cam.num_images, 1)
 
             # eiger internal series configuration 
-            yield from setup_eiger_int_series(
+            setup_eiger_int_series(
                 acq_time=float(det.cam.acquire_time.get()) if _detector(det.cam, "acquire_time") else 1.0,
                 num_frames=num_frames,
                 file_header=file_header,

@@ -14,9 +14,10 @@ from .sample_info_unpack import gen_folder_prefix
 from .sample_info_unpack import mesh_grid_move
 from .shutter_logic import *
 
+
 eiger4M = oregistry["eiger4M"]
 pv_registers = oregistry["pv_registers"]
-
+huber = oregistry["huber"]
 
 
 def setup_eiger_int_series(acq_time, num_frames, file_header, file_name):
@@ -128,6 +129,7 @@ def eiger_acq_int_series(
         sample_move: Whether to move sample between repetitions
     """
     try:
+
         post_align()
         shutteroff()
         workflowProcApi, dmuser = dm_setup()

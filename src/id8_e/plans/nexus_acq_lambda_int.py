@@ -122,7 +122,7 @@ def lambda_acq_int_series(
     num_frames=10,
     num_reps=3,
     wait_time=0,
-    sample_move=True,
+    sample_move=False,
 ):
     """Run internal series acquisition with the Lambda2M detector.
 
