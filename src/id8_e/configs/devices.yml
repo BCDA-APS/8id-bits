@@ -246,10 +246,6 @@ id8_common.devices.flight_path.FlightPath:
 - name: flight_path_8idi
   prefix: "8idiSoft:FLIGHT:"
 
-id8_common.devices.mono.Mono:
-- name: mono_8id
-  prefix: "8idaSoft:"
-
 # id8_common.devices.ur5_robot.UR5_Pipette:
 # - name: robotic_pipette
 #   prefix: "8idiur5:UR5:"
@@ -268,23 +264,43 @@ id8_common.devices.tetramm_picoammeter.MyTetrAMM:
   prefix: "8idTetra:QUAD4:"
   port_name: "QUAD4"
 
-# id8_common.devices.sydor_tp4u.SydorTP4U:
-# - name: xbpm1
-#   prefix: "8ideSoft:T4U_BPM:"
+id8_common.devices.sydor_tp4u.SydorTP4U:
+- name: xbpm1
+  prefix: "8ideBPM:T4U_BPM:"
 
-id8_common.devices.idt_mono.IDTMono:
-- name: idt_mono
-  prefix: "8idaSoft:MONO:"
-  labels: ["mono", "baseline"]
-  bragg_motor: "MONO:m1"
-  xtal_gap_motor: "MONO:m2"
-  flag_motor: "MONO:m3"
-  coarse_pitch_motor: "MONO:m5"
-  coarse_roll_motor: "MONO:m6"
-  x_pitch_motor: "MONO:m7"
-  y_pitch_motor: "MONO:m8"
-  pitch_piezo: "LJT703:Ao2"
-  roll_piezo: "LJT703:Ao3"
+# id8_common.devices.func_gen.Function_Generator:
+# - name: dpKeysight
+#   prefix: "dpKeysight:KEY1:"
+
+# id8_common.devices.func_gen.Function_Generator:
+# - name: keysight
+#   prefix: "8idKeysight:KEY1:"
+
+# id8_common.devices.idt_mono.IDTMono:
+# - name: idt_mono
+#   prefix: "8idaSoft:MONO:"
+#   labels: ["mono", "baseline"]
+#   bragg_motor: "MONO:m1"
+#   xtal_gap_motor: "MONO:m2"
+#   flag_motor: "MONO:m3"
+#   coarse_pitch_motor: "MONO:m5"
+#   coarse_roll_motor: "MONO:m6"
+#   x_pitch_motor: "MONO:m7"
+#   y_pitch_motor: "MONO:m8"
+#   pitch_piezo: "LJT703:Ao2"
+#   roll_piezo: "LJT703:Ao3"
+
+id8_common.devices.idt_mono.BraggGap_Monochromator:
+- name: mono
+  prefix: "8idaSoft:MN1:"
+  # labels: ["mono"]
+  bragg_motor: "Bragg"
+  gap_motor: "Gap"
+  # energy: "Energy"
+  # wavelength: "Lambda"
+  # theta: "Bragg"
+  # offset: "Offset"
+  # gap: "Gap"
 
 # id8_common.devices.undulator.Undulator:
 # - name: undulator
@@ -397,24 +413,18 @@ hklpy2.creator:
     nu: m4
     delta: m5
 
-id8_common.devices.keithley.Keithley:
-- name: keithley_chA
-  prefix: "8idKeithley2600:SMU:A:"
-- name: keithley_chB
-  prefix: "8idKeithley2600:SMU:B:"
+# id8_common.devices.keithley.Keithley:
+# - name: keithley_chA
+#   prefix: "8idKeithley2600:SMU:A:"
+# - name: keithley_chB
+#   prefix: "8idKeithley2600:SMU:B:"
 
-id8_common.devices.bk_powersupply.bk_pid:
-- name: bk_pid
-  prefix: "8idiSoft:BPMpid."
+# id8_common.devices.bk_powersupply.bk_pid:
+# - name: bk_pid
+#   prefix: "8idiSoft:BPMpid."
 
 id8_common.devices.pin_diode.PIND:
 - name: pd
   prefix: "8ideSoft:pdu1:"
 
-# id8_common.devices.func_gen.Function_Generator:
-# - name: dpKeysight
-#   prefix: "dpKeysight:KEY1:"
 
-id8_common.devices.func_gen.Function_Generator:
-- name: keysight
-  prefix: "8idKeysight:KEY1:"

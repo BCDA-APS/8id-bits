@@ -1,83 +1,80 @@
 """
-IDT Mono in station 8-ID-A
-"""
+Bragg-Gap double-crystal monochromator
++++++++++++++++++++++++++++++++++++++++
 
-from apstools.devices.kohzu_monochromator import KohzuSoftPositioner
-from ophyd import Device
-from ophyd import EpicsMotor
-from ophyd import EpicsSignal
-from ophyd import EpicsSignalRO
+.. autosummary::
+
+   ~BraggGap_Monochromator
+"""
+from ophyd import Device, EpicsSignal, EpicsSignalRO, EpicsMotor
+from ophyd import Component as Cpt
 from ophyd import FormattedComponent as FCpt
 
+class BraggGap_Monochromator(Device):
+    """
+    synApps Bragg Gap double-crystal monochromator epics support
 
-class IDTMono(Device):
-    """A device class for controlling the IDT monochromator in the beamline.
-
-    This class provides control over the IDT monochromator used for X-ray
-    beam conditioning. It includes functionality for controlling Bragg angles,
-    crystal gaps, flags, and various alignment motors.
+    .. index:: Ophyd Device; BraggGap_Monochromator
     """
 
     def __init__(
         self,
         prefix: str,
         bragg_motor: str,
-        xtal_gap_motor: str,
-        flag_motor: str,
-        coarse_pitch_motor: str,
-        coarse_roll_motor: str,
-        x_pitch_motor: str,
-        y_pitch_motor: str,
-        pitch_piezo: str,
-        roll_piezo: str,
+        gap_motor: str,
         *args,
         **kwargs,
     ):
-        """Initialize the IDT monochromator device.
-
-        Args:
-            prefix: The EPICS PV prefix for the device
-            bragg_motor: The name of the Bragg angle motor PV
-            xtal_gap_motor: The name of the crystal gap motor PV
-            flag_motor: The name of the flag motor PV
-            coarse_pitch_motor: The name of the coarse pitch motor PV
-            coarse_roll_motor: The name of the coarse roll motor PV
-            x_pitch_motor: The name of the X pitch motor PV
-            y_pitch_motor: The name of the Y pitch motor PV
-            **kwargs: Additional keyword arguments passed to the Device constructor
-        """
-        # Determine the prefix for the motors
-        pieces = prefix.strip(":").split(":")
-        self.motor_prefix = ":".join(pieces[:-1])
 
         self._bragg_motor = bragg_motor
-        self._xtal_gap_motor = xtal_gap_motor
-        self._flag_motor = flag_motor
-        self._coarse_pitch_motor = coarse_pitch_motor
-        self._coarse_roll_motor = coarse_roll_motor
-        self._x_pitch_motor = x_pitch_motor
-        self._y_pitch_motor = y_pitch_motor
-        self._pitch_piezo = pitch_piezo
-        self._roll_piezo = roll_piezo
+        self._gap_motor = gap_motor
 
         super().__init__(prefix, *args, **kwargs)
 
-    bragg = FCpt(EpicsMotor, "{motor_prefix}:{_bragg_motor}", labels={"motors"})
-    xtal_gap = FCpt(EpicsMotor, "{motor_prefix}:{_xtal_gap_motor}", labels={"motors"})
-    flag = FCpt(EpicsMotor, "{motor_prefix}:{_flag_motor}", labels={"motors"})
-    coarse_pitch = FCpt(EpicsMotor, "{motor_prefix}:{_coarse_pitch_motor}", labels={"motors"})
-    coarse_roll = FCpt(EpicsMotor, "{motor_prefix}:{_coarse_roll_motor}", labels={"motors"})
-    x_slide = FCpt(EpicsMotor, "{motor_prefix}:{_x_pitch_motor}", labels={"motors"})
-    y_slide = FCpt(EpicsMotor, "{motor_prefix}:{_y_pitch_motor}", labels={"motors"})
+    # Real motors that directly control the monochromator
+    bragg_motor = FCpt(EpicsMotor, "{prefix}{_bragg_motor}", labels={"motors"})
+    gap_motor = FCpt(EpicsMotor, "{prefix}{_gap_motor}", labels={"motors"})
 
-    # # TODO: These are Labjack signals instead of motors
-    # pitch_piezo = FCpt(EpicsMotor, "{motor_prefix}:{_pitch_piezo}", labels={"motors"})
-    # roll_piezo = FCpt(EpicsMotor, "{motor_prefix}:{_roll_piezo}", labels={"motors"})
+ # Pseudo motors that relay into real motors based on offset mode
+    energy = Cpt(EpicsMotor, "Energy", kind="hinted")
+    theta = Cpt(EpicsMotor, "Bragg", kind="normal")
+    # lambda is reserved word in Python, can't use it for wavelength
+    wavelength = Cpt(EpicsMotor, "Lambda", kind="normal")
 
-    energy = FCpt(KohzuSoftPositioner, "{motor_prefix}:BraggE", labels={"motors"})
-    # Consider: Switch this to ophyd.PVPositioner?  for actuate signal
-    # Additional components required for KohzuSoftPositioner
-    moving = FCpt(EpicsSignalRO, "{motor_prefix}:KohzuMoving", kind="omitted")
-    allstop_button = FCpt(EpicsSignal, "{motor_prefix}:allstop", string=True, kind="omitted")
-    move_button = FCpt(EpicsSignal, "{motor_prefix}:KohzuPutBO", put_complete=True, kind="omitted")
-    # TODO: Allow for angular offset to BraggTheta soft motor
+    offset = Cpt(EpicsMotor, "Offset", kind="hinted")
+    gap = Cpt(EpicsMotor, "Gap", kind="normal")
+
+
+    offset_mode = Cpt(EpicsSignal, "offset_mode", kind="config", string=True)
+    moving = Cpt(EpicsSignal, "EO:Done", kind="omitted")
+    allstop_button = Cpt(EpicsSignal, "Bragg.STOP", string=True, kind="omitted")
+    use_set = Cpt(EpicsSignal, "UseSet", string=True, kind="config")
+
+    crystal_mode = Cpt(EpicsSignal, "crystal_mode", string=True, kind="config")
+    crystal_h = Cpt(EpicsSignal, "BraggHAO", kind="config")
+    crystal_k = Cpt(EpicsSignal, "BraggKAO", kind="config")
+    crystal_l = Cpt(EpicsSignal, "BraggLAO", kind="config")
+    crystal_lattice_constant = Cpt(EpicsSignal, "BraggAAO", kind="config")
+    crystal_2d_spacing = Cpt(EpicsSignal, "Bragg2dSpacingAO", kind="config")
+    
+    def calibrate_energy(self, value):
+        """Calibrate the monochromator energy.
+
+        PARAMETERS
+
+        value: float
+            New energy for the current monochromator position.
+        """
+        self.use_set.put("Set")
+        self.energy.move(value)
+        self.use_set.put("Use")
+
+
+# -----------------------------------------------------------------------------
+# :author:    BCDA
+# :copyright: (c) 2017-2026, UChicago Argonne, LLC
+#
+# Distributed under the terms of the Argonne National Laboratory Open Source License.
+#
+# The full license is in the file LICENSE.txt, distributed with this software.
+# -----------------------------------------------------------------------------

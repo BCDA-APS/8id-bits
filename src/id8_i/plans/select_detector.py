@@ -13,6 +13,7 @@ from apsbits.core.instrument_init import oregistry
 
 pv_registers = oregistry["pv_registers"]
 detector = oregistry["detector"]
+softglue_8idi = oregistry["softglue_8idi"]
 
 
 def select_detector(det: Literal["eiger4M", "rigaku3M"]):
@@ -31,6 +32,7 @@ def select_detector(det: Literal["eiger4M", "rigaku3M"]):
         if pv_registers.det_name.get() == det:
             pass
         else:
+            softglue_8idi.enable_rigaku.put('0')
             pv_registers.workflow_name.put("xpcs8-boost-corr")
             pv_registers.qmap_file.put("eiger4m_qmap_default.hdf")
 
@@ -53,6 +55,7 @@ def select_detector(det: Literal["eiger4M", "rigaku3M"]):
         if pv_registers.det_name.get() == det:
             pass
         else:
+            softglue_8idi.enable_rigaku.put('1')
             pv_registers.workflow_name.put("xpcs8-boost-corr")
             pv_registers.qmap_file.put("rigaku3m_qmap_default.hdf")
 

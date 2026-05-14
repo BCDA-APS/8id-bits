@@ -17,17 +17,17 @@ filter = oregistry["filter_8ide"]
 pv_registers = oregistry["pv_registers"]
 huber = oregistry["huber"]
 lakeshore2 = oregistry["lakeshore2"]
-keithley_chA = oregistry["keithley_chA"]
-keithley_chB = oregistry["keithley_chB"]
-bk_pid = oregistry["bk_pid"]
-keysight = oregistry["keysight"]
+# keithley_chA = oregistry["keithley_chA"]
+# keithley_chB = oregistry["keithley_chB"]
+# bk_pid = oregistry["bk_pid"]
+# keysight = oregistry["keysight"]
 
 SAMPLE_INFO_PATH = Path("/home/beams/8IDIUSER/bluesky/src/id8_e/plans/sample_info.yaml")
 
 def select_sample(env: int):
     """Select and move to a sample position.
 
-    This function reads sample position information from a JSON file and moves
+    This function reads sample position information from a YML file and moves
     either the rheometer (env=0) or sample stage (env=1-27) to the specified
     position.
 

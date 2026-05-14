@@ -36,8 +36,8 @@ class MyTetrAMM(TetrAMM):
     hdf1 = Component(
         ID8_EpicsFileNameHDF5Plugin,
         "HDF1:",
-        read_path_template = "/gdata/dm/8IDI/2025-2/",
-        write_path_template = "/gdata/dm/8IDI/2025-2/",
+        read_path_template = "/gdata/dm/8IDE/2026-1/", #"/home/beams/8IDIUSER/sdmarks/tetramm_testing",  
+        write_path_template = "/gdata/dm/8IDE/2026-1/", #"/home/beams/8IDIUSER/sdmarks/tetramm_testing",  
     )
 
     def __init__(self, *args, port_name="TetrAMM", **kwargs):
@@ -45,6 +45,8 @@ class MyTetrAMM(TetrAMM):
         super().__init__(*args, **kwargs)
         self.conf.port_name.put(port_name)  # fix the port name here
         self.stage_sigs = {}
+        self.hdf1.stage_sigs.pop("capture", None)  
+        self.hdf1.stage_sigs.pop("enable", None)   
 
         # Mark some components as "config" so they do not appear on data rows.
         for attr_name in self.component_names:

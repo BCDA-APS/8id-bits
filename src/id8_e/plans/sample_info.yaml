@@ -1,14 +1,12 @@
-
-
 sample_1:
-  sample_name: STO50
-  x_cen: -0.4987
-  y_cen: 16.579
+  sample_name: tetramm_testing
+  x_cen: -0.5587
+  y_cen: 16.669
   x_radius: 0.05
   y_radius: 0.05
   x_pts: 5
   y_pts: 5
-  header: L
+  header: Z
 
 sample_2:
   sample_name: NCO_1

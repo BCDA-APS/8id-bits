@@ -8,7 +8,7 @@ from id8_e.plans.sample_info_unpack import select_sample
 from id8_e.plans.scan_8ide import att
 from id8_e.plans.nexus_acq_eiger_ext import eiger_acq_ext_trig
 from id8_e.plans.nexus_acq_eiger_int import eiger_acq_int_series
-from id8_e.plans.nexus_acq_lambda_int import lambda_acq_int_series
+# from id8_e.plans.nexus_acq_lambda_int import lambda_acq_int_series
 from apsbits.core.instrument_init import oregistry
 
 

@@ -5,7 +5,6 @@
 id8_common.devices.patched_aps.PatchedApsMachineParametersDevice:
   - name: aps
 
-
 # apstools.devices.ApsMachineParametersDevice:
 # - name: aps
 #   labels:

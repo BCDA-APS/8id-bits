@@ -97,8 +97,12 @@ else:
 
 # Experiment specific logic, device and plan loading. # Create the devices.
 make_devices(clear=False, file="devices.yml", device_manager=instrument)
-make_devices(clear=False, file="devices_aps_only.yml", device_manager=instrument)
+# make_devices(clear=False, file="devices_aps_only.yml", device_manager=instrument)
 make_devices(clear=False, file="ad_devices.yml", device_manager=instrument)
+
+from id8_common.devices.area_detector import ad_setup
+ad_setup(oregistry["eiger4M"], iconfig)
+ad_setup(oregistry["lambda2M"], iconfig)
 
 # RIGAKU_TEST_PV = "8idRigaku3m:cam1:Manufacturer_RBV"
 # EIGER_TEST_PV = "8idEiger4m:cam1:Manufacturer_RBV"
@@ -111,54 +115,6 @@ make_devices(clear=False, file="ad_devices.yml", device_manager=instrument)
 #     print("Rigaku3M IOC not reachable — skipping detector load")
 
 
-# LivePlot for area-detector ROI sum
-# try:
-#     from bluesky.callbacks import LivePlot
-#     from apsbits.utils.helper_functions import running_in_queueserver
-
-#     if not running_in_queueserver():
-#         # Choose the detector name here; 'eiger4M', 'rigaku3M', etc.
-#         det_name = "lambda2M"  # change to the detector you want to plot
-#         det = oregistry.find(det_name, allow_none=True)
-#         if det is None:
-#             print(f"LivePlot: detector {det_name!r} not in oregistry; skipping LivePlot.")
-#         else:
-#             plugin = getattr(det, "roi1", None) or getattr(det, "stats2", None) or getattr(det, "image", None)
-#             if plugin is None:
-#                 print(f"LivePlot: detector {det_name} has no roi1/stats1/image plugin attribute; available: {det.component_names}")
-#             else:
-#                 # Find a numeric field to plot. Common choices: 'sum', 'total', 'value', 'mean_value'
-#                 candidates = ["sum", "total", "value", "mean_value", "total_value"]
-#                 field = None
-#                 for c in candidates:
-#                     if c in plugin.component_names or hasattr(plugin, c):
-#                         field = c
-#                         break
-#                 # fallback: look for any readable attribute that returns a scalar
-#                 if field is None:
-#                     for name in plugin.component_names:
-#                         try:
-#                             val = getattr(plugin, name).get()
-#                             # scalar numeric test
-#                             if isinstance(val, (int, float)):
-#                                 field = name
-#                                 break
-#                         except Exception:
-#                             continue
-
-#                 if field is None:
-#                     print(f"LivePlot: couldn't find numeric field in {det_name}.roi1; plugin components: {plugin.component_names}")
-#                 else:
-#                     # Use 'seq_num' as x axis; for position-based scans you can use the motor signal instead
-#                     _signal = getattr(plugin, field)
-#                     lp = LivePlot(_signal.name, x="seq_num")
-#                     RE.subscribe(lp)
-#                     print(f"LivePlot subscribed: {det_name}.roi1.{field} vs seq_num")
-#     else:
-#         print("Running in queueserver mode; skipping LivePlot setup.")
-# except Exception as e:
-#     print("LivePlot setup failed:", e)
-
 if host_on_aps_subnet():
     make_devices(clear=False, file="devices_aps_only.yml", device_manager=instrument)
 
@@ -170,28 +126,32 @@ setup_baseline_stream(sd, oregistry, connect=False)
 
 from .utils.check_file_dim import check_h5_shape
 from id8_e.utils.peak import rock_and_move, center_x, center_y, center_delta
+from id8_e.utils.check_file_dim import check_h5_shape
 
 from .plans.sim_plan import sim_count_plan  # noqa: E402, F401
 from .plans.sim_plan import sim_print_plan  # noqa: E402, F401
 from .plans.sim_plan import sim_rel_scan_plan  # noqa: E402, F401
 
 from id8_common.utils.misc import stream_rois
-stream_rois(oregistry["lambda2M"])
 stream_rois(oregistry["eiger4M"])
+stream_rois(oregistry["lambda2M"])
+
 from id8_e.plans.lakeshore import *
 from .plans.master_plan import run_measurement_info #, set_temp_lakeshore2
 from .plans.sample_info_unpack import *
 from .plans.scan_8ide import *
 from .plans.nexus_acq_eiger_int import *
-from .plans.nexus_acq_lambda_int import *
-from .plans.nexus_acq_lambda_ext import *
 from .plans.nexus_acq_eiger_ext import *
+
+from .plans.nexus_acq_lambda_int import *
+# from .plans.nexus_acq_lambda_ext import *
+
 from .plans.sample_info_unpack import *
 
 from .plans.tetramm_acq import *
 # from .plans.nexus_acq_rigaku_zdt import *
 
-# from hklpy2.user import *  
-# from .utils.hklpy2_setup import configure_hklpy2
-# configure_hklpy2(oregistry)
+from hklpy2.user import *  
+from .utils.hklpy2_setup import configure_hklpy2
+configure_hklpy2(oregistry)
 

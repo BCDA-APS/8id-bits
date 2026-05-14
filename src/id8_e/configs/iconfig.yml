@@ -6,9 +6,10 @@ ICONFIG_VERSION: 2.0.1
 # Add additional configuration for use with your instrument.
 
 ### The short name for the databroker catalog.
-# DATABROKER_CATALOG: 8ide_xpcs
-TILED_PROFILE_NAME: 8ide
-TILED_PATH_NAME: /raw
+DATABROKER_CATALOG: 8idi_xpcs
+
+# TILED_PROFILE_NAME: 8ide
+# TILED_PATH_NAME: /raw
 
 ### RunEngine configuration
 RUN_ENGINE:
@@ -72,3 +73,5 @@ OPHYD:
         PV_CONNECTION: *TIMEOUT
 
 XMODE_DEBUG_LEVEL: Plain
+
+ALLOW_AREA_DETECTOR_WARMUP: true

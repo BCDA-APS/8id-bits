@@ -115,7 +115,7 @@ def eiger_acq_ext_trig(
     num_frames: int = 10,
     num_reps: int = 2,
     wait_time: float = 0,
-    sample_move: bool = False,
+    sample_move: bool = True,
 ):
     """Run an external trigger acquisition sequence.
 
@@ -127,43 +127,43 @@ def eiger_acq_ext_trig(
         wait_time: Time to wait between repetitions
         sample_move: Whether to move sample between repetitions
     """
-    # try:
-    post_align()
-    shutteron()
+    try:
+        post_align()
+        shutteron()
 
-    workflowProcApi, dmuser = dm_setup()
-    folder_prefix = gen_folder_prefix()
+        workflowProcApi, dmuser = dm_setup()
+        folder_prefix = gen_folder_prefix()
 
-    for ii in range(num_reps):
-        time.sleep(wait_time)
+        for ii in range(num_reps):
+            time.sleep(wait_time)
 
-        # if sample_move:
-        #     mesh_grid_move()
+            if sample_move:
+                mesh_grid_move()
 
-        qnw_temp=int(qnw_controllers[find_qnw_index()-1].setpoint.get())
-        file_header = f"{folder_prefix}_t{qnw_temp:03d}C_f{num_frames:06d}"
-        file_name = f"{folder_prefix}_t{qnw_temp:03d}C_f{num_frames:06d}_r{ii+1:05d}"
+            qnw_temp=int(qnw_controllers[find_qnw_index()-1].setpoint.get())
+            file_header = f"{folder_prefix}_t{qnw_temp:03d}C_f{num_frames:06d}"
+            file_name = f"{folder_prefix}_t{qnw_temp:03d}C_f{num_frames:06d}_r{ii+1:05d}"
 
-        setup_eiger_ext_trig(acq_time, acq_period, num_frames, file_header, file_name)
+            setup_eiger_ext_trig(acq_time, acq_period, num_frames, file_header, file_name)
 
-        _ = datetime.now()
-        time_now = _.strftime("%Y-%m-%d %H:%M:%S")
-        print(f"\n{time_now}, Starting measurement {file_name}")
-        eiger_acquire()
-        _ = datetime.now()
-        time_now = _.strftime("%Y-%m-%d %H:%M:%S")
-        print(f"{time_now}, Complete measurement {file_name}")
+            _ = datetime.now()
+            time_now = _.strftime("%Y-%m-%d %H:%M:%S")
+            print(f"\n{time_now}, Starting measurement {file_name}")
+            eiger_acquire()
+            _ = datetime.now()
+            time_now = _.strftime("%Y-%m-%d %H:%M:%S")
+            print(f"{time_now}, Complete measurement {file_name}")
 
-        metadata_fname = pv_registers.metadata_full_path.get()
-        create_nexus_format_metadata(metadata_fname, det=eiger4M)
+            metadata_fname = pv_registers.metadata_full_path.get()
+            create_nexus_format_metadata(metadata_fname, det=eiger4M)
 
-        dm_run_job(workflowProcApi, dmuser)
-    # except KeyboardInterrupt:
-    #     softglue_8idi.stop_pulses.put("1!")
-    #     eiger4M.cam.acquire.put(0)
-    #     eiger4M.hdf1.capture.put(0)
-    #     raise RuntimeError("\n Bluesky plan stopped by user (Ctrl+C).")
-    # except Exception as e:
-    #     print(f"Error occurred during measurement: {e}")
-    # finally:
-    #     pass
+            dm_run_job(workflowProcApi, dmuser)
+    except KeyboardInterrupt:
+        softglue_8idi.stop_pulses.put("1!")
+        eiger4M.cam.acquire.put(0)
+        eiger4M.hdf1.capture.put(0)
+        raise RuntimeError("\n Bluesky plan stopped by user (Ctrl+C).")
+    except Exception as e:
+        print(f"Error occurred during measurement: {e}")
+    finally:
+        pass

@@ -34,6 +34,7 @@ class SoftGlue(Device):
         pv_num_triggers: str = "",
         pv_start_pulses: str = "",
         pv_stop_pulses: str = "",
+        pv_enable_rigaku: str = "",
         **kwargs,
     ):
         """Initialize the SoftGlue device.
@@ -52,6 +53,7 @@ class SoftGlue(Device):
         self._pv_num_triggers = pv_num_triggers
         self._pv_start_pulses = pv_start_pulses
         self._pv_stop_pulses = pv_stop_pulses
+        self._pv_enable_rigaku = pv_enable_rigaku
         super().__init__(prefix, *args, **kwargs)
 
     acq_period = FCpt(EpicsSignal, "{prefix}{_pv_acq_period}", kind="config")
@@ -69,6 +71,7 @@ class SoftGlue(Device):
         kind="omitted",
         string=True,
     )
+    enable_rigaku = FCpt(EpicsSignal, "{prefix}{_pv_enable_rigaku}", kind="config")
 
 class softglue_mz2(Device):
 

@@ -180,14 +180,15 @@ id8_common.devices.slit.ID8Optics2Slit2D_HV:
 #   v_positive_motor: m2
 #   v_negative_motor: m1
 
-id8_common.devices.softglue.SoftGlue:  # This has to be reviewed
+id8_common.devices.softglue.SoftGlue: 
 - name: "softglue_8idi"
   prefix: ""
-  pv_acq_period: "8idi:SGControl1.A"
-  pv_acq_time: "8idi:SGControl1.C"
-  pv_num_triggers: "8idi:SGControl1.J"
-  pv_start_pulses: "8idi:softGlueA:MUX2-1_IN0_Signal"
-  pv_stop_pulses: "8idi:softGlueA:OR-1_IN2_Signal"
+  pv_acq_period: "8idMZ1:userTran1.A"
+  pv_acq_time: "8idMZ1:userTran1.A"
+  pv_num_triggers: "8idMZ1:userTran1.J"
+  pv_start_pulses: "8idMZ1:SG:plsTrn-1_Inp_Signal"  # 1! for starting pulses
+  pv_stop_pulses: "8idMZ1:SG:plsTrn-1_Dis_Signal"  # 1 for stopping pulses. Change back to 0 when done.
+  pv_enable_rigaku: "8idMZ1:SG:MUX2-1_SEL_Signal" # '1' for switching to Rigaku, '0' for all other detectors
 
 id8_common.devices.transfocator.Transfocator:
 - name: rl1

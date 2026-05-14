@@ -5,6 +5,8 @@ EPICS area_detector definitions for ID8.
 import logging
 
 from apstools.devices import AD_EpicsFileNameHDF5Plugin
+from apstools.devices import AD_plugin_primed
+from apstools.devices import AD_prime_plugin2
 from apstools.devices import CamMixin_V34
 from ophyd import ADComponent
 from ophyd import EpicsSignal
@@ -48,10 +50,10 @@ def ad_setup(det: AreaDetector, iconfig: dict) -> None:
     plugin.kind = Kind.config | Kind.normal  # Ensure plugin's read is called.
     plugin.stage_sigs.move_to_end("capture", last=True)
 
-    # if iconfig.get("ALLOW_AREA_DETECTOR_WARMUP", False):
-    #     if det.connected:
-    #         if not AD_plugin_primed(plugin):
-    #             AD_prime_plugin2(plugin)
+    if iconfig.get("ALLOW_AREA_DETECTOR_WARMUP", False):
+        if det.connected:
+            if not AD_plugin_primed(plugin):
+                AD_prime_plugin2(plugin)
 
 
 class CamBase_V34(CamBase):

@@ -3,7 +3,7 @@ apstools.devices.area_detector_factory.ad_creator:
 - name: eiger4M
   prefix: "8idEiger4m:"
   # IOC host: beryl
-  # IOC top: /net/s8iddserv/xorApps/epics/synApps_6_2_1/ioc/8idEiger4m/iocBoot/ioc8idEiger4m/softioc/8idEiger4m.pl
+  # IOC top: csynApps_6_2_1/ioc/8idEiger4m/iocBoot/ioc8idEiger4m/softioc/8idEiger4m.pl
   labels: [ "area_detector", "detectors" ]
   plugins:
   - badpix1 # apstools 1.7.3+, no extra customization needed
