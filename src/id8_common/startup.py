@@ -130,7 +130,8 @@ stream_rois(oregistry["lambda2M"])
 
 # import acquire plans
 
-from .plans.ad_acq import *
+from .plans.acquire.ad_acq import *
+
 from .plans.nexus_acq_eiger_int import *
 # from .plans.nexus_acq_eiger_ext import *
 # from .plans.nexus_acq_lambda_int import *
