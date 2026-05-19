@@ -1,0 +1,385 @@
+# Copy of devices.yml with heartbeat_pv added to each real device.
+# heartbeat_pv: a PV that responds iff the device's IOC is up.
+# Simulator devices (apsbits.utils.sim_creator) have no heartbeat_pv — they always load.
+# hklpy2 entries have no heartbeat_pv; the underlying motors are checked via huber.
+
+apsbits.utils.sim_creator.predefined_device:
+  - creator: ophyd.sim.motor
+    name: sim_motor
+  - creator: ophyd.sim.noisy_det
+    name: sim_det
+
+ophyd.EpicsMotor:
+  # prefix IS the full motor record name, so heartbeat = prefix + ".VAL"
+  - name: fl2
+    prefix: 8ideSoft:CR8-E2:m7
+    labels: ["motor"]
+    heartbeat_pv: "8ideSoft:CR8-E2:m7.VAL"
+  - name: fl3
+    prefix: 8idiSoft:CR8-I2:m7
+    labels: ["motor"]
+    heartbeat_pv: "8idiSoft:CR8-I2:m7.VAL"
+  - name: flag4
+    prefix: 8iddSoft:CR8-D1:m1
+    labels: ["motor"]
+    heartbeat_pv: "8iddSoft:CR8-D1:m1.VAL"
+
+id8_common.devices.xy_motors.XY_Motors:
+  # prefix="" so _x_pv = x_motor directly
+- name: cam_stage_8idi
+  prefix: ""
+  x_motor: 8ide:m13
+  y_motor: 8idiSoft:CR8-I2:m15
+  heartbeat_pv: "8ide:m13.VAL"
+
+id8_common.devices.fast_shutter.FastShutter:
+  # operation = Component(EpicsSignal, "State") → prefix + "State"
+- name: shutter_8ide
+  prefix: "8ideSoft:fastshutter:"
+  heartbeat_pv: "8ideSoft:fastshutter:State"
+
+id8_common.devices.avs_filters.AVSfilters:
+  # binary_crl1_config = Cpt(EpicsSignalRO, "filterConfig") → prefix + "filterConfig"
+- name: filter_8ide
+  prefix: "8idPyFilter:FL2:"
+  heartbeat_pv: "8idPyFilter:FL2:filterConfig"
+
+id8_common.devices.granite.granite_device:
+  # motor_prefix = strip last segment of prefix → "8idiSoft:CR8-I2"
+  # x = FCpt(EpicsMotor, "{motor_prefix}:{x_motor}") → "8idiSoft:CR8-I2:m8"
+- name: granite
+  prefix: "8idiSoft:CR8-I2:US"
+  x_motor: m8
+  heartbeat_pv: "8idiSoft:CR8-I2:m8.VAL"
+
+id8_common.devices.granite_enable.Valve_Enable:
+  # enable = Component(EpicsSignal, "bo3:9.VAL") → prefix + "bo3:9.VAL"
+- name: granite_8idi_valve
+  prefix: "8idiSoft:CR8-I2:"
+  heartbeat_pv: "8idiSoft:CR8-I2:bo3:9.VAL"
+
+id8_common.devices.hhl_mirrors.HHL_Mirror1:
+  # x = Component(EpicsMotor, "FMBO:m4") → prefix + "FMBO:m4"
+- name: mr1
+  prefix: "8idaSoft:"
+  heartbeat_pv: "8idaSoft:FMBO:m4.VAL"
+
+id8_common.devices.hhl_mirrors.HHL_Mirror2:
+  # x = Component(EpicsMotor, "FMBO:m3") → prefix + "FMBO:m3"
+- name: mr2
+  prefix: "8idaSoft:"
+  heartbeat_pv: "8idaSoft:FMBO:m3.VAL"
+
+id8_common.devices.hhl_slits.HHLSlits:
+  # motor_prefix = strip last segment of prefix
+  # pitch = FCpt(EpicsMotor, "{motor_prefix}:{pitch_motor}")
+- name: wb_slit
+  prefix: "8idaSoft:CR8-A1:US"
+  secondary_prefix: "8idaSoft:SL-1:US"
+  pitch_motor: "m3"
+  yaw_motor: "m4"
+  horizontal_motor: "m1"
+  diagonal_motor: "m2"
+  hgap_motor: "hSize"
+  hcen_motor: "hCenter"
+  vgap_motor: "vSize"
+  vcen_motor: "vCenter"
+  heartbeat_pv: "8idaSoft:CR8-A1:m3.VAL"
+
+- name: mono_slit
+  prefix: "8idaSoft:CR8-A1:US"
+  secondary_prefix: "8idaSoft:SL-2:US"
+  pitch_motor: "m11"
+  yaw_motor: "m12"
+  horizontal_motor: "m9"
+  diagonal_motor: "m10"
+  hgap_motor: "hSize"
+  hcen_motor: "hCenter"
+  vgap_motor: "vSize"
+  vcen_motor: "vCenter"
+  heartbeat_pv: "8idaSoft:CR8-A1:m11.VAL"
+
+id8_common.devices.hv_motors.HV_Motors:
+  # h = FCpt(EpicsMotor, "{prefix}{pv_h}") — prefix includes trailing ":"
+- name: bd6a
+  prefix: "8ideSoft:CR8-E2:"
+  pv_h: m9
+  pv_v: m10
+  heartbeat_pv: "8ideSoft:CR8-E2:m9.VAL"
+- name: bd5a
+  prefix: "8iddSoft:CR8-D1:"
+  pv_h: m9
+  pv_v: m10
+  heartbeat_pv: "8iddSoft:CR8-D1:m9.VAL"
+
+id8_common.devices.labjack_support.LabJack:
+  # logic = Component(EpicsSignal, "Bo1") → prefix + "Bo1"
+- name: "labjack"
+  prefix: "8idiSoft:LJT705:"
+  heartbeat_pv: "8idiSoft:LJT705:Bo1"
+
+id8_common.devices.qnw_device.QnwDevice:
+  # readback = Component(EpicsSignalRO, "SH_RBV") → prefix + "SH_RBV"
+- name: qnw_env1
+  prefix: "8idiSoft:QNWenv_1:"
+  readback_pv: null
+  heartbeat_pv: "8idiSoft:QNWenv_1:SH_RBV"
+- name: qnw_env2
+  prefix: "8idiSoft:QNWenv_2:"
+  readback_pv: null
+  heartbeat_pv: "8idiSoft:QNWenv_2:SH_RBV"
+- name: qnw_env3
+  prefix: "8idiSoft:QNWenv_3:"
+  readback_pv: null
+  heartbeat_pv: "8idiSoft:QNWenv_3:SH_RBV"
+
+id8_common.devices.registers_device.EpicsPvStorageRegisters:
+  # sample_name = Component(EpicsSignal, "StrReg1") → prefix + "StrReg1"
+- name: pv_registers
+  prefix: "8ideSoft:"
+  heartbeat_pv: "8ideSoft:StrReg1"
+
+id8_common.devices.slit_base.SlitBase:
+  # motor_prefix = strip last segment; h = FCpt(EpicsMotor, "{motor_prefix}:{h_motor}")
+- name: sl4_base
+  prefix: "8iddSoft:CR8-D1:US"
+  h_motor: m15
+  v_motor: m16
+  heartbeat_pv: "8iddSoft:CR8-D1:m15.VAL"
+- name: sl5_base
+  prefix: 8ideSoft:CR8-E2:US
+  h_motor: m5
+  v_motor: m6
+  heartbeat_pv: "8ideSoft:CR8-E2:m5.VAL"
+- name: sl7_base
+  prefix: "8ideSoft:CR8-E2:US"
+  h_motor: m15
+  v_motor: m16
+  heartbeat_pv: "8ideSoft:CR8-E2:m15.VAL"
+- name: sl8_base
+  prefix: "8idiSoft:CR8-I2:US"
+  h_motor: m5
+  v_motor: m6
+  heartbeat_pv: "8idiSoft:CR8-I2:m5.VAL"
+- name: sl9_base
+  prefix: "8idiSoft:CR8-I2:US"
+  h_motor: m15
+  v_motor: m16
+  heartbeat_pv: "8idiSoft:CR8-I2:m15.VAL"
+
+id8_common.devices.slit.ID8Optics2Slit2D_HV:
+  # h = cpt(ID8Optics2Slit1D, "H") → h prefix = "{prefix}H"
+  # h.xn = cpt(PVPositionerSoftDone, "xn") → PV base = "{prefix}Hxn"
+- name: sl4
+  prefix: "8iddSoft:Slit1"
+  heartbeat_pv: "8iddSoft:Slit1Hxn.VAL"
+- name: sl5
+  prefix: "8ideSoft:Slit1"
+  heartbeat_pv: "8ideSoft:Slit1Hxn.VAL"
+- name: sl7
+  prefix: "8ideSoft:Slit2"
+  heartbeat_pv: "8ideSoft:Slit2Hxn.VAL"
+- name: sl8
+  prefix: "8idiSoft:Slit1"
+  heartbeat_pv: "8idiSoft:Slit1Hxn.VAL"
+- name: sl9
+  prefix: "8idiSoft:Slit2"
+  heartbeat_pv: "8idiSoft:Slit2Hxn.VAL"
+
+id8_common.devices.individual_slits.IndividualSlits:
+  # motor_prefix = strip last segment; hp = FCpt(EpicsMotor, "{motor_prefix}:{h_positive_motor}")
+- name: sl9_motors
+  prefix: "8idiSoft:CR8-I2:US"
+  h_positive_motor: m12
+  h_negative_motor: m11
+  v_positive_motor: m10
+  v_negative_motor: m9
+  heartbeat_pv: "8idiSoft:CR8-I2:m12.VAL"
+
+- name: sl5_motors
+  prefix: "8ideSoft:CR8-E2:US"
+  h_positive_motor: m4
+  h_negative_motor: m3
+  v_positive_motor: m2
+  v_negative_motor: m1
+  heartbeat_pv: "8ideSoft:CR8-E2:m4.VAL"
+
+id8_common.devices.softglue.SoftGlue:
+  # prefix="" so full PV = pv_acq_period directly
+- name: "softglue_8idi"
+  prefix: ""
+  pv_acq_period: "8idMZ1:userTran1.A"
+  pv_acq_time: "8idMZ1:userTran1.A"
+  pv_num_triggers: "8idMZ1:userTran1.J"
+  pv_start_pulses: "8idMZ1:SG:plsTrn-1_Inp_Signal"
+  pv_stop_pulses: "8idMZ1:SG:plsTrn-1_Dis_Signal"
+  pv_enable_rigaku: "8idMZ1:SG:MUX2-1_SEL_Signal"
+  heartbeat_pv: "8idMZ1:userTran1.A"
+
+id8_common.devices.softglue.softglue_mz2:
+  # preset = Component(EpicsSignal, "8idMZ2:SG:DnCntr-1_PRESET") — hardcoded full PV
+- name: "softglue_8id_mz2"
+  prefix: ""
+  heartbeat_pv: "8idMZ2:SG:DnCntr-1_PRESET"
+
+id8_common.devices.softglue.softglue_acq8id:
+  # preset = Component(EpicsSignal, "acq8id:SG:DnCntr-1_PRESET") — hardcoded full PV
+- name: "softglue_8id_acq"
+  prefix: ""
+  heartbeat_pv: "acq8id:SG:DnCntr-1_PRESET"
+
+id8_common.devices.transfocator.Transfocator:
+  # x = FCpt(EpicsMotor, "{prefix}{pv_x}") — prefix includes trailing ":"
+- name: rl1
+  prefix: "8iddSoft:TRANS:"
+  pv_y: "m1"
+  pv_x: "m2"
+  pv_yaw: "m3"
+  pv_pitch: "m4"
+  pv_lens1: "m5"
+  pv_lens2: "m6"
+  pv_lens3: "m7"
+  pv_lens4: "m8"
+  pv_lens5: "m9"
+  pv_lens6: "m10"
+  pv_lens7: "m11"
+  pv_lens8: "m12"
+  pv_lens9: "m13"
+  pv_lens10: "m14"
+  heartbeat_pv: "8iddSoft:TRANS:m2.VAL"
+
+- name: rl2
+  prefix: "8iddSoft:TRANS:"
+  pv_y: "m25"
+  pv_x: "m26"
+  pv_yaw: "m27"
+  pv_pitch: "m28"
+  pv_lens1: "m15"
+  pv_lens2: "m16"
+  pv_lens3: "m17"
+  pv_lens4: "m18"
+  pv_lens5: "m19"
+  pv_lens6: "m20"
+  pv_lens7: "m21"
+  pv_lens8: "m22"
+  pv_lens9: "m23"
+  pv_lens10: "m24"
+  heartbeat_pv: "8iddSoft:TRANS:m26.VAL"
+
+id8_common.devices.huber_diffractometer.Huber_Diffractometer:
+  # nu = Component(EpicsMotor, "m4") → prefix + "m4"
+- name: huber
+  prefix: "8ideSoft:CR8-E1:"
+  heartbeat_pv: "8ideSoft:CR8-E1:m4.VAL"
+
+id8_common.devices.lakeshore.Lakeshore:
+  # readback_ch1 = Component(EpicsSignalRO, "IN1") → prefix + "IN1"
+- name: lakeshore1
+  prefix: "8ideSoft:LS336:1:"
+  heartbeat_pv: "8ideSoft:LS336:1:IN1"
+- name: lakeshore2
+  prefix: "8ideSoft:LS336:2:"
+  heartbeat_pv: "8ideSoft:LS336:2:IN1"
+
+id8_common.devices.flight_path.FlightPath:
+  # length = Component(EpicsMotor, "m1") → prefix + "m1"
+- name: flight_path_8idi
+  prefix: "8idiSoft:FLIGHT:"
+  heartbeat_pv: "8idiSoft:FLIGHT:m1.VAL"
+
+id8_common.devices.tetramm_picoammeter.MyTetrAMM:
+  # TetrAMM inherits QuadEM; acquire = Cpt(EpicsSignal, "Acquire") → prefix + "Acquire"
+- name: tetramm1
+  prefix: "8idTetra:QUAD1:"
+  port_name: "QUAD1"
+  heartbeat_pv: "8idTetra:QUAD1:Acquire"
+- name: tetramm2
+  prefix: "8idTetra:QUAD2:"
+  port_name: "QUAD2"
+  heartbeat_pv: "8idTetra:QUAD2:Acquire"
+- name: tetramm3
+  prefix: "8idTetra:QUAD3:"
+  port_name: "QUAD3"
+  heartbeat_pv: "8idTetra:QUAD3:Acquire"
+- name: tetramm4
+  prefix: "8idTetra:QUAD4:"
+  port_name: "QUAD4"
+  heartbeat_pv: "8idTetra:QUAD4:Acquire"
+
+id8_common.devices.idt_mono.BraggGap_Monochromator:
+  # bragg_motor = FCpt(EpicsMotor, "{prefix}{bragg_motor}") → "8idaSoft:MN1:Bragg"
+- name: mono
+  prefix: "8idaSoft:MN1:"
+  bragg_motor: "Bragg"
+  gap_motor: "Gap"
+  heartbeat_pv: "8idaSoft:MN1:Bragg.VAL"
+
+id8_common.devices.aerotech_stages.AerotechSampleStage:
+  # x = Component(EpicsMotor, "m1") → prefix + "m1"
+- name: sample
+  prefix: "8idiAerotech:"
+  labels: ["sample", "stage"]
+  heartbeat_pv: "8idiAerotech:m1.VAL"
+
+id8_common.devices.aerotech_stages.AerotechDetectorStage:
+  # x = Component(EpicsMotor, "m4") → prefix + "m4"
+- name: detector
+  prefix: "8idiAerotech:"
+  labels: ["detector", "stage"]
+  heartbeat_pv: "8idiAerotech:m4.VAL"
+
+id8_common.devices.aerotech_stages.AerotechRheometerStage:
+  # x = Component(EpicsMotor, "m8") → prefix + "m8"
+- name: rheometer
+  prefix: "8idiAerotech:"
+  labels: ["rheometer", "stage"]
+  heartbeat_pv: "8idiAerotech:m8.VAL"
+
+id8_common.devices.flight_tube.FlightTubeDetector:
+  # z = Component(EpicsMotor, "m1") → prefix + "m1"
+- name: "det_motors"
+  prefix: "8idiSoft:FLIGHT:"
+  heartbeat_pv: "8idiSoft:FLIGHT:m1.VAL"
+
+id8_common.devices.flight_tube.FlightTubeBeamStop:
+  # ds_x = Component(EpicsMotor, "m5") → prefix + "m5"
+- name: "bs_motors"
+  prefix: "8idiSoft:FLIGHT:"
+  heartbeat_pv: "8idiSoft:FLIGHT:m5.VAL"
+
+id8_common.devices.undulator.RevolverUndulator_8ID:
+  # Revolver_Undulator from apstools; gap motor typically at prefix + "Gap.VAL"
+- name: undulator_upstream
+  prefix: "S08ID:USID:"
+  heartbeat_pv: "S08ID:USID:Gap.VAL"
+- name: undulator_downstream
+  prefix: "S08ID:DSID:"
+  heartbeat_pv: "S08ID:DSID:Gap.VAL"
+
+hklpy2.creator:
+  # sim_psic is a pure simulator — no heartbeat_pv
+  # psic uses real motors on 8ideSoft:CR8-E1: (same IOC as huber)
+- name: sim_psic
+  geometry: E6C
+  solver: hkl_soleil
+  reals: [ "mu", "eta", "chi", "phi", "nu", "delta" ]
+  labels: [ "diffractometer" ]
+- name: psic
+  geometry: E6C
+  solver: hkl_soleil
+  prefix: "8ideSoft:CR8-E1:"
+  labels: [ "diffractometer" ]
+  reals:
+    mu: m6
+    eta: m7
+    chi: m8
+    phi: m9
+    nu: m4
+    delta: m5
+  heartbeat_pv: "8ideSoft:CR8-E1:m4.VAL"
+
+id8_common.devices.pin_diode.PIND:
+  # state = Component(EpicsSignalRO, "status2.RVAL") → prefix + "status2.RVAL"
+- name: pd
+  prefix: "8ideSoft:pdu1:"
+  heartbeat_pv: "8ideSoft:pdu1:status2.RVAL"

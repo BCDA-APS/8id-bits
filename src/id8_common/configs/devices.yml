@@ -17,23 +17,11 @@ ophyd.EpicsMotor:
     prefix: 8iddSoft:CR8-D1:m1
     labels: ["motor"]
 
-# id8_common.devices.xy_motors.XY_Motors:
-# - name: damm
-#   prefix: "8iddSoft:CR8-D1:"
-#   x_motor: m2
-#   y_motor: m3
-# # - name: win_i
-# #   prefix: 8ide:US
-# #   x_motor: m13
-# #   y_motor: m12
-# - name: win_e
-#   prefix: 8ide
-#   x_motor: m23
-#   y_motor: m24
-# # - name: cam_stage_8idi
-# #   prefix: "8ide:"
-# #   x_motor: m13
-# #   y_motor: m12
+id8_common.devices.xy_motors.XY_Motors:
+- name: cam_stage_8idi
+  prefix: ""
+  x_motor: 8ide:m13
+  y_motor: 8idiSoft:CR8-I2:m15
 
 id8_common.devices.fast_shutter.FastShutter:
 - name: shutter_8ide
@@ -42,13 +30,11 @@ id8_common.devices.fast_shutter.FastShutter:
 id8_common.devices.avs_filters.AVSfilters:
 - name: filter_8ide
   prefix: "8idPyFilter:FL2:"
-# - name: filter_8idi
-#   prefix: "8idPyFilter:FL3:"
 
-# id8_common.devices.granite.granite_device:
-# - name: granite
-#   prefix: "8idiSoft:CR8-I2:US"
-#   x_motor: m8
+id8_common.devices.granite.granite_device:
+- name: granite
+  prefix: "8idiSoft:CR8-I2:US"
+  x_motor: m8
 
 id8_common.devices.granite_enable.Valve_Enable:
 - name: granite_8idi_valve
@@ -96,21 +82,20 @@ id8_common.devices.hv_motors.HV_Motors:
   pv_h: m9
   pv_v: m10
 
-
 id8_common.devices.labjack_support.LabJack:
 - name: "labjack"
   prefix: "8idiSoft:LJT705:"
 
-# id8_common.devices.qnw_device.QnwDevice:
-# - name: qnw_env1
-#   prefix: "8idiSoft:QNWenv_1:"
-#   readback_pv: null
-# - name: qnw_env2
-#   prefix: "8idiSoft:QNWenv_2:"
-#   readback_pv: null
-# - name: qnw_env3
-#   prefix: "8idiSoft:QNWenv_3:"
-#   readback_pv: null
+id8_common.devices.qnw_device.QnwDevice:
+- name: qnw_env1
+  prefix: "8idiSoft:QNWenv_1:"
+  readback_pv: null
+- name: qnw_env2
+  prefix: "8idiSoft:QNWenv_2:"
+  readback_pv: null
+- name: qnw_env3
+  prefix: "8idiSoft:QNWenv_3:"
+  readback_pv: null
 
 # id8_common.devices.qnw_vac_device.QnwDevice:
 # - name: qnw_vac1
@@ -123,9 +108,9 @@ id8_common.devices.labjack_support.LabJack:
 #   prefix: "8idiSoft:QNWvac_3:"
 #   readback_pv: null
 
-id8_e.devices.registers_device.EpicsPvStorageRegisters:
+id8_common.devices.registers_device.EpicsPvStorageRegisters:
 - name: pv_registers
-  prefix: "8ideSoft:"
+  prefix: "8ideSoft:" # could be "8idiSoft" too
 
 id8_common.devices.slit_base.SlitBase:
 - name: sl4_base
@@ -185,7 +170,6 @@ id8_common.devices.softglue.SoftGlue:
   pv_start_pulses: "8idMZ1:SG:plsTrn-1_Inp_Signal"  # 1! for starting pulses
   pv_stop_pulses: "8idMZ1:SG:plsTrn-1_Dis_Signal"  # 1 for stopping pulses. Change back to 0 when done.
   pv_enable_rigaku: "8idMZ1:SG:MUX2-1_SEL_Signal" # '1' for switching to Rigaku, '0' for all other detectors
-
 
 id8_common.devices.softglue.softglue_mz2:  
 - name: "softglue_8id_mz2"
@@ -266,43 +250,21 @@ id8_common.devices.tetramm_picoammeter.MyTetrAMM:
   prefix: "8idTetra:QUAD4:"
   port_name: "QUAD4"
 
-id8_common.devices.sydor_tp4u.SydorTP4U:
-- name: xbpm1
-  prefix: "8ideBPM:T4U_BPM:"
+# id8_common.devices.sydor_tp4u.SydorTP4U:
+# - name: xbpm1
+#   prefix: "8ideBPM:T4U_BPM:"
 
 # id8_common.devices.func_gen.Function_Generator:
 # - name: dpKeysight
 #   prefix: "dpKeysight:KEY1:"
-
-# id8_common.devices.func_gen.Function_Generator:
 # - name: keysight
 #   prefix: "8idKeysight:KEY1:"
-
-# id8_common.devices.idt_mono.IDTMono:
-# - name: idt_mono
-#   prefix: "8idaSoft:MONO:"
-#   labels: ["mono", "baseline"]
-#   bragg_motor: "MONO:m1"
-#   xtal_gap_motor: "MONO:m2"
-#   flag_motor: "MONO:m3"
-#   coarse_pitch_motor: "MONO:m5"
-#   coarse_roll_motor: "MONO:m6"
-#   x_pitch_motor: "MONO:m7"
-#   y_pitch_motor: "MONO:m8"
-#   pitch_piezo: "LJT703:Ao2"
-#   roll_piezo: "LJT703:Ao3"
 
 id8_common.devices.idt_mono.BraggGap_Monochromator:
 - name: mono
   prefix: "8idaSoft:MN1:"
-  # labels: ["mono"]
   bragg_motor: "Bragg"
   gap_motor: "Gap"
-  # energy: "Energy"
-  # wavelength: "Lambda"
-  # theta: "Bragg"
-  # offset: "Offset"
-  # gap: "Gap"
 
 # id8_common.devices.undulator.Undulator:
 # - name: undulator
@@ -313,22 +275,63 @@ id8_common.devices.aerotech_stages.AerotechSampleStage:
   prefix: "8idiAerotech:"
   labels: ["sample", "stage"]
 
-# id8_common.devices.aerotech_stages.AerotechDetectorStage:
-# - name: detector
-#   prefix: "8idiAerotech:"
-#   labels: ["detector", "stage"]
-# id8_common.devices.aerotech_stages.AerotechRheometerStage:
-# - name: rheometer
-#   prefix: "8idiAerotech:"
-#   labels: ["rheometer", "stage"]
+id8_common.devices.aerotech_stages.AerotechDetectorStage:
+- name: detector
+  prefix: "8idiAerotech:"
+  labels: ["detector", "stage"]
+
+id8_common.devices.aerotech_stages.AerotechRheometerStage:
+- name: rheometer
+  prefix: "8idiAerotech:"
+  labels: ["rheometer", "stage"]
 
 id8_common.devices.flight_tube.FlightTubeDetector:
 - name: "det_motors"
   prefix: "8idiSoft:FLIGHT:"
+
 id8_common.devices.flight_tube.FlightTubeBeamStop:
 - name: "bs_motors"
   prefix: "8idiSoft:FLIGHT:"
 
+id8_common.devices.undulator.RevolverUndulator_8ID:
+- name: undulator_upstream
+  prefix: "S08ID:USID:"
+- name: undulator_downstream
+  prefix: "S08ID:DSID:"
+
+hklpy2.creator:
+- name: sim_psic
+  geometry: E6C
+  solver: hkl_soleil
+  reals: [ "mu", "eta", "chi", "phi", "nu", "delta" ]  # psic names
+  labels: [ "diffractometer" ]
+- name: psic
+  geometry: E6C
+  solver: hkl_soleil
+  prefix: "8ideSoft:CR8-E1:"  
+  labels: [ "diffractometer" ]
+  reals:
+    mu: m6
+    eta: m7
+    chi: m8
+    phi: m9
+    nu: m4
+    delta: m5
+
+id8_common.devices.pin_diode.PIND:
+- name: pd
+  prefix: "8ideSoft:pdu1:"
+
+# id8_common.devices.keithley.Keithley:
+# - name: keithley_chA
+#   prefix: "8idKeithley2600:SMU:A:"
+# - name: keithley_chB
+#   prefix: "8idKeithley2600:SMU:B:"
+
+# id8_common.devices.bk_powersupply.bk_pid:
+# - name: bk_pid
+#   prefix: "8idiSoft:BPMpid."
+  
 # id8_common.devices.meascomp_usb_ctr.MeasCompCTR:
 #   - name: daq1
 #     prefix: "8idDAQ1:"
@@ -394,39 +397,5 @@ id8_common.devices.flight_tube.FlightTubeBeamStop:
 #       - roi1
 #       - stats1
 
-
-hklpy2.creator:
-- name: sim_psic
-  geometry: E6C
-  solver: hkl_soleil
-  reals: [ "mu", "eta", "chi", "phi", "nu", "delta" ]  # psic names
-  labels: [ "diffractometer" ]
-
-- name: psic
-  geometry: E6C
-  solver: hkl_soleil
-  prefix: "8ideSoft:CR8-E1:"  
-  labels: [ "diffractometer" ]
-  reals:
-    mu: m6
-    eta: m7
-    chi: m8
-    phi: m9
-    nu: m4
-    delta: m5
-
-# id8_common.devices.keithley.Keithley:
-# - name: keithley_chA
-#   prefix: "8idKeithley2600:SMU:A:"
-# - name: keithley_chB
-#   prefix: "8idKeithley2600:SMU:B:"
-
-# id8_common.devices.bk_powersupply.bk_pid:
-# - name: bk_pid
-#   prefix: "8idiSoft:BPMpid."
-
-id8_common.devices.pin_diode.PIND:
-- name: pd
-  prefix: "8ideSoft:pdu1:"
 
 

@@ -21,3 +21,11 @@ class Lakeshore(Device):
 
     setpoint_out1 = Component(EpicsSignal, "OUT1:SP")
     setpoint_out2 = Component(EpicsSignal, "OUT2:SP")
+
+def set_temp_lakeshore(temp, wait):
+
+### Set lakeshore2 setpoint in loop 1 and wait for (wait) seconds. 
+###
+
+    lakeshore2.setpoint_out1.put(temp)
+    time.sleep(wait)
