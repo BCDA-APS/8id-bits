@@ -18,13 +18,11 @@ from id8_common.utils.dm_util import dm_run_job
 from id8_common.utils.dm_util import dm_setup
 from id8_common.utils.nexus_utils import create_nexus_format_metadata
 
-from id8_common.plans.set.shutter_att import showbeam
-from id8_common.plans.set.shutter_att import blockbeam
-from id8_common.plans.set.shutter_att import shutteron
-from id8_common.plans.set.shutter_att import shutteroff
-from id8_common.plans.set.shutter_att import post_align
-from id8_common.plans.set.shutter_att import att
-
+from id8_common.plans.shutter_logic import blockbeam
+from id8_common.plans.shutter_logic import post_align
+from id8_common.plans.shutter_logic import showbeam
+from id8_common.plans.shutter_logic import shutteron
+from id8_common.plans.shutter_logic import shutteroff
 
 pv_registers = oregistry["pv_registers"]
 
@@ -155,13 +153,12 @@ def setup_eiger_internal(acq_time, num_frames, file_header, file_name):
     eiger4M.hdf1.file_path.put(file_path)
     eiger4M.hdf1.num_capture.put(num_frames)
 
+    pv_registers.file_name.put(file_name)
+    pv_registers.metadata_full_path.put(f"{file_path}/{file_name}_metadata.hdf")
+
     eiger4M.cam.trigger_mode.put("Internal Series")
     eiger4M.cam.num_images.put(num_frames)
     eiger4M.cam.num_triggers.put(1)
-
-    metadata_fname = f"{file_path}/{file_name}_metadata.hdf"
-
-    return metadata_fname
 
 
 def setup_eiger_external(acq_time, acq_period, num_frames, file_header, file_name):
@@ -177,16 +174,15 @@ def setup_eiger_external(acq_time, acq_period, num_frames, file_header, file_nam
     eiger4M.hdf1.file_path.put(file_path)
     eiger4M.hdf1.num_capture.put(num_frames)
 
+    pv_registers.file_name.put(file_name)
+    pv_registers.metadata_full_path.put(f"{file_path}/{file_name}_metadata.hdf")
+
     eiger4M.cam.num_triggers.put(num_frames)
     eiger4M.cam.trigger_mode.put("External Enable")
 
     softglue_8idi.acq_time.put(acq_time)
     softglue_8idi.acq_period.put(acq_period)
     softglue_8idi.num_triggers.put(num_frames)
-
-    metadata_fname = f"{file_path}/{file_name}_metadata.hdf"
-
-    return metadata_fname
 
 
 def setup_lambda_internal(acq_time, num_frames, file_header, file_name):
@@ -205,9 +201,8 @@ def setup_lambda_internal(acq_time, num_frames, file_header, file_name):
     lambda2M.cam.num_images.put(num_frames)
     lambda2M.hdf1.num_capture.put(num_frames)
 
-    metadata_fname = f"{file_path}/{file_name}_metadata.hdf"
-
-    return metadata_fname
+    pv_registers.file_name.put(file_name)
+    pv_registers.metadata_full_path.put(f"{file_path}/{file_name}_metadata.hdf")
 
 
 def setup_rigaku_zdt(acq_time, num_frames, file_header, file_name):
@@ -224,11 +219,10 @@ def setup_rigaku_zdt(acq_time, num_frames, file_header, file_name):
     rigaku3M.cam.output_control.put("Sparsified")
     rigaku3M.cam.output_resolution.put("2 Bit")
 
+    pv_registers.file_name.put(file_name)
+    pv_registers.metadata_full_path.put(f"{full_path}/{file_name}_metadata.hdf")
+
     os.makedirs(full_path, mode=0o770, exist_ok=True)
-
-    metadata_fname = f"{full_path}/{file_name}_metadata.hdf"
-
-    return metadata_fname
 
 
 # =============================================================================
@@ -361,7 +355,6 @@ ACQ_MODES = {
 def det_acq_series(
     detector="eiger4M",
     mode="Internal Series",
-    att_level=1,
     acq_time=1,
     acq_period=None,
     num_frames=10,
@@ -386,9 +379,6 @@ def det_acq_series(
         lambda2M : "Internal"
         rigaku3M : "ZDT"
 
-    att_level:
-        Attenuation level passed to att(att_level).
-
     acq_period:
         Required only for detector="eiger4M", mode="External Enable".
 
@@ -401,13 +391,6 @@ def det_acq_series(
         If header="A" and measurement_num=12, file_header starts with A0012.
         The register increments once per det_acq_series() call.
     """
-
-    post_align()
-    shutteroff()
-    att(att_level)
-
-    workflowProcApi, dmuser = dm_setup()
-
     mode_info = ACQ_MODES[detector][mode]
 
     if mode_info["needs_acq_period"] and acq_period is None:
@@ -420,11 +403,18 @@ def det_acq_series(
     setup_func = mode_info["setup"]
     acquire_func = mode_info["acquire"]
 
+    post_align()
+    shutteroff()
+
+    workflowProcApi, dmuser = dm_setup()
+
     meas_num = int(pv_registers.measurement_num.get())
     header_name = f"{header}{meas_num:04d}"
-    file_header = f"{header_name}_{sample_name}_a{int(att_level):04d}_f{num_frames:06d}"
 
+    pv_registers.measurement_num.put(meas_num + 1)
     pv_registers.sample_name.put(sample_name)
+
+    file_header = f"{header_name}_{sample_name}_f{num_frames:06d}"
 
     for rep in range(num_reps):
         ttime.sleep(wait_time)
@@ -438,7 +428,7 @@ def det_acq_series(
         file_name = f"{file_header}_r{rep + 1:05d}"
 
         if mode_info["needs_acq_period"]:
-            metadata_fname = setup_func(
+            setup_func(
                 acq_time=acq_time,
                 acq_period=acq_period,
                 num_frames=num_frames,
@@ -446,7 +436,7 @@ def det_acq_series(
                 file_name=file_name,
             )
         else:
-            metadata_fname = setup_func(
+            setup_func(
                 acq_time=acq_time,
                 num_frames=num_frames,
                 file_header=file_header,
@@ -461,11 +451,10 @@ def det_acq_series(
         time_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         print(f"{time_now}, Complete measurement {file_name}")
 
+        metadata_fname = pv_registers.metadata_full_path.get()
         create_nexus_format_metadata(metadata_fname, det=det)
 
         dm_run_job(workflowProcApi, dmuser)
-
-    pv_registers.measurement_num.put(meas_num + 1)
 
 
 # =============================================================================
@@ -479,7 +468,6 @@ def det_acq_series(
 # det_acq_series(
 #     detector="eiger4M",
 #     mode="Internal Series",
-#     att_level=7,
 #     acq_time=0.1,
 #     num_frames=1000,
 #     num_reps=5,
@@ -509,7 +497,6 @@ def det_acq_series(
 # det_acq_series(
 #     detector="eiger4M",
 #     mode="Internal Series",
-#     att_level=7,
 #     acq_time=0.1,
 #     num_frames=1000,
 #     num_reps=20,
@@ -539,7 +526,6 @@ def det_acq_series(
 # det_acq_series(
 #     detector="eiger4M",
 #     mode="External Enable",
-#     att_level=7,
 #     acq_time=0.1,
 #     acq_period=1.0,
 #     num_frames=1000,
@@ -570,7 +556,6 @@ def det_acq_series(
 # det_acq_series(
 #     detector="lambda2M",
 #     mode="Internal",
-#     att_level=7,
 #     acq_time=0.1,
 #     num_frames=1000,
 #     num_reps=20,
@@ -600,7 +585,6 @@ def det_acq_series(
 # det_acq_series(
 #     detector="rigaku3M",
 #     mode="ZDT",
-#     att_level=7,
 #     acq_time=2e-5,
 #     num_frames=100000,
 #     num_reps=5,

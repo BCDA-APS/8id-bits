@@ -32,12 +32,12 @@ id8_common.devices.xy_motors.XY_Motors:
   y_motor: 8idiSoft:CR8-I2:m15
   heartbeat_pv: "8ide:m13.VAL"
 
-# id8_common.devices.func_gen.Function_Generator:
-# - name: dpKeysight
-#   prefix: "dpKeysight:KEY1:"
-# - name: keysight
-#   prefix: "8idKeysight:KEY1:"
-#   heartbeat_pv: "8idKeysight:KEY1:1:BURST:MODE:RBV"
+id8_common.devices.func_gen.Function_Generator:
+- name: dpKeysight
+  prefix: "dpKeysight:KEY1:"
+- name: keysight
+  prefix: "8idKeysight:KEY1:"
+  heartbeat_pv: "8idKeysight:KEY1:1:BURST:MODE:RBV"
 
 id8_common.devices.fast_shutter.FastShutter:
   # operation = Component(EpicsSignal, "State") → prefix + "State"

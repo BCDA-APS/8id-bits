@@ -128,18 +128,251 @@ def save_images(det, save_img, num_pts, num_frames=1, file_path=None):
                 if has(det.cam, "num_images"):
                     yield from bps.mv(det.cam.num_images, num_frames)
 
+# def dscan(motor, rel_begin, rel_end, num_pts, count_time,
+#                det=eiger4M, att_ratio=1e6, save_img=1):
+#     """
+#     Pre-armed software-trigger scan for fast acquisitions.
+
+#     For Eiger4M: Arms detector for all N frames upfront, then sends a software
+#     trigger at each point via det.cam.special_trigger_button. Eliminates
+#     per-point wait_for_plugins overhead.
+
+#     For TetrAMM: No pre-arming (continuous mode). Steps through positions and
+#     reads the current value at each point. HDF capture is armed/stopped manually.
+
+#     For Lambda2M: simple step scan with cam timing set up per-point. No 
+#     pre-arming (no software trigger support on those cams).
+
+#     args:
+#         motor: ophyd positioner
+#         rel_begin, rel_end: relative start/end (motor units)
+#         num_pts: number of points
+#         count_time: detector acquisition time per point (s)
+#         det: detector (eiger4M, lambda2M, or tetramm1)
+#         att_ratio: attenuation ratio
+#         save_img: 1 save, 0 don't save
+#     """
+#     pre_align()
+#     att(att_ratio)
+#     PIND_status(0)
+
+#     is_tetramm = "tetramm" in det.name.lower()
+#     is_eiger = ("eiger" in det.name.lower()) or ("eiger" in det.prefix.lower())
+#     is_lambda = ("lambda" in det.name.lower()) or ("lambda" in det.prefix.lower())
+
+#     if is_tetramm:
+#         yield from save_images(det, save_img, num_pts)
+#         if save_img == 1:
+#             det.hdf1.enable.put(1)
+#             det.hdf1.capture.put(1)
+#             print(f"TetrAMM HDF capture armed: {det.hdf1.file_name.get()}")
+
+#         start_pos = motor.position
+#         positions = np.linspace(start_pos + rel_begin, start_pos + rel_end, num_pts)
+#         pos_cache = {motor: None}
+
+#         def inner_tetramm():
+#             try:
+#                 for pos in positions:
+#                     yield from bps.move_per_step({motor: pos}, pos_cache)
+#                     yield from bps.trigger_and_read([det, motor])
+#             finally:
+#                 yield from bps.mv(motor, start_pos)
+
+#         try:
+#             yield from bpp.stage_wrapper(
+#                 bpp.run_wrapper(inner_tetramm()),
+#                 [det, motor],
+#             )
+#         finally:
+#             if save_img == 1:
+#                 det.hdf1.capture.put(0)
+#                 print("TetrAMM HDF capture stopped.")
+#         return
+
+#     # lambda2M: pre-armed external trigger (24-bit mode via softglue)
+#     if is_lambda:
+
+#         saved_op_mode = det.cam.operating_mode.get()
+
+#         yield from bps.mv(
+#             det.cam.operating_mode, 3, # 24-bit dual threshold mode
+#             det.cam.trigger_mode, "External_ImagePer",
+#             det.cam.num_images, num_pts,
+#             det.hdf1.num_capture, num_pts,
+#             det.cam.acquire_time, count_time,
+#             det.cam.acquire_period, count_time,
+#             det.hdf1.enable, 1,
+#             det.hdf1.capture, 1,
+#             det.cam.acquire, 1, 
+#         )
+
+#         yield from save_images(det, save_img, num_pts)
+
+#         softglue_8idi.acq_time.put(count_time)
+#         softglue_8idi.num_triggers.put(1)
+  
+#         start_pos = motor.position
+#         positions = np.linspace(start_pos + rel_begin, start_pos + rel_end, num_pts)
+#         pos_cache = {motor: None}
+
+#         def step_lambda(detectors, step, pos_cache, frame_num):
+#             yield from bps.move_per_step(step, pos_cache)
+#             target = det.cam.num_images.get() + 1
+#             softglue_8idi.start_pulses.put("1!") 
+#             while det.hdf1.num_capture.get() < target:
+#                 yield from bps.sleep(0.005)
+#             yield from bps.create("primary")
+#             yield from bps.read(motor)            
+#             yield from bps.save()
+
+#         def inner_lambda():            
+#             # Start pre-armed acquisition (accepts num_pts softglue triggers)
+#             shutteron()
+#             showbeam()
+#             try:
+#                 for ii, pos in enumerate(positions):
+#                     yield from step_lambda([det], {motor: pos}, pos_cache, ii + 1)
+#             finally:                
+#                 softglue_8idi.stop_pulses.put("1!")
+#                 det.cam.acquire.put(0)
+#                 det.hdf1.capture.put(0)
+#                 blockbeam()
+#                 yield from bps.mv(motor, start_pos)
+
+#         try:
+#             yield from bpp.stage_wrapper(
+#                 bpp.run_wrapper(inner_lambda()),
+#                 [motor], 
+#             )
+#         finally:
+#             det.cam.operating_mode.put(saved_op_mode)
+#             det.cam.trigger_mode.put(0)
+#             softglue_8id_acq.preset.put(50)
+#             blockbeam()
+#             shutteroff()
+#             print('# images captured: ', det.cam.num_images.get())
+#         return
+
+#     # Other area detectors (non-eiger, non-lambda)
+#     if not is_eiger:
+#         yield from bps.mv(
+#             det.cam.acquire_time, count_time,
+#             det.cam.acquire_period, count_time,
+#             det.cam.num_images, 1,
+#         )
+#         yield from save_images(det, save_img, num_pts)
+
+#         start_pos = motor.position
+#         positions = np.linspace(start_pos + rel_begin, start_pos + rel_end, num_pts)
+#         pos_cache = {motor: None}
+
+#         def inner_area_det():
+#             try:
+#                 for pos in positions:
+#                     yield from bps.move_per_step({motor: pos}, pos_cache)
+#                     yield from bps.trigger_and_read([det, motor])
+#             finally:
+#                 yield from bps.mv(motor, start_pos)
+
+#         yield from bpp.stage_wrapper(
+#             bpp.run_wrapper(inner_area_det()),
+#             [det, motor],
+#         )
+#         return
+
+#     # Eiger4M
+#     # Set timing first (save_images reads acquire_time for setup_eiger_int_series)
+#     yield from bps.mv(
+#         det.cam.acquire_time, count_time,
+#         det.cam.acquire_period, count_time,
+#     )
+#     yield from save_images(det, save_img, num_pts)
+
+#     # Correct settings after save_images (setup_eiger_int_series resets:
+#     # trigger_mode="Internal Series", num_triggers=1, manual_trigger="Disable",
+#     # hdf1.num_capture=1)
+#     yield from bps.mv(
+#         det.cam.trigger_mode, "Internal Enable",
+#         det.cam.manual_trigger, "Enable",
+#         det.cam.num_images, 1,
+#         det.cam.num_triggers, num_pts,
+#         det.hdf1.num_capture, num_pts,
+#     )
+
+#     # Patch stage_sigs for pre-armed / software-trigger mode
+#     cam_keys = ("trigger_mode", "manual_trigger", "num_triggers", "wait_for_plugins")
+#     saved = {k: det.cam.stage_sigs[k] for k in cam_keys if k in det.cam.stage_sigs}
+#     det.cam.stage_sigs["trigger_mode"] = "Internal Enable"
+#     det.cam.stage_sigs["manual_trigger"] = "Enable"
+#     det.cam.stage_sigs["num_triggers"] = num_pts
+#     det.cam.stage_sigs["wait_for_plugins"] = "No"
+
+#     start_pos = motor.position
+#     positions = np.linspace(start_pos + rel_begin, start_pos + rel_end, num_pts)
+#     pos_cache = {motor: None}
+
+#     def step(detectors, step, pos_cache):
+#         """Move motor, fire software trigger, wait for frame, read motor."""
+#         yield from bps.move_per_step(step, pos_cache)
+#         # target = det.cam.array_counter.get() + 1; print(target)
+#         target = det.cam.num_images.get() + 1; print(target) 
+#         det.cam.special_trigger_button.put(1, wait=False)
+#         # Wait for array_counter to confirm frame was acquired
+#         while det.cam.num_images.get() < target:
+#             yield from bps.sleep(0.005)
+#         yield from bps.create("primary")
+#         yield from bps.read(motor)
+#         yield from bps.save()
+
+#     def inner():
+#         # Start pre-armed acquisition (accepts num_pts software triggers)
+#         det.cam.acquire.put(1)
+#         try:
+#             for pos in positions:
+#                 yield from step([det], {motor: pos}, pos_cache)
+#         finally:
+#             # Wait for HDF to flush all frames before stage_wrapper unstages
+#             t0 = time.time()
+#             timeout = num_pts * count_time * 3 + 10
+#             while det.hdf1.num_captured.get() < num_pts:
+#                 yield from bps.sleep(0.05)
+#                 if time.time() - t0 > timeout:
+#                     print("WARNING: HDF write timeout — not all frames saved.")
+#                     break
+#             det.cam.acquire.put(0)
+#             yield from bps.mv(motor, start_pos)  # return to start position
+
+#     try:
+#         yield from bpp.stage_wrapper(
+#             bpp.run_wrapper(inner()),
+#             [det, motor],
+#         )
+#     finally:
+#         # Restore cam stage_sigs
+#         for k in cam_keys:
+#             if k in saved:
+#                 det.cam.stage_sigs[k] = saved[k]
+#             else:
+#                 det.cam.stage_sigs.pop(k, None)
+#         # Return detector to normal state: Internal Enable, manual trigger off
+#         det.cam.trigger_mode.put("Internal Enable")
+#         det.cam.manual_trigger.put("Disable")
+
 def dscan(motor, rel_begin, rel_end, num_pts, count_time,
                det=eiger4M, att_ratio=1e6, save_img=1):
     """
     Pre-armed software-trigger scan for fast acquisitions.
 
     For Eiger4M: Arms detector for all N frames upfront, then sends a software
-    trigger at each point via det.cam.special_trigger_button.
+    trigger at each point via det.cam.special_trigger_button. Eliminates
+    per-point wait_for_plugins overhead.
 
     For TetrAMM: No pre-arming (continuous mode). Steps through positions and
     reads the current value at each point. HDF capture is armed/stopped manually.
 
-    For Lambda2M: under construction 
+    For Lambda2M: simple step scan with cam timing set up per-point. No 
+    pre-arming (no software trigger support on those cams).
 
     args:
         motor: ophyd positioner
@@ -189,170 +422,108 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
         return
 
     # lambda2M 
-    # if is_lambda:
-
-    #     yield from bps.mv(
-    #         det.cam.acquire_time, count_time,
-    #         det.cam.acquire_period, count_time,
-    #         det.cam.num_images, 1,
-    #     )
-    #     yield from save_images(det, save_img, num_pts)
-
-    #     start_pos = motor.position
-    #     positions = np.linspace(start_pos + rel_begin, start_pos + rel_end, num_pts)
-    #     pos_cache = {motor: None}
-
-    #     def inner_area_det():
-    #         try:
-    #             for pos in positions:
-    #                 yield from bps.move_per_step({motor: pos}, pos_cache)
-    #                 yield from bps.trigger_and_read([det, motor])
-    #         finally:
-    #             yield from bps.mv(motor, start_pos)
-
-    #     yield from bpp.stage_wrapper(
-    #         bpp.run_wrapper(inner_area_det()),
-    #         [det, motor],
-    #     )
-    #     return
-
     if is_lambda:
-        
-        yield from save_images(det, save_img, num_pts)
-
         yield from bps.mv(
-            det.cam.operating_mode, 3, # 24-bit dual threshold mode
-            det.cam.trigger_mode, "External_ImagePer",
             det.cam.acquire_time, count_time,
             det.cam.acquire_period, count_time,
-            det.cam.num_images, num_pts,
-            det.hdf1.num_capture, num_pts,
+            det.cam.num_images, 1,
         )
+        yield from save_images(det, save_img, num_pts)
 
         start_pos = motor.position
         positions = np.linspace(start_pos + rel_begin, start_pos + rel_end, num_pts)
         pos_cache = {motor: None}
-        
-        shutteron()
-        showbeam()
 
-        def step_lambda(detectors, step, pos_cache, frame_num):
-            yield from bps.move_per_step(step, pos_cache)
-            target = det.hdf1.num_captured.get() + 1
-            softglue_8idi.start_pulses.put("1!") 
-            while det.hdf1.num_captured.get() < target:
-                yield from bps.sleep(0.005)
-            yield from bps.create("primary")
-            yield from bps.read(motor)            
-            yield from bps.save()
-
-        def inner_lambda():            
-        # Start pre-armed acquisition (accepts num_pts softglue triggers)
-            det.cam.acquire.put(1)
-            det.hdf1.capture.put(1)
-            # shutteron()
-            # showbeam()
+        def inner_area_det():
             try:
-                for ii, pos in enumerate(positions):
-                    yield from step_lambda([det], {motor: pos}, pos_cache, ii + 1)
-            finally:                
-                softglue_8idi.stop_pulses.put("1!")
-                det.cam.acquire.put(0)
-                det.hdf1.capture.put(0)
-                blockbeam()
+                for pos in positions:
+                    yield from bps.move_per_step({motor: pos}, pos_cache)
+                    yield from bps.trigger_and_read([det, motor])
+            finally:
                 yield from bps.mv(motor, start_pos)
 
-        try:
-            yield from bpp.stage_wrapper(
-                bpp.run_wrapper(inner_lambda()), [motor], 
-            )
-
-        finally:
-            det.cam.operating_mode.put(3)
-            det.cam.trigger_mode.put(0)
-            softglue_8id_acq.preset.put(50)
-            blockbeam()
-            shutteroff()
-            print('# images captured: ', det.cam.num_images.get())
+        yield from bpp.stage_wrapper(
+            bpp.run_wrapper(inner_area_det()),
+            [det, motor],
+        )
         return
 
     # eiger4M
-    if is_eiger:
-        # Set timing first (save_images reads acquire_time for setup_eiger_int_series)
-        yield from bps.mv(
-            det.cam.acquire_time, count_time,
-            det.cam.acquire_period, count_time,
-        )
-        yield from save_images(det, save_img, num_pts)
+    # Set timing first (save_images reads acquire_time for setup_eiger_int_series)
+    yield from bps.mv(
+        det.cam.acquire_time, count_time,
+        det.cam.acquire_period, count_time,
+    )
+    yield from save_images(det, save_img, num_pts)
 
-        # Correct settings after save_images (setup_eiger_int_series resets:
-        # trigger_mode="Internal Series", num_triggers=1, manual_trigger="Disable",
-        # hdf1.num_capture=1)
-        yield from bps.mv(
-            det.cam.trigger_mode, "Internal Enable",
-            det.cam.manual_trigger, "Enable",
-            det.cam.num_images, 1,
-            det.cam.num_triggers, num_pts,
-            det.hdf1.num_capture, num_pts,
-        )
+    # Correct settings after save_images (setup_eiger_int_series resets:
+    # trigger_mode="Internal Series", num_triggers=1, manual_trigger="Disable",
+    # hdf1.num_capture=1)
+    yield from bps.mv(
+        det.cam.trigger_mode, "Internal Enable",
+        det.cam.manual_trigger, "Enable",
+        det.cam.num_images, 1,
+        det.cam.num_triggers, num_pts,
+        det.hdf1.num_capture, num_pts,
+    )
 
-        # Patch stage_sigs for pre-armed software-trigger mode
-        cam_keys = ("trigger_mode", "manual_trigger", "num_triggers", "wait_for_plugins")
-        saved = {k: det.cam.stage_sigs[k] for k in cam_keys if k in det.cam.stage_sigs}
-        det.cam.stage_sigs["trigger_mode"] = "Internal Enable"
-        det.cam.stage_sigs["manual_trigger"] = "Enable"
-        det.cam.stage_sigs["num_triggers"] = num_pts
-        det.cam.stage_sigs["wait_for_plugins"] = "No"
+    # Patch stage_sigs for pre-armed software-trigger mode
+    cam_keys = ("trigger_mode", "manual_trigger", "num_triggers", "wait_for_plugins")
+    saved = {k: det.cam.stage_sigs[k] for k in cam_keys if k in det.cam.stage_sigs}
+    det.cam.stage_sigs["trigger_mode"] = "Internal Enable"
+    det.cam.stage_sigs["manual_trigger"] = "Enable"
+    det.cam.stage_sigs["num_triggers"] = num_pts
+    det.cam.stage_sigs["wait_for_plugins"] = "No"
 
-        start_pos = motor.position
-        positions = np.linspace(start_pos + rel_begin, start_pos + rel_end, num_pts)
-        pos_cache = {motor: None}
+    start_pos = motor.position
+    positions = np.linspace(start_pos + rel_begin, start_pos + rel_end, num_pts)
+    pos_cache = {motor: None}
 
-        def step(detectors, step, pos_cache):
-            """Move motor, fire software trigger, wait for frame, read motor."""
-            yield from bps.move_per_step(step, pos_cache)
-            target = det.cam.array_counter.get() + 1
-            det.cam.special_trigger_button.put(1, wait=False)
-            # Wait for array_counter to confirm frame was acquired
-            while det.cam.array_counter.get() < target:
-                yield from bps.sleep(0.005)
-            yield from bps.create("primary")
-            yield from bps.read(motor)
-            yield from bps.save()
+    def step(detectors, step, pos_cache):
+        """Move motor, fire software trigger, wait for frame, read motor."""
+        yield from bps.move_per_step(step, pos_cache)
+        target = det.cam.array_counter.get() + 1
+        det.cam.special_trigger_button.put(1, wait=False)
+        # Wait for array_counter to confirm frame was acquired
+        while det.cam.array_counter.get() < target:
+            yield from bps.sleep(0.005)
+        yield from bps.create("primary")
+        yield from bps.read(motor)
+        yield from bps.save()
 
-        def inner():
-            # Start pre-armed acquisition (accepts num_pts software triggers)
-            det.cam.acquire.put(1)
-            try:
-                for pos in positions:
-                    yield from step([det], {motor: pos}, pos_cache)
-            finally:
-                # Wait for HDF to flush all frames before stage_wrapper unstages
-                t0 = time.time()
-                timeout = num_pts * count_time * 3 + 10
-                while det.hdf1.num_captured.get() < num_pts:
-                    yield from bps.sleep(0.05)
-                    if time.time() - t0 > timeout:
-                        print("WARNING: HDF write timeout — not all frames saved.")
-                        break
-                det.cam.acquire.put(0)
-                yield from bps.mv(motor, start_pos)  # return to start position
-
+    def inner():
+        # Start pre-armed acquisition (accepts num_pts software triggers)
+        det.cam.acquire.put(1)
         try:
-            yield from bpp.stage_wrapper(
-                bpp.run_wrapper(inner()),
-                [det, motor],
-            )
+            for pos in positions:
+                yield from step([det], {motor: pos}, pos_cache)
         finally:
-            # Restore cam stage_sigs
-            for k in cam_keys:
-                if k in saved:
-                    det.cam.stage_sigs[k] = saved[k]
-                else:
-                    det.cam.stage_sigs.pop(k, None)
-            # Return detector to normal state: Internal Enable, manual trigger off
-            det.cam.trigger_mode.put("Internal Enable")
-            det.cam.manual_trigger.put("Disable")
+            # Wait for HDF to flush all frames before stage_wrapper unstages
+            t0 = time.time()
+            timeout = num_pts * count_time * 3 + 10
+            while det.hdf1.num_captured.get() < num_pts:
+                yield from bps.sleep(0.05)
+                if time.time() - t0 > timeout:
+                    print("WARNING: HDF write timeout — not all frames saved.")
+                    break
+            det.cam.acquire.put(0)
+            yield from bps.mv(motor, start_pos)  # return to start position
+
+    try:
+        yield from bpp.stage_wrapper(
+            bpp.run_wrapper(inner()),
+            [det, motor],
+        )
+    finally:
+        # Restore cam stage_sigs
+        for k in cam_keys:
+            if k in saved:
+                det.cam.stage_sigs[k] = saved[k]
+            else:
+                det.cam.stage_sigs.pop(k, None)
+        # Return detector to normal state: Internal Enable, manual trigger off
+        det.cam.trigger_mode.put("Internal Enable")
+        det.cam.manual_trigger.put("Disable")
 
 
 def d2scan(

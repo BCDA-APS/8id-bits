@@ -218,8 +218,6 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
 
     if is_lambda:
         
-        yield from save_images(det, save_img, num_pts)
-
         yield from bps.mv(
             det.cam.operating_mode, 3, # 24-bit dual threshold mode
             det.cam.trigger_mode, "External_ImagePer",
@@ -228,19 +226,19 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
             det.cam.num_images, num_pts,
             det.hdf1.num_capture, num_pts,
         )
+        
+        yield from save_images(det, save_img, num_pts)
+        # print(det.cam.num_triggers.get())
 
         start_pos = motor.position
         positions = np.linspace(start_pos + rel_begin, start_pos + rel_end, num_pts)
         pos_cache = {motor: None}
-        
-        shutteron()
-        showbeam()
 
         def step_lambda(detectors, step, pos_cache, frame_num):
             yield from bps.move_per_step(step, pos_cache)
-            target = det.hdf1.num_captured.get() + 1
+            target = det.cam.num_images.get() + 1
             softglue_8idi.start_pulses.put("1!") 
-            while det.hdf1.num_captured.get() < target:
+            while det.hdf1.num_capture.get() < target:
                 yield from bps.sleep(0.005)
             yield from bps.create("primary")
             yield from bps.read(motor)            
@@ -248,10 +246,8 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
 
         def inner_lambda():            
         # Start pre-armed acquisition (accepts num_pts softglue triggers)
-            det.cam.acquire.put(1)
-            det.hdf1.capture.put(1)
-            # shutteron()
-            # showbeam()
+            shutteron()
+            showbeam()
             try:
                 for ii, pos in enumerate(positions):
                     yield from step_lambda([det], {motor: pos}, pos_cache, ii + 1)
@@ -264,7 +260,8 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
 
         try:
             yield from bpp.stage_wrapper(
-                bpp.run_wrapper(inner_lambda()), [motor], 
+                bpp.run_wrapper(inner_lambda()),
+                [motor], 
             )
 
         finally:
