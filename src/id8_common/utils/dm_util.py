@@ -31,7 +31,7 @@ def dm_setup() -> tuple:
     return workflowProcApi, dmuser
 
 
-def dm_run_job(workflowProcApi: WorkflowProcApi, dmuser: str):
+def dm_run_job(workflowProcApi: WorkflowProcApi, dmuser: str, file_name: str):
     """Submit a job to the Data Management system."""
 
     analysis_machine = pv_registers.analysis_machine.get()
@@ -45,7 +45,7 @@ def dm_run_job(workflowProcApi: WorkflowProcApi, dmuser: str):
         workflow_name = pv_registers.workflow_name.get()
         analysis_machine = pv_registers.analysis_machine.get()
         analysis_type = pv_registers.analysis_type.get()
-        file_name = pv_registers.file_name.get()
+        # file_name = pv_registers.file_name.get()
         use_subfolder = pv_registers.use_subfolder.get()
 
         if det_name == "rigaku3M":
@@ -66,7 +66,7 @@ def dm_run_job(workflowProcApi: WorkflowProcApi, dmuser: str):
             gpuID = -2
             machine_name = get_machine_name()
         else:
-            gpuID = -2
+            gpuID = -1
             machine_name = analysis_machine
 
         if use_subfolder == "Yes":
@@ -91,25 +91,6 @@ def dm_run_job(workflowProcApi: WorkflowProcApi, dmuser: str):
             #"suffix": "suffix_added",
             # "downloadDirectory": f"/home/8-id-i/{cycle_name}/{exp_name}/analysis/{analysis_type}/"
         }
-
-        argsDict1 = {
-            "experimentName": exp_name,
-            "filePath": filepath,
-            "qmap": "D0053_qmap_peak2_ellipse_S30x1_D1x1_new.hdf",
-            "analysisMachine": machine_name,
-            "gpuID": gpuID,
-            "demand": "True",
-            "type": analysis_type,
-            "saveG2": "False",
-            "download": "False",
-            "useSubdir": use_subfolder_flag,
-            "suffix": "Peak2",
-            "normalizeFrame": "False"
-            # "downloadDirectory": f"/home/8-id-i/{cycle_name}/{exp_name}/analysis/{analysis_type}/"
-        }
         
         job = workflowProcApi.startProcessingJob(dmuser, f"{workflow_name}", argsDict=argsDict)
-        print(f"Job {job['id']} processing qmap1: {file_name}")
-
-        #job1 = workflowProcApi.startProcessingJob(dmuser, f"{workflow_name}", argsDict=argsDict1)
-        #print(f"Job {job1['id']} processing qmap2: {file_name}")
+        print(f"Job {job['id']}")

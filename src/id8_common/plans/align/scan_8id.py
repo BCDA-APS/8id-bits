@@ -227,6 +227,9 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
             det.cam.acquire_period, count_time,
             det.cam.num_images, num_pts,
             det.hdf1.num_capture, num_pts,
+            softglue_8idi.num_triggers, num_pts+1,
+            softglue_8idi.acq_time, count_time,
+            softglue_8idi.acq_period, count_time+0.01,
         )
 
         start_pos = motor.position

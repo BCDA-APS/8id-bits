@@ -424,8 +424,6 @@ def det_acq_series(
     header_name = f"{header}{meas_num:04d}"
     file_header = f"{header_name}_{sample_name}_a{int(att_level):04d}_f{num_frames:06d}"
 
-    pv_registers.sample_name.put(sample_name)
-
     for rep in range(num_reps):
         ttime.sleep(wait_time)
 
@@ -463,7 +461,8 @@ def det_acq_series(
 
         create_nexus_format_metadata(metadata_fname, det=det)
 
-        dm_run_job(workflowProcApi, dmuser)
+        # pv_registers.file_name.put(file_name)   # Needed by DM. DM knows the path so file name only
+        dm_run_job(workflowProcApi, dmuser, file_name)
 
     pv_registers.measurement_num.put(meas_num + 1)
 
