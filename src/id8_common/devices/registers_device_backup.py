@@ -15,31 +15,27 @@ class EpicsPvStorageRegisters(Device):
     and parameters during beamline operation.
     """
 
-    cycle_name = Component(EpicsSignal, "StrReg1", string=True)
-    geometry = Component(EpicsSignal, "StrReg2", string=True)
-    mount_point = Component(EpicsSignal, "StrReg3", string=True)
-    experiment_name = Component(EpicsSignal, "StrReg4", string=True)
-    analysis_machine = Component(EpicsSignal, "StrReg5", string=True)
+    sample_name = Component(EpicsSignal, "StrReg1", string=True)
+    det_name = Component(EpicsSignal, "StrReg2", string=True)
+    file_name = Component(EpicsSignal, "StrReg3", string=True)
+    metadata_full_path = Component(EpicsSignal, "StrReg4", string=True)
+    file_path = Component(EpicsSignal, "StrReg5", string=True)
+    
 
-    workflow_name = Component(EpicsSignal, "StrReg6", string=True)
-    use_subfolder = Component(EpicsSignal, "StrReg7", string=True)
+    experiment_name = Component(EpicsSignal, "StrReg6", string=True)
+    # spec_file = Component(EpicsSignal, "StrReg7", string=True)
+    mount_point = Component(EpicsSignal, "StrReg8", string=True)
+    cycle_name = Component(EpicsSignal, "StrReg9", string=True)
+    qmap_file = Component(EpicsSignal, "StrReg10", string=True)
 
-    header = Component(EpicsSignal, "StrReg11", string=True)
-    det_name = Component(EpicsSignal, "StrReg12", string=True)
-    det_mode = Component(EpicsSignal, "StrReg13", string=True)
-    sample_name = Component(EpicsSignal, "StrReg14", string=True)
-    analysis_type = Component(EpicsSignal, "StrReg15", string=True)
-
-    qmap_file = Component(EpicsSignal, "StrReg16", string=True)
+    analysis_machine = Component(EpicsSignal, "StrReg11", string=True)
+    workflow_name = Component(EpicsSignal, "StrReg12", string=True)
+    use_subfolder = Component(EpicsSignal, "StrReg13", string=True)
+    analysis_type = Component(EpicsSignal, "StrReg14", string=True)
 
     measurement_num = Component(EpicsSignal, "Reg1")
-    acq_time = Component(EpicsSignal, "Reg2")
-    acq_period = Component(EpicsSignal, "Reg3")
-    num_frames = Component(EpicsSignal, "Reg4")
-    num_repeats = Component(EpicsSignal, "Reg5")
-
-    # qnw_index = Component(EpicsSignal, "Reg2")
-
+    qnw_index = Component(EpicsSignal, "Reg2")
+    sample0_pos = Component(EpicsSignal, "Reg3")
     sample1_pos = Component(EpicsSignal, "Reg11")
     sample2_pos = Component(EpicsSignal, "Reg12")
     sample3_pos = Component(EpicsSignal, "Reg13")
@@ -98,14 +94,14 @@ class EpicsPvStorageRegisters(Device):
 
     # det_pixel_size = Component(EpicsSignal, "Reg60")
 
-    # def sample_position_register(self, qnw_index):
-    #     """
-    #     Return the indexed sample position register signal.
+    def sample_position_register(self, qnw_index):
+        """
+        Return the indexed sample position register signal.
 
-    #     """
-    #     # if qnw_index <= 9:
-    #     #     return getattr(self, f"sample{qnw_index}_pos")
-    #     # else:
-    #     #     return getattr(self, f"sample9_pos")
+        """
+        # if qnw_index <= 9:
+        #     return getattr(self, f"sample{qnw_index}_pos")
+        # else:
+        #     return getattr(self, f"sample9_pos")
 
-    #     return getattr(self, f"sample{qnw_index}_pos")
+        return getattr(self, f"sample{qnw_index}_pos")

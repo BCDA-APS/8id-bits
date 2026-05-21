@@ -188,34 +188,6 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
                 print("TetrAMM HDF capture stopped.")
         return
 
-    # lambda2M 
-    # if is_lambda:
-
-    #     yield from bps.mv(
-    #         det.cam.acquire_time, count_time,
-    #         det.cam.acquire_period, count_time,
-    #         det.cam.num_images, 1,
-    #     )
-    #     yield from save_images(det, save_img, num_pts)
-
-    #     start_pos = motor.position
-    #     positions = np.linspace(start_pos + rel_begin, start_pos + rel_end, num_pts)
-    #     pos_cache = {motor: None}
-
-    #     def inner_area_det():
-    #         try:
-    #             for pos in positions:
-    #                 yield from bps.move_per_step({motor: pos}, pos_cache)
-    #                 yield from bps.trigger_and_read([det, motor])
-    #         finally:
-    #             yield from bps.mv(motor, start_pos)
-
-    #     yield from bpp.stage_wrapper(
-    #         bpp.run_wrapper(inner_area_det()),
-    #         [det, motor],
-    #     )
-    #     return
-
     if is_lambda:
         
         yield from save_images(det, save_img, num_pts)
@@ -227,9 +199,9 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
             det.cam.acquire_period, count_time,
             det.cam.num_images, num_pts,
             det.hdf1.num_capture, num_pts,
-            softglue_8idi.num_triggers, num_pts+1,
+            softglue_8idi.num_triggers, 1,
             softglue_8idi.acq_time, count_time,
-            softglue_8idi.acq_period, count_time+0.01,
+            softglue_8idi.acq_period, count_time,
         )
 
         start_pos = motor.position
@@ -239,25 +211,23 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
         shutteron()
         showbeam()
 
-        def step_lambda(detectors, step, pos_cache, frame_num):
+        def step_lambda(step, pos_cache):
             yield from bps.move_per_step(step, pos_cache)
             target = det.hdf1.num_captured.get() + 1
-            softglue_8idi.start_pulses.put("1!") 
+            softglue_8idi.start_pulses.put("1!")
             while det.hdf1.num_captured.get() < target:
                 yield from bps.sleep(0.005)
             yield from bps.create("primary")
-            yield from bps.read(motor)            
+            yield from bps.read(motor)
             yield from bps.save()
 
-        def inner_lambda():            
+        def inner_lambda():
         # Start pre-armed acquisition (accepts num_pts softglue triggers)
             det.cam.acquire.put(1)
             det.hdf1.capture.put(1)
-            # shutteron()
-            # showbeam()
             try:
-                for ii, pos in enumerate(positions):
-                    yield from step_lambda([det], {motor: pos}, pos_cache, ii + 1)
+                for pos in positions:
+                    yield from step_lambda({motor: pos}, pos_cache)
             finally:                
                 softglue_8idi.stop_pulses.put("1!")
                 det.cam.acquire.put(0)

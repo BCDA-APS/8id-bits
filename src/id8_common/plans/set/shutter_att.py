@@ -58,4 +58,4 @@ def att(att_ratio: float=1.0):
     else:
         pass
     filter_beam.attenuation.move(att_ratio)
-    time.sleep(5)
+    time.sleep(0.5)

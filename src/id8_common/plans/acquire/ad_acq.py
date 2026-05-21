@@ -57,6 +57,40 @@ def get_sample_position_register(move_index_register):
     return getattr(pv_registers, register_name)
 
 
+def gen_folder_prefix():
+    """
+    Generate folder prefix from registers and current attenuation.
+
+    Uses:
+        pv_registers.header
+        pv_registers.measurement_num
+        pv_registers.sample_name
+        filter_8ide.attenuation.readback
+
+    Example:
+        header = "A"
+        measurement_num = 12
+        sample_name = "G10"
+        attenuation = 7
+
+        returns "A0012_G10_a0007"
+
+    The measurement number increments once per call.
+    """
+    filter_beam = get_connected_device("filter_8ide")
+
+    header = pv_registers.header.get()
+    meas_num = int(pv_registers.measurement_num.get())
+    sample_name = pv_registers.sample_name.get()
+    att_level = int(filter_beam.attenuation.readback.get())
+
+    folder_prefix = f"{header}{meas_num:04d}_{sample_name}_a{att_level:04d}"
+
+    pv_registers.measurement_num.put(meas_num + 1)
+
+    return folder_prefix
+
+
 def get_common_file_path(file_header, file_name):
     cycle_name = pv_registers.cycle_name.get()
     exp_name = pv_registers.experiment_name.get()
@@ -100,9 +134,9 @@ def sample_mesh_move(axis_inner, axis_outer, move_index_register=0):
     Move to the next point in a 2D mesh.
 
     move_index_register:
-        0  -> no sample motion and no register update
-        8  -> use pv_registers.sample8_pos
-        10 -> use pv_registers.sample10_pos
+        0 -> no sample motion and no register update
+        1 -> use pv_registers.sample1_pos
+        2 -> use pv_registers.sample2_pos
 
     The register stores the last used zero-based mesh index.
     The inner axis moves fastest.
@@ -359,16 +393,7 @@ ACQ_MODES = {
 # =============================================================================
 
 def det_acq_series(
-    detector="eiger4M",
-    mode="Internal Series",
-    att_level=1,
-    acq_time=1,
-    acq_period=None,
-    num_frames=10,
-    num_reps=1,
     wait_time=0,
-    header="A",
-    sample_name="sample",
     move_index_register=0,
     axis_inner=None,
     axis_outer=None,
@@ -376,37 +401,43 @@ def det_acq_series(
     """
     Run repeated detector acquisitions.
 
-    detector:
-        "eiger4M"
-        "lambda2M"
-        "rigaku3M"
+    Values read from registers:
+        pv_registers.det_name
+        pv_registers.det_mode
+        pv_registers.header
+        pv_registers.sample_name
+        pv_registers.measurement_num
+        pv_registers.acq_time
+        pv_registers.acq_period
+        pv_registers.num_frames
+        pv_registers.num_repeats
 
-    mode:
-        eiger4M  : "Internal Series", "External Enable"
-        lambda2M : "Internal"
-        rigaku3M : "ZDT"
-
-    att_level:
-        Attenuation level passed to att(att_level).
-
-    acq_period:
-        Required only for detector="eiger4M", mode="External Enable".
+    wait_time:
+        Wait time before each repeated acquisition.
 
     move_index_register:
         0 means no sample motion.
         Nonzero integer N means use pv_registers.sampleN_pos.
 
-    measurement_num:
-        Read from pv_registers.measurement_num.
-        If header="A" and measurement_num=12, file_header starts with A0012.
-        The register increments once per det_acq_series() call.
-    """
+    File naming:
+        gen_folder_prefix() generates:
+            A0012_G10_a0007
 
+        det_acq_series() appends:
+            _f001000
+            _r00001
+    """
     post_align()
     shutteroff()
-    att(att_level)
 
     workflowProcApi, dmuser = dm_setup()
+
+    detector = pv_registers.det_name.get().strip()
+    mode = pv_registers.det_mode.get().strip()
+    acq_time = float(pv_registers.acq_time.get())
+    acq_period = float(pv_registers.acq_period.get())
+    num_frames = int(pv_registers.num_frames.get())
+    num_reps = int(pv_registers.num_repeats.get())
 
     mode_info = ACQ_MODES[detector][mode]
 
@@ -420,9 +451,8 @@ def det_acq_series(
     setup_func = mode_info["setup"]
     acquire_func = mode_info["acquire"]
 
-    meas_num = int(pv_registers.measurement_num.get())
-    header_name = f"{header}{meas_num:04d}"
-    file_header = f"{header_name}_{sample_name}_a{int(att_level):04d}_f{num_frames:06d}"
+    folder_prefix = gen_folder_prefix()
+    file_header = f"{folder_prefix}_f{num_frames:06d}"
 
     for rep in range(num_reps):
         ttime.sleep(wait_time)
@@ -461,30 +491,47 @@ def det_acq_series(
 
         create_nexus_format_metadata(metadata_fname, det=det)
 
-        # pv_registers.file_name.put(file_name)   # Needed by DM. DM knows the path so file name only
         dm_run_job(workflowProcApi, dmuser, file_name)
-
-    pv_registers.measurement_num.put(meas_num + 1)
 
 
 # =============================================================================
 # Example use cases
 # =============================================================================
 
+# Before running, populate the registers. Your current register device defines:
+#     det_name, det_mode, header, sample_name,
+#     measurement_num, acq_time, acq_period, num_frames, num_repeats.
+#
+# Example register setup:
+#
+# pv_registers.header.put("A")
+# pv_registers.sample_name.put("G10")
+# pv_registers.measurement_num.put(12)
+# pv_registers.det_name.put("eiger4M")
+# pv_registers.det_mode.put("Internal Series")
+# pv_registers.acq_time.put(0.1)
+# pv_registers.acq_period.put(0.1)
+# pv_registers.num_frames.put(1000)
+# pv_registers.num_repeats.put(5)
+#
+# With att_level=7, the file prefix becomes:
+#     A0012_G10_a0007_f001000
+
+
 # -----------------------------------------------------------------------------
 # Example 1: Eiger internal, no sample motion
 # -----------------------------------------------------------------------------
 #
+# pv_registers.det_name.put("eiger4M")
+# pv_registers.det_mode.put("Internal Series")
+# pv_registers.acq_time.put(0.1)
+# pv_registers.acq_period.put(0.1)
+# pv_registers.num_frames.put(1000)
+# pv_registers.num_repeats.put(5)
+#
 # det_acq_series(
-#     detector="eiger4M",
-#     mode="Internal Series",
 #     att_level=7,
-#     acq_time=0.1,
-#     num_frames=1000,
-#     num_reps=5,
 #     wait_time=0,
-#     header="A",
-#     sample_name="G10",
 #     move_index_register=0,
 #     axis_inner={
 #         "motor": "sample.x",
@@ -505,17 +552,17 @@ def det_acq_series(
 # Example 2: Eiger internal, fresh sample spot before every repeat
 # -----------------------------------------------------------------------------
 #
+# pv_registers.det_name.put("eiger4M")
+# pv_registers.det_mode.put("Internal Series")
+# pv_registers.acq_time.put(0.1)
+# pv_registers.acq_period.put(0.1)
+# pv_registers.num_frames.put(1000)
+# pv_registers.num_repeats.put(20)
+#
 # det_acq_series(
-#     detector="eiger4M",
-#     mode="Internal Series",
 #     att_level=7,
-#     acq_time=0.1,
-#     num_frames=1000,
-#     num_reps=20,
 #     wait_time=0,
-#     header="A",
-#     sample_name="G10",
-#     move_index_register=8,
+#     move_index_register=1,
 #     axis_inner={
 #         "motor": "sample.x",
 #         "min": -1,
@@ -535,18 +582,17 @@ def det_acq_series(
 # Example 3: Eiger external enable mode
 # -----------------------------------------------------------------------------
 #
+# pv_registers.det_name.put("eiger4M")
+# pv_registers.det_mode.put("External Enable")
+# pv_registers.acq_time.put(0.1)
+# pv_registers.acq_period.put(1.0)
+# pv_registers.num_frames.put(1000)
+# pv_registers.num_repeats.put(10)
+#
 # det_acq_series(
-#     detector="eiger4M",
-#     mode="External Enable",
 #     att_level=7,
-#     acq_time=0.1,
-#     acq_period=1.0,
-#     num_frames=1000,
-#     num_reps=10,
 #     wait_time=0,
-#     header="A",
-#     sample_name="G10",
-#     move_index_register=8,
+#     move_index_register=1,
 #     axis_inner={
 #         "motor": "sample.x",
 #         "min": -1,
@@ -566,17 +612,17 @@ def det_acq_series(
 # Example 4: Lambda internal
 # -----------------------------------------------------------------------------
 #
+# pv_registers.det_name.put("lambda2M")
+# pv_registers.det_mode.put("Internal")
+# pv_registers.acq_time.put(0.1)
+# pv_registers.acq_period.put(0.1)
+# pv_registers.num_frames.put(1000)
+# pv_registers.num_repeats.put(20)
+#
 # det_acq_series(
-#     detector="lambda2M",
-#     mode="Internal",
 #     att_level=7,
-#     acq_time=0.1,
-#     num_frames=1000,
-#     num_reps=20,
 #     wait_time=0,
-#     header="A",
-#     sample_name="G10",
-#     move_index_register=8,
+#     move_index_register=1,
 #     axis_inner={
 #         "motor": "sample.x",
 #         "min": -1,
@@ -596,16 +642,16 @@ def det_acq_series(
 # Example 5: Rigaku ZDT
 # -----------------------------------------------------------------------------
 #
+# pv_registers.det_name.put("rigaku3M")
+# pv_registers.det_mode.put("ZDT")
+# pv_registers.acq_time.put(2e-5)
+# pv_registers.acq_period.put(2e-5)
+# pv_registers.num_frames.put(100000)
+# pv_registers.num_repeats.put(5)
+#
 # det_acq_series(
-#     detector="rigaku3M",
-#     mode="ZDT",
 #     att_level=7,
-#     acq_time=2e-5,
-#     num_frames=100000,
-#     num_reps=5,
 #     wait_time=0,
-#     header="A",
-#     sample_name="G10",
 #     move_index_register=0,
 #     axis_inner={
 #         "motor": "sample.x",
