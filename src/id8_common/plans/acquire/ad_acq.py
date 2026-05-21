@@ -52,8 +52,8 @@ def get_ophyd_object(name):
     return obj
 
 
-def get_sample_position_register(move_index_register):
-    register_name = f"sample{move_index_register}_pos"
+def get_sample_position_register(sample_index):
+    register_name = f"sample{sample_index}_pos"
     return getattr(pv_registers, register_name)
 
 
@@ -79,9 +79,9 @@ def gen_folder_prefix():
     """
     filter_beam = get_connected_device("filter_8ide")
 
-    header = pv_registers.header.get()
+    header = pv_registers.header.get().strip()
     meas_num = int(pv_registers.measurement_num.get())
-    sample_name = pv_registers.sample_name.get()
+    sample_name = pv_registers.sample_name.get().strip()
     att_level = int(filter_beam.attenuation.readback.get())
 
     folder_prefix = f"{header}{meas_num:04d}_{sample_name}_a{att_level:04d}"
@@ -129,30 +129,70 @@ def get_rigaku_file_path(file_header, file_name):
 # Sample motion
 # =============================================================================
 
-def sample_mesh_move(axis_inner, axis_outer, move_index_register=0):
+def sample_mesh_move():
     """
     Move to the next point in a 2D mesh.
 
-    move_index_register:
-        0 -> no sample motion and no register update
+    Values read from registers:
+        pv_registers.sample_move
+        pv_registers.sample_index
+        pv_registers.inner_motor
+        pv_registers.outer_motor
+        pv_registers.inner_center
+        pv_registers.outer_center
+        pv_registers.inner_range
+        pv_registers.outer_range
+        pv_registers.inner_pts
+        pv_registers.outer_pts
+
+    sample_move:
+        "Yes" -> move sample
+        "No"  -> no sample motion and no position-register update
+
+    sample_index:
         1 -> use pv_registers.sample1_pos
         2 -> use pv_registers.sample2_pos
+        ...
 
-    The register stores the last used zero-based mesh index.
+    The position register stores the last used zero-based mesh index.
     The inner axis moves fastest.
+
+    inner_range and outer_range are interpreted as full scan widths.
     """
-    if move_index_register == 0:
+    sample_move = pv_registers.sample_move.get().strip()
+
+    if sample_move != "Yes":
         return
 
-    sample_position_register = get_sample_position_register(move_index_register)
+    sample_index = int(pv_registers.sample_index.get())
+    sample_position_register = get_sample_position_register(sample_index)
     last_index = int(sample_position_register.get())
 
-    inner_pts = int(axis_inner["pts"])
-    outer_pts = int(axis_outer["pts"])
+    inner_motor_name = pv_registers.inner_motor.get().strip()
+    outer_motor_name = pv_registers.outer_motor.get().strip()
+
+    inner_center = float(pv_registers.inner_center.get())
+    outer_center = float(pv_registers.outer_center.get())
+
+    inner_range = float(pv_registers.inner_range.get())
+    outer_range = float(pv_registers.outer_range.get())
+
+    inner_pts = int(pv_registers.inner_pts.get())
+    outer_pts = int(pv_registers.outer_pts.get())
+
     total_pts = inner_pts * outer_pts
 
-    inner_positions = np.linspace(axis_inner["min"], axis_inner["max"], inner_pts)
-    outer_positions = np.linspace(axis_outer["min"], axis_outer["max"], outer_pts)
+    inner_positions = np.linspace(
+        inner_center - inner_range / 2,
+        inner_center + inner_range / 2,
+        inner_pts,
+    )
+
+    outer_positions = np.linspace(
+        outer_center - outer_range / 2,
+        outer_center + outer_range / 2,
+        outer_pts,
+    )
 
     pos_index = (last_index + 1) % total_pts
 
@@ -162,8 +202,8 @@ def sample_mesh_move(axis_inner, axis_outer, move_index_register=0):
     inner_pos = inner_positions[inner_index]
     outer_pos = outer_positions[outer_index]
 
-    inner_motor = get_ophyd_object(axis_inner["motor"])
-    outer_motor = get_ophyd_object(axis_outer["motor"])
+    inner_motor = get_ophyd_object(inner_motor_name)
+    outer_motor = get_ophyd_object(outer_motor_name)
 
     print(f"Moving {outer_motor.name} to {outer_pos}")
     outer_motor.move(outer_pos)
@@ -392,12 +432,7 @@ ACQ_MODES = {
 # Main user-facing acquisition function
 # =============================================================================
 
-def det_acq_series(
-    wait_time=0,
-    move_index_register=0,
-    axis_inner=None,
-    axis_outer=None,
-):
+def det_acq_series(wait_time=0):
     """
     Run repeated detector acquisitions.
 
@@ -412,12 +447,24 @@ def det_acq_series(
         pv_registers.num_frames
         pv_registers.num_repeats
 
+    Sample motion values read from registers:
+        pv_registers.sample_move
+        pv_registers.sample_index
+        pv_registers.inner_motor
+        pv_registers.outer_motor
+        pv_registers.inner_center
+        pv_registers.outer_center
+        pv_registers.inner_range
+        pv_registers.outer_range
+        pv_registers.inner_pts
+        pv_registers.outer_pts
+
+    sample_move:
+        "Yes" -> sample moves before each repeat
+        "No"  -> sample does not move
+
     wait_time:
         Wait time before each repeated acquisition.
-
-    move_index_register:
-        0 means no sample motion.
-        Nonzero integer N means use pv_registers.sampleN_pos.
 
     File naming:
         gen_folder_prefix() generates:
@@ -434,15 +481,13 @@ def det_acq_series(
 
     detector = pv_registers.det_name.get().strip()
     mode = pv_registers.det_mode.get().strip()
+
     acq_time = float(pv_registers.acq_time.get())
     acq_period = float(pv_registers.acq_period.get())
     num_frames = int(pv_registers.num_frames.get())
     num_reps = int(pv_registers.num_repeats.get())
 
     mode_info = ACQ_MODES[detector][mode]
-
-    if mode_info["needs_acq_period"] and acq_period is None:
-        raise ValueError("This mode requires acq_period.")
 
     for device_name in mode_info["required_devices"]:
         get_connected_device(device_name)
@@ -457,11 +502,7 @@ def det_acq_series(
     for rep in range(num_reps):
         ttime.sleep(wait_time)
 
-        sample_mesh_move(
-            axis_inner=axis_inner,
-            axis_outer=axis_outer,
-            move_index_register=move_index_register,
-        )
+        sample_mesh_move()
 
         file_name = f"{file_header}_r{rep + 1:05d}"
 
@@ -499,29 +540,25 @@ def det_acq_series(
 # =============================================================================
 
 # Before running, populate the registers. Your current register device defines:
-#     det_name, det_mode, header, sample_name,
-#     measurement_num, acq_time, acq_period, num_frames, num_repeats.
-#
-# Example register setup:
-#
-# pv_registers.header.put("A")
-# pv_registers.sample_name.put("G10")
-# pv_registers.measurement_num.put(12)
-# pv_registers.det_name.put("eiger4M")
-# pv_registers.det_mode.put("Internal Series")
-# pv_registers.acq_time.put(0.1)
-# pv_registers.acq_period.put(0.1)
-# pv_registers.num_frames.put(1000)
-# pv_registers.num_repeats.put(5)
-#
-# With att_level=7, the file prefix becomes:
-#     A0012_G10_a0007_f001000
+#     det_name, det_mode,
+#     header, sample_name, measurement_num,
+#     acq_time, acq_period, num_frames, num_repeats,
+#     sample_move,
+#     sample_index,
+#     inner_motor, outer_motor,
+#     inner_center, outer_center,
+#     inner_range, outer_range,
+#     inner_pts, outer_pts.
 
 
 # -----------------------------------------------------------------------------
 # Example 1: Eiger internal, no sample motion
 # -----------------------------------------------------------------------------
 #
+# pv_registers.header.put("A")
+# pv_registers.sample_name.put("G10")
+# pv_registers.measurement_num.put(12)
+#
 # pv_registers.det_name.put("eiger4M")
 # pv_registers.det_mode.put("Internal Series")
 # pv_registers.acq_time.put(0.1)
@@ -529,28 +566,18 @@ def det_acq_series(
 # pv_registers.num_frames.put(1000)
 # pv_registers.num_repeats.put(5)
 #
-# det_acq_series(
-#     att_level=7,
-#     wait_time=0,
-#     move_index_register=0,
-#     axis_inner={
-#         "motor": "sample.x",
-#         "min": -1,
-#         "max": 1,
-#         "pts": 21,
-#     },
-#     axis_outer={
-#         "motor": "sample.y",
-#         "min": -1,
-#         "max": 1,
-#         "pts": 21,
-#     },
-# )
+# pv_registers.sample_move.put("No")
+#
+# det_acq_series(wait_time=0)
 
 
 # -----------------------------------------------------------------------------
 # Example 2: Eiger internal, fresh sample spot before every repeat
 # -----------------------------------------------------------------------------
+#
+# pv_registers.header.put("A")
+# pv_registers.sample_name.put("G10")
+# pv_registers.measurement_num.put(12)
 #
 # pv_registers.det_name.put("eiger4M")
 # pv_registers.det_mode.put("Internal Series")
@@ -559,28 +586,29 @@ def det_acq_series(
 # pv_registers.num_frames.put(1000)
 # pv_registers.num_repeats.put(20)
 #
-# det_acq_series(
-#     att_level=7,
-#     wait_time=0,
-#     move_index_register=1,
-#     axis_inner={
-#         "motor": "sample.x",
-#         "min": -1,
-#         "max": 1,
-#         "pts": 21,
-#     },
-#     axis_outer={
-#         "motor": "sample.y",
-#         "min": -1,
-#         "max": 1,
-#         "pts": 21,
-#     },
-# )
+# pv_registers.sample_move.put("Yes")
+# pv_registers.sample_index.put(1)
+# pv_registers.sample1_pos.put(-1)
+#
+# pv_registers.inner_motor.put("sample.x")
+# pv_registers.outer_motor.put("sample.y")
+# pv_registers.inner_center.put(0)
+# pv_registers.outer_center.put(0)
+# pv_registers.inner_range.put(2)
+# pv_registers.outer_range.put(2)
+# pv_registers.inner_pts.put(21)
+# pv_registers.outer_pts.put(21)
+#
+# det_acq_series(wait_time=0)
 
 
 # -----------------------------------------------------------------------------
 # Example 3: Eiger external enable mode
 # -----------------------------------------------------------------------------
+#
+# pv_registers.header.put("A")
+# pv_registers.sample_name.put("G10")
+# pv_registers.measurement_num.put(12)
 #
 # pv_registers.det_name.put("eiger4M")
 # pv_registers.det_mode.put("External Enable")
@@ -589,28 +617,29 @@ def det_acq_series(
 # pv_registers.num_frames.put(1000)
 # pv_registers.num_repeats.put(10)
 #
-# det_acq_series(
-#     att_level=7,
-#     wait_time=0,
-#     move_index_register=1,
-#     axis_inner={
-#         "motor": "sample.x",
-#         "min": -1,
-#         "max": 1,
-#         "pts": 21,
-#     },
-#     axis_outer={
-#         "motor": "sample.y",
-#         "min": -1,
-#         "max": 1,
-#         "pts": 21,
-#     },
-# )
+# pv_registers.sample_move.put("Yes")
+# pv_registers.sample_index.put(1)
+# pv_registers.sample1_pos.put(-1)
+#
+# pv_registers.inner_motor.put("sample.x")
+# pv_registers.outer_motor.put("sample.y")
+# pv_registers.inner_center.put(0)
+# pv_registers.outer_center.put(0)
+# pv_registers.inner_range.put(2)
+# pv_registers.outer_range.put(2)
+# pv_registers.inner_pts.put(21)
+# pv_registers.outer_pts.put(21)
+#
+# det_acq_series(wait_time=0)
 
 
 # -----------------------------------------------------------------------------
 # Example 4: Lambda internal
 # -----------------------------------------------------------------------------
+#
+# pv_registers.header.put("A")
+# pv_registers.sample_name.put("G10")
+# pv_registers.measurement_num.put(12)
 #
 # pv_registers.det_name.put("lambda2M")
 # pv_registers.det_mode.put("Internal")
@@ -619,28 +648,29 @@ def det_acq_series(
 # pv_registers.num_frames.put(1000)
 # pv_registers.num_repeats.put(20)
 #
-# det_acq_series(
-#     att_level=7,
-#     wait_time=0,
-#     move_index_register=1,
-#     axis_inner={
-#         "motor": "sample.x",
-#         "min": -1,
-#         "max": 1,
-#         "pts": 21,
-#     },
-#     axis_outer={
-#         "motor": "sample.y",
-#         "min": 0,
-#         "max": 0,
-#         "pts": 1,
-#     },
-# )
+# pv_registers.sample_move.put("Yes")
+# pv_registers.sample_index.put(1)
+# pv_registers.sample1_pos.put(-1)
+#
+# pv_registers.inner_motor.put("sample.x")
+# pv_registers.outer_motor.put("sample.y")
+# pv_registers.inner_center.put(0)
+# pv_registers.outer_center.put(0)
+# pv_registers.inner_range.put(2)
+# pv_registers.outer_range.put(0)
+# pv_registers.inner_pts.put(21)
+# pv_registers.outer_pts.put(1)
+#
+# det_acq_series(wait_time=0)
 
 
 # -----------------------------------------------------------------------------
-# Example 5: Rigaku ZDT
+# Example 5: Rigaku ZDT, no sample motion
 # -----------------------------------------------------------------------------
+#
+# pv_registers.header.put("A")
+# pv_registers.sample_name.put("G10")
+# pv_registers.measurement_num.put(12)
 #
 # pv_registers.det_name.put("rigaku3M")
 # pv_registers.det_mode.put("ZDT")
@@ -649,20 +679,6 @@ def det_acq_series(
 # pv_registers.num_frames.put(100000)
 # pv_registers.num_repeats.put(5)
 #
-# det_acq_series(
-#     att_level=7,
-#     wait_time=0,
-#     move_index_register=0,
-#     axis_inner={
-#         "motor": "sample.x",
-#         "min": -1,
-#         "max": 1,
-#         "pts": 21,
-#     },
-#     axis_outer={
-#         "motor": "sample.y",
-#         "min": -1,
-#         "max": 1,
-#         "pts": 21,
-#     },
-# )
+# pv_registers.sample_move.put("No")
+#
+# det_acq_series(wait_time=0)
