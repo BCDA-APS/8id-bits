@@ -23,11 +23,10 @@ from id8_common.plans.set.shutter_att import blockbeam
 from id8_common.plans.set.shutter_att import shutteron
 from id8_common.plans.set.shutter_att import shutteroff
 from id8_common.plans.set.shutter_att import post_align
-from id8_common.plans.set.shutter_att import att
+# from id8_common.plans.set.shutter_att import att
 
 
 pv_registers = oregistry["pv_registers"]
-
 
 # =============================================================================
 # General helpers
@@ -341,14 +340,29 @@ def acquire_eiger_external():
 
     softglue_8idi.start_pulses.put("1!")
 
-    while eiger4M.cam.acquire_busy.get() == 1:
-        ttime.sleep(0.1)
-
+    while True:
+        #### QZ on 2026/01/06 ####
+        # without the 0.5 s wait time, the repeating acqs go out of sync. 
+        # Don't know why and maybe the 0.5 s can be made shorter
+        #### QZ on 2026/01/06 ####
+        ttime.sleep(0.5)
+        det_status = eiger4M.cam.acquire_busy.get()
+        if det_status == 1:
+            ttime.sleep(0.1)
+        if det_status == 0:
+            break
     blockbeam()
-    shutteroff()
 
-    while eiger4M.hdf1.capture.get() == 1:
-        ttime.sleep(0.1)
+    frame_num_set = eiger4M.hdf1.queue_size.get()
+    count = 0
+    while count < 100:  # 100 and 0.1 s are some empirical number for timeout conditions
+        frame_num_processed = eiger4M.hdf1.queue_free.get()
+        if frame_num_processed == frame_num_set:
+            break
+        else:
+            ttime.sleep(0.1)
+            count = +1
+        eiger4M.hdf1.capture.put(0)
 
 
 def acquire_lambda_internal():

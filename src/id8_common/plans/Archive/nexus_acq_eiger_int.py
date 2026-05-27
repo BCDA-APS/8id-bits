@@ -59,9 +59,9 @@ def setup_eiger_int_series(acq_time, num_frames, file_header, file_name):
     eiger4M.cam.num_triggers.put(1)  # Need to put num_trigger to 1 for internal mode
     eiger4M.hdf1.num_capture.put(num_frames)
 
-    pv_registers.file_name.put(file_name)
+    # pv_registers.file_name.put(file_name)
     # pv_regiZZZZters.metadata_full_path.put(f"{file_path}/{file_name}_metadata.hdf")
-    pv_registers.metadata_full_path.put(f"{file_name}_metadata.hdf")
+    # pv_registers.metadata_full_path.put(f"{file_name}_metadata.hdf")
 
 
 ############# Homebrew acquisition plan #############

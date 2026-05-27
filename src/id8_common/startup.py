@@ -117,7 +117,7 @@ from .utils.check_file_dim import check_h5_shape
 # from .plans.sim_plan import sim_print_plan  # noqa: E402, F401
 # from .plans.sim_plan import sim_rel_scan_plan  # noqa: E402, F401
 
-from .plans.shutter_logic import *
+# from .plans.shutter_logic import *
 
 # hklpy2 setup - only for 8ide
 from hklpy2.user import *  
@@ -131,11 +131,12 @@ stream_rois(oregistry["lambda2M"])
 # import acquire plans
 
 from .plans.acquire.ad_acq import *
+from .plans.acquire.master_plan import *
 
-from .plans.nexus_acq_eiger_int import *
+# from .plans.nexus_acq_eiger_int import *
 # from .plans.nexus_acq_eiger_ext import *
 # from .plans.nexus_acq_lambda_int import *
-from .plans.nexus_acq_lambda_ext import *
+# from .plans.nexus_acq_lambda_ext import *
 # from .plans.nexus_acq_rigaku_zdt import *
 # from .plans.tetramm_acq import *
 # from .plans.nexus_acq_eiger_int_wei import *
@@ -150,12 +151,12 @@ from .plans.align.scan_8id import *
 # from .plans.sample_info_unpack import *
 
 # 8idi plan import (legacy)
-from .plans.select_sample_env import select_sample_env
-from .plans.select_diagnostics import *
-from .plans.sample_info_unpack import select_sample
-from .plans.select_detector import *
-# from .plans.scan_8idi import *
-from .plans.qnw_plans import *
+# from .plans.select_sample_env import select_sample_env
+# from .plans.select_diagnostics import *
+# from .plans.sample_info_unpack import select_sample
+# from .plans.select_detector import *
+# # from .plans.scan_8idi import *
+# from .plans.qnw_plans import *
 
 
 

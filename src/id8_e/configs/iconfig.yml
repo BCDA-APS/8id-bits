@@ -6,16 +6,16 @@ ICONFIG_VERSION: 2.0.1
 # Add additional configuration for use with your instrument.
 
 ### The short name for the databroker catalog.
-DATABROKER_CATALOG: 8idi_xpcs
+# DATABROKER_CATALOG: 8idi_xpcs
 
-# TILED_PROFILE_NAME: 8ide
-# TILED_PATH_NAME: /raw
+TILED_PROFILE_NAME: 8ide
+TILED_PATH_NAME: /raw
 
 ### RunEngine configuration
 RUN_ENGINE:
     DEFAULT_METADATA:
-        beamline_id: demo_instrument
-        instrument_name: Most Glorious Scientific Instrument
+        beamline_id: 8ID
+        instrument_name: 
         proposal_id: commissioning
 
     ### EPICS PV to use for the `scan_id`.

@@ -3,18 +3,17 @@
 # identify the version of this iconfig.yml file
 ICONFIG_VERSION: 2.0.1
 
-# Add additional configuration for use with your instrument.
-BEAMLINE: "8ide"   # or "8idi" for the other config
-
 ### The short name for the databroker catalog.
-DATABROKER_CATALOG: 8idi_xpcs
+# DATABROKER_CATALOG: 8idi_xpcs
+TILED_PROFILE_NAME: 8ide
+TILED_PATH_NAME: /raw
 
 ### RunEngine configuration
 RUN_ENGINE:
     DEFAULT_METADATA:
-        beamline_id: demo_instrument
-        instrument_name: Most Glorious Scientific Instrument
-        proposal_id: commissioning
+        beamline_id: 8-ID-E
+        instrument_name: 8-ID
+        proposal_id: commissioning 2026-2 
 
     ### EPICS PV to use for the `scan_id`.
     ### Default: `RE.md["scan_id"]` (not using an EPICS PV)
