@@ -213,7 +213,7 @@ id8_common.devices.individual_slits.IndividualSlits:
 
 id8_common.devices.softglue.SoftGlue:
   # prefix="" so full PV = pv_acq_period directly
-- name: "softglue_8idi"
+- name: "softglue"
   prefix: ""
   pv_acq_period: "8idMZ1:userTran1.A"
   pv_acq_time: "8idMZ1:userTran1.A"

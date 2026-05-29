@@ -282,7 +282,7 @@ def validate_counts(measurement):
 def validate_sample_motion(measurement, sample):
     sample_move = measurement["sample_move"]
 
-    if sample_move == "No":
+    if sample_move == "no":
         return
 
     required_sample_fields = [
@@ -326,6 +326,7 @@ def validate_measurement(measurement, sample):
         "num_frames",
         "num_repeats",
         "sample_move",
+        "qmap_file",
     ]
 
     for field in required_measurement_fields:
@@ -395,6 +396,7 @@ def write_measurement_registers(measurement):
     pv_registers.num_repeats.put(int(measurement["num_repeats"]))
 
     pv_registers.sample_move.put(measurement["sample_move"])
+    pv_registers.qmap_file.put(measurement["qmap_file"])
 
 
 def reset_sample_position_register(measurement):
@@ -445,6 +447,7 @@ def run_measurement(measurement, sample_info):
     print(f"num_repeats:    {pv_registers.num_repeats.get()}")
     print(f"sample_move:    {pv_registers.sample_move.get()}")
     print(f"position_reset: {measurement.get('position_reset', 'No')}")
+    print(f"qmap_file:      {pv_registers.qmap_file.get()}")
     print("==============================================")
     print("")
 
@@ -469,6 +472,63 @@ def run_measurement_info(
             measurement=measurement,
             sample_info=sample_info,
         )
+
+
+# =============================================================================
+# Dry-run preview (no acquisitions executed)
+# =============================================================================
+
+def dry_run_measurement_info():
+    sample_info = read_yaml(SAMPLE_INFO_FILE)
+    measurement_info = read_yaml(MEASUREMENT_INFO_FILE)
+
+    measurements = expand_measurements(measurement_info)
+
+    print("")
+    print(f"Total measurements planned: {len(measurements)}")
+    print("")
+
+    total_time = 0.0
+
+    for measurement in measurements:
+        sample_index = int(measurement["sample_index"])
+        sample = get_sample(sample_info, sample_index)
+
+        normalize_measurement(measurement)
+        validate_detector_mode(measurement)
+        validate_timing(measurement)
+        validate_counts(measurement)
+
+        acq_period = float(measurement["acq_period"])
+        num_frames = int(measurement["num_frames"])
+        num_repeats = int(measurement["num_repeats"])
+        wait_time = float(measurement.get("wait_time", 0))
+        est_time = (acq_period * num_frames + wait_time) * num_repeats
+        total_time += est_time
+
+        print("")
+        print("==============================================")
+        print(f"Run name:       {measurement.get('run_name', '')}")
+        print(f"Protocol:       {measurement.get('protocol_name', '')}")
+        print(f"Run repeat:     {measurement.get('run_repeat', 1)}")
+        print(f"Sample index:   {sample_index}")
+        print(f"Sample name:    {sample.get('sample_name', '')}")
+        print(f"Detector:       {measurement['detector']}")
+        print(f"Mode:           {measurement['mode']}")
+        print(f"Attenuation:    {measurement['att_level']}")
+        print(f"acq_time:       {measurement['acq_time']}")
+        print(f"acq_period:     {measurement['acq_period']}")
+        print(f"num_frames:     {num_frames}")
+        print(f"num_repeats:    {num_repeats}")
+        print(f"sample_move:    {measurement['sample_move']}")
+        print(f"position_reset: {measurement.get('position_reset', 'no')}")
+        print(f"qmap_file:      {measurement['qmap_file']}")
+        print(f"Est. acq time:  {est_time:.1f} s")
+        print("==============================================")
+        print("")
+
+    print(f"Total estimated acquisition time: {total_time:.1f} s ({total_time / 60:.1f} min)")
+    print("")
 
 
 # =============================================================================

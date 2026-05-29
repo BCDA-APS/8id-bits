@@ -1,5 +1,41 @@
 # Guarneri-style device YAML configuration for 8ide
 
+### List of Soft IOCs and their locations ###
+
+# ##s8idioc02:
+
+# flag1.pl
+# flag2.pl
+# flag3.pl
+# flag4.pl
+# 8idCryo.pl
+# 8idaSoft.pl
+# 8iddSoft.pl
+
+# ##s8idioc03:
+# 8idKB.pl
+# 8idmsPyCRL.pl
+# 8ideSoft.pl
+# 8idTetra.pl
+# 8idiARV1.sh
+# 8idIDS.pl
+# 8idPyFilter.pl
+# XBPM-E.pl
+
+
+# ##s8idioc04:
+# 8ideCRL.pl
+# 8idiSoft.pl
+# 8idiAerotech.pl
+# 8idRobocart.pl
+# 8idisamplecam.pl
+# XBPM-I.pl
+
+
+# Beryl:
+# 8idEiger4m.pl
+
+
 apsbits.utils.sim_creator.predefined_device:
   - creator: ophyd.sim.motor
     name: sim_motor
@@ -162,7 +198,7 @@ id8_common.devices.individual_slits.IndividualSlits:
   v_negative_motor: m1
 
 id8_common.devices.softglue.SoftGlue: 
-- name: "softglue_8idi"
+- name: "softglue"
   prefix: ""
   pv_acq_period: "8idMZ1:userTran1.A"
   pv_acq_time: "8idMZ1:userTran1.C"

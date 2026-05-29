@@ -19,13 +19,13 @@ from .default_metadata import default_metadata
 from .xpcs_schema import xpcs_schema
 
 pv_registers = oregistry["pv_registers"]
-# detector = oregistry["detector"]
+detector = oregistry["detector"]
 filter_8ide = oregistry["filter_8ide"]
 lakeshore1 = oregistry["lakeshore1"]
 mono = oregistry["mono"]
 tetramm1 = oregistry["tetramm1"]
-# undulator_upstream = oregistry["undulator_upstream"]
-# undulator_downstream = oregistry["undulator_downstream"]
+undulator_upstream = oregistry["undulator_upstream"]
+undulator_downstream = oregistry["undulator_downstream"]
 huber = oregistry["huber"]
 sl4 = oregistry["sl4"]
 # xbpm1 = oregistry["xbpm1"]
@@ -39,6 +39,7 @@ mono_slit = oregistry["mono_slit"]
 # keithley_chB = oregistry["keithley_chB"]
 # bk_pid = oregistry["bk_pid"]
 # keysight = oregistry["keysight"]
+flight_path_8idi = oregistry["flight_path_8idi"]
 
 def _get_ring_current():
    
@@ -166,22 +167,16 @@ def create_runtime_metadata_dict(
         "/entry/instrument/datamanagement/workflow_name": pv_registers.workflow_name.get(),
 
         # TODO: Change the detector direct beam position and detector position to real numbers
-        # "/entry/instrument/detector_1/beam_center_x": pv_registers.current_db_x0.get(),
-        # "/entry/instrument/detector_1/beam_center_y": pv_registers.current_db_y0.get(),
-        # "/entry/instrument/detector_1/beam_center_position_x": pv_registers.current_det_x0.get() / 1000.0,
-        # "/entry/instrument/detector_1/beam_center_position_y": pv_registers.current_det_y0.get() / 1000.0,
-        # "/entry/instrument/detector_1/position_x": detector.x.position / 1000.0,
-        # "/entry/instrument/detector_1/position_y": detector.y.position / 1000.0,
-        # "/entry/instrument/detector_1/x_pixel_size": pv_registers.det_pixel_size.get(),
-        # "/entry/instrument/detector_1/y_pixel_size": pv_registers.det_pixel_size.get(),
-        "/entry/instrument/detector_1/beam_center_x": 1,
-        "/entry/instrument/detector_1/beam_center_y": 1,
-        "/entry/instrument/detector_1/beam_center_position_x": 1,
-        "/entry/instrument/detector_1/beam_center_position_y": 1,
-        "/entry/instrument/detector_1/position_x": 1,
-        "/entry/instrument/detector_1/position_y": 1,
-        "/entry/instrument/detector_1/distance": 2.2,
-        "/entry/instrument/detector_1/flightpath_swing": -huber.delta.position,
+        "/entry/instrument/detector_1/beam_center_x": pv_registers.current_db_x0.get(),
+        "/entry/instrument/detector_1/beam_center_y": pv_registers.current_db_y0.get(),
+        "/entry/instrument/detector_1/beam_center_position_x": pv_registers.current_det_x0.get() / 1000.0,
+        "/entry/instrument/detector_1/beam_center_position_y": pv_registers.current_det_y0.get() / 1000.0,
+        "/entry/instrument/detector_1/position_x": detector.x.position / 1000.0,
+        "/entry/instrument/detector_1/position_y": detector.y.position / 1000.0,
+        "/entry/instrument/detector_1/x_pixel_size": pv_registers.det_pixel_size.get(),
+        "/entry/instrument/detector_1/y_pixel_size": pv_registers.det_pixel_size.get(),
+        "/entry/instrument/detector_1/distance": flight_path_8idi.length.position / 1000.0,
+        "/entry/instrument/detector_1/flightpath_swing": flight_path_8idi.swing.position,
         "/entry/instrument/detector_1/count_time": det.cam.acquire_time.get(),
         "/entry/instrument/detector_1/frame_time": det.cam.acquire_period.get(),
         "/entry/instrument/detector_1/detector_name": pv_registers.det_name.get(),
@@ -209,18 +204,14 @@ def create_runtime_metadata_dict(
         # "/entry/sample/keysight_burst_state": keysight.burst_state_rbv.value,
         # "/entry/sample/keysight_output": keysight.output_rbv.value,
         
-        
-
-        
-        
-        # "/entry/instrument/wb_slit/vertical_gap": wb_slit.vgap.position,
-        # "/entry/instrument/wb_slit/vertical_center": wb_slit.vcen.position,
-        # "/entry/instrument/wb_slit/horizontal_gap": wb_slit.hgap.position,
-        # "/entry/instrument/wb_slit/horizontal_center": wb_slit.hcen.position,
-        # "/entry/instrument/mono_slit/vertical_gap": mono_slit.vgap.position,
-        # "/entry/instrument/mono_slit/vertical_center": mono_slit.vcen.position,
-        # "/entry/instrument/mono_slit/horizontal_gap": mono_slit.hgap.position,
-        # "/entry/instrument/mono_slit/horizontal_center": mono_slit.hcen.position,
+        "/entry/instrument/wb_slit/vertical_gap": wb_slit.vgap.position,
+        "/entry/instrument/wb_slit/vertical_center": wb_slit.vcen.position,
+        "/entry/instrument/wb_slit/horizontal_gap": wb_slit.hgap.position,
+        "/entry/instrument/wb_slit/horizontal_center": wb_slit.hcen.position,
+        "/entry/instrument/mono_slit/vertical_gap": mono_slit.vgap.position,
+        "/entry/instrument/mono_slit/vertical_center": mono_slit.vcen.position,
+        "/entry/instrument/mono_slit/horizontal_gap": mono_slit.hgap.position,
+        "/entry/instrument/mono_slit/horizontal_center": mono_slit.hcen.position,
         "/entry/instrument/sl4/vertical_gap": sl4.v.size.position,
         "/entry/instrument/sl4/vertical_center": sl4.v.center.position,
         "/entry/instrument/sl4/horizontal_gap": sl4.h.size.position,
@@ -240,12 +231,12 @@ def create_runtime_metadata_dict(
         #     + xbpm1.current4.mean_value.get() / xbpm1.current_scales.ch4.get()
         # ), 
         "/entry/instrument/incident_beam/ring_current": _get_ring_current(),
-        # "/entry/instrument/undulator_1/gap": undulator_upstream.gap.position,
-        # "/entry/instrument/undulator_1/energy": undulator_upstream.energy.position,
-        # "/entry/instrument/undulator_1/taper": undulator_upstream.gap_taper.position,
-        # "/entry/instrument/undulator_2/gap": undulator_downstream.gap.position,
-        # "/entry/instrument/undulator_2/energy": undulator_downstream.energy.position,
-        # "/entry/instrument/undulator_2/taper": undulator_downstream.gap_taper.position,
+        "/entry/instrument/undulator_1/gap": undulator_upstream.gap.position,
+        "/entry/instrument/undulator_1/energy": undulator_upstream.energy.position,
+        "/entry/instrument/undulator_1/taper": undulator_upstream.gap_taper.position,
+        "/entry/instrument/undulator_2/gap": undulator_downstream.gap.position,
+        "/entry/instrument/undulator_2/energy": undulator_downstream.energy.position,
+        "/entry/instrument/undulator_2/taper": undulator_downstream.gap_taper.position,
         "/entry/instrument/attenuator_1/attenuator_transmission": (filter_8ide.transmission.readback.get()),
         "/entry/instrument/attenuator_1/attenuator_index": (filter_8ide.index.readback.get()),
         "/entry/instrument/attenuator_2/attenuator_transmission": (0),

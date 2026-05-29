@@ -30,7 +30,7 @@ filter_beam = oregistry["filter_8ide"]
 tetramm1 = oregistry["tetramm1"]
 eiger4M = oregistry["eiger4M"]
 lambda2M = oregistry["lambda2M"]
-softglue_8idi = oregistry["softglue_8idi"]
+softglue = oregistry["softglue"]
 softglue_8id_acq = oregistry["softglue_8id_acq"]
 filter_beam = oregistry["filter_8ide"]
 rheometer = oregistry["rheometer"]
@@ -212,9 +212,9 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
             det.cam.acquire_period, count_time,
             det.cam.num_images, num_pts,
             det.hdf1.num_capture, num_pts,
-            softglue_8idi.num_triggers, 1,
-            softglue_8idi.acq_time, count_time,
-            softglue_8idi.acq_period, count_time,
+            softglue.num_triggers, 1,
+            softglue.acq_time, count_time,
+            softglue.acq_period, count_time,
         )
 
         start_pos = motor.position
@@ -226,7 +226,7 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
 
         def step_lambda(step, pos_cache):
             yield from bps.move_per_step(step, pos_cache)
-            softglue_8idi.start_pulses.put("1!")
+            softglue.start_pulses.put("1!")
             yield from bps.create("primary")
             yield from bps.read(motor)
             yield from bps.read(det.stats1)
@@ -243,7 +243,7 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
                     yield from step_lambda({motor: pos}, pos_cache)
 
             finally:                
-                softglue_8idi.stop_pulses.put("1!")
+                softglue.stop_pulses.put("1!")
                 det.cam.acquire.put(0)
                 det.hdf1.capture.put(0)
                 blockbeam()
@@ -424,14 +424,14 @@ def d2scan(
             det.cam.acquire_period, count_time,
             det.cam.num_images, num_pts,
             det.hdf1.num_capture, num_pts,
-            softglue_8idi.num_triggers, 1,
-            softglue_8idi.acq_time, count_time,
-            softglue_8idi.acq_period, count_time,
+            softglue.num_triggers, 1,
+            softglue.acq_time, count_time,
+            softglue.acq_period, count_time,
         )
 
         def step_lambda(step_dict, pc):
             yield from bps.move_per_step(step_dict, pc)
-            softglue_8idi.start_pulses.put("1!")
+            softglue.start_pulses.put("1!")
             yield from bps.create("primary")
             yield from bps.read(motor1)
             yield from bps.read(motor2)
@@ -447,7 +447,7 @@ def d2scan(
                 for p1, p2 in zip(positions1, positions2):
                     yield from step_lambda({motor1: p1, motor2: p2}, pos_cache)
             finally:
-                softglue_8idi.stop_pulses.put("1!")
+                softglue.stop_pulses.put("1!")
                 det.cam.acquire.put(0)
                 det.hdf1.capture.put(0)
                 blockbeam()
@@ -612,14 +612,14 @@ def ascan(
             det.cam.acquire_period, count_time,
             det.cam.num_images, num_pts,
             det.hdf1.num_capture, num_pts,
-            softglue_8idi.num_triggers, 1,
-            softglue_8idi.acq_time, count_time,
-            softglue_8idi.acq_period, count_time,
+            softglue.num_triggers, 1,
+            softglue.acq_time, count_time,
+            softglue.acq_period, count_time,
         )
 
         def step_lambda(step_dict, pc):
             yield from bps.move_per_step(step_dict, pc)
-            softglue_8idi.start_pulses.put("1!")
+            softglue.start_pulses.put("1!")
             yield from bps.create("primary")
             yield from bps.read(motor)
             yield from bps.read(det.stats1)
@@ -634,7 +634,7 @@ def ascan(
                 for pos in positions:
                     yield from step_lambda({motor: pos}, pos_cache)
             finally:
-                softglue_8idi.stop_pulses.put("1!")
+                softglue.stop_pulses.put("1!")
                 det.cam.acquire.put(0)
                 det.hdf1.capture.put(0)
                 blockbeam()
@@ -803,14 +803,14 @@ def a2scan(
             det.cam.acquire_period, count_time,
             det.cam.num_images, num_pts,
             det.hdf1.num_capture, num_pts,
-            softglue_8idi.num_triggers, 1,
-            softglue_8idi.acq_time, count_time,
-            softglue_8idi.acq_period, count_time,
+            softglue.num_triggers, 1,
+            softglue.acq_time, count_time,
+            softglue.acq_period, count_time,
         )
 
         def step_lambda(step_dict, pc):
             yield from bps.move_per_step(step_dict, pc)
-            softglue_8idi.start_pulses.put("1!")
+            softglue.start_pulses.put("1!")
             yield from bps.create("primary")
             yield from bps.read(motor1)
             yield from bps.read(motor2)
@@ -826,7 +826,7 @@ def a2scan(
                 for p1, p2 in zip(positions1, positions2):
                     yield from step_lambda({motor1: p1, motor2: p2}, pos_cache)
             finally:
-                softglue_8idi.stop_pulses.put("1!")
+                softglue.stop_pulses.put("1!")
                 det.cam.acquire.put(0)
                 det.hdf1.capture.put(0)
                 blockbeam()

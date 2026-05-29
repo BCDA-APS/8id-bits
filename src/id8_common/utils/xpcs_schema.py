@@ -511,6 +511,76 @@ xpcs_schema = {
                     "data": 0.0,
                 },
             },
+
+            "wb_slit": {
+                "type": "NXslit",
+                "required": False,
+                "description": "white beam slit",
+                "horizontal_gap": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "Horizontal size of the slits",
+                    "data": 0.0,
+                },
+                "horizontal_center": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "Horizontal center of the slits",
+                    "data": 0.0,
+                },
+                "vertical_gap": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "vertical size of the slits",
+                    "data": 0.0,
+                },
+                "vertical_center": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "vertical center of the slits",
+                    "data": 0.0,
+                },
+            },
+
+
+            "mono_slit": {
+                "type": "NXslit",
+                "required": False,
+                "description": "mono beam slit",
+                "horizontal_gap": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "Horizontal size of the slits",
+                    "data": 0.0,
+                },
+                "horizontal_center": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "Horizontal center of the slits",
+                    "data": 0.0,
+                },
+                "vertical_gap": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "vertical size of the slits",
+                    "data": 0.0,
+                },
+                "vertical_center": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "vertical center of the slits",
+                    "data": 0.0,
+                },
+            },
+
         },
         "sample": {
             "type": "NXsample",

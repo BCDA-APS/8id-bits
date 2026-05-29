@@ -96,12 +96,12 @@ def get_common_file_path(file_header, file_name):
     mount_point = pv_registers.mount_point.get()
     use_subfolder = pv_registers.use_subfolder.get()
 
-    if use_subfolder == "Yes":
+    if use_subfolder == "yes":
         file_path = f"{mount_point}{cycle_name}/{exp_name}/data/{file_header}/{file_name}"
-    elif use_subfolder == "No":
+    elif use_subfolder == "no":
         file_path = f"{mount_point}{cycle_name}/{exp_name}/data/{file_name}"
     else:
-        raise ValueError("use_subfolder must be Yes or No")
+        raise ValueError("use_subfolder must be yes or no")
 
     return file_path
 
@@ -112,12 +112,12 @@ def get_rigaku_file_path(file_header, file_name):
     mount_point = pv_registers.mount_point.get()
     use_subfolder = pv_registers.use_subfolder.get()
 
-    if use_subfolder == "Yes":
+    if use_subfolder == "yes":
         file_path = f"{exp_name}/data/{file_header}/{file_name}"
-    elif use_subfolder == "No":
+    elif use_subfolder == "no":
         file_path = f"{exp_name}/data/{file_name}"
     else:
-        raise ValueError("use_subfolder must be Yes or No")
+        raise ValueError("use_subfolder must be yes or no")
 
     full_path = f"{mount_point}/{cycle_name}/{file_path}"
 
@@ -145,8 +145,8 @@ def sample_mesh_move():
         pv_registers.outer_pts
 
     sample_move:
-        "Yes" -> move sample
-        "No"  -> no sample motion and no position-register update
+        "yes" -> move sample
+        "no"  -> no sample motion and no position-register update
 
     sample_index:
         1 -> use pv_registers.sample1_pos
@@ -160,7 +160,7 @@ def sample_mesh_move():
     """
     sample_move = pv_registers.sample_move.get().strip()
 
-    if sample_move != "Yes":
+    if sample_move != "yes":
         return
 
     sample_index = int(pv_registers.sample_index.get())
@@ -239,7 +239,7 @@ def setup_eiger_internal(acq_time, num_frames, file_header, file_name):
 
 def setup_eiger_external(acq_time, acq_period, num_frames, file_header, file_name):
     eiger4M = get_connected_device("eiger4M")
-    softglue_8idi = get_connected_device("softglue_8idi")
+    softglue = get_connected_device("softglue")
 
     file_path = get_common_file_path(file_header, file_name)
 
@@ -253,9 +253,9 @@ def setup_eiger_external(acq_time, acq_period, num_frames, file_header, file_nam
     eiger4M.cam.num_triggers.put(num_frames)
     eiger4M.cam.trigger_mode.put("External Enable")
 
-    softglue_8idi.acq_time.put(acq_time)
-    softglue_8idi.acq_period.put(acq_period)
-    softglue_8idi.num_triggers.put(num_frames)
+    softglue.acq_time.put(acq_time)
+    softglue.acq_period.put(acq_period)
+    softglue.num_triggers.put(num_frames)
 
     metadata_fname = f"{file_path}/{file_name}_metadata.hdf"
 
@@ -317,6 +317,7 @@ def acquire_eiger_internal():
 
     eiger4M.hdf1.capture.put(1)
     eiger4M.cam.acquire.put(1)
+    ttime.sleep(0.5)
 
     while eiger4M.cam.acquire.get() == 1:
         ttime.sleep(0.1)
@@ -329,7 +330,7 @@ def acquire_eiger_internal():
 
 def acquire_eiger_external():
     eiger4M = get_connected_device("eiger4M")
-    softglue_8idi = get_connected_device("softglue_8idi")
+    softglue = get_connected_device("softglue")
 
     shutteron()
     showbeam()
@@ -338,7 +339,7 @@ def acquire_eiger_external():
     eiger4M.hdf1.capture.put(1)
     eiger4M.cam.acquire.put(1)
 
-    softglue_8idi.start_pulses.put("1!")
+    softglue.start_pulses.put("1!")
 
     while True:
         #### QZ on 2026/01/06 ####
@@ -418,7 +419,7 @@ ACQ_MODES = {
             "setup": setup_eiger_external,
             "acquire": acquire_eiger_external,
             "needs_acq_period": True,
-            "required_devices": ["eiger4M", "softglue_8idi"],
+            "required_devices": ["eiger4M", "softglue"],
         },
     },
 
@@ -440,6 +441,31 @@ ACQ_MODES = {
         },
     },
 }
+
+
+# =============================================================================
+# Cleanup helper
+# =============================================================================
+
+def cleanup_acquisition(det=None, mode_info=None):
+    """Stop softglue (if used by this mode) and abort detector acquisition."""
+    if mode_info is not None and "softglue" in mode_info.get("required_devices", []):
+        try:
+            softglue = get_connected_device("softglue")
+            softglue.stop_pulses.put("1!")
+        except Exception:
+            pass
+
+    if det is not None:
+        try:
+            det.cam.acquire.put(0)
+        except Exception:
+            pass
+        if hasattr(det, "hdf1"):
+            try:
+                det.hdf1.capture.put(0)
+            except Exception:
+                pass
 
 
 # =============================================================================
@@ -488,6 +514,9 @@ def det_acq_series(wait_time=0):
             _f001000
             _r00001
     """
+    det = None
+    mode_info = None
+    # try:
     post_align()
     shutteroff()
 
@@ -547,6 +576,14 @@ def det_acq_series(wait_time=0):
         create_nexus_format_metadata(metadata_fname, det=det)
 
         dm_run_job(workflowProcApi, dmuser, file_name)
+
+    # except KeyboardInterrupt:
+    #     cleanup_acquisition(det, mode_info)
+    #     raise RuntimeError("\n Bluesky plan stopped by user (Ctrl+C).")
+    # except Exception as e:
+    #     print(f"Error occurred during measurement: {e}")
+    # finally:
+    #     pass
 
 
 # =============================================================================

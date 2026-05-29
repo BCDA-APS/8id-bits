@@ -1,24 +1,13 @@
-def auto_attenuate(
+
+def auto_att(
     det,
     pilot_exptime: float = 0.05,
-    rate_limit: float = 4e5,
+    rate_limit: float = 1e5,
     filter_factor: float = 5.0,
     retry_max: int = 10,
     grace_factor: float = 0.25,
 ):
     """Find the optimal attenuation using short pilot exposures.
-
-    Takes pilot frames and reads det.stats1.max_value as the feedback signal.
-    Adjusts filter_8ide.transmission iteratively until the count rate
-    (max_pixel / pilot_exptime) falls within the acceptable band:
-
-        rate > rate_limit                       -> reduce transmission by filter_factor, retry
-        rate_limit*grace_factor < rate < limit  -> acceptable, stop
-        rate <= rate_limit * grace_factor       -> raise transmission toward 0.75*rate_limit, retry
-
-    Starts from maximum attenuation (transmission=1e-10) for safety.
-    Leaves the filter at the converged setting and restores the detector
-    acquire_time. Does not save data (HDF capture is not started).
 
     Args:
         det:            eiger4M or lambda2M
@@ -33,6 +22,7 @@ def auto_attenuate(
         auto_attenuate(eiger4M, pilot_exptime=0.05, rate_limit=4e5)
         RE(dscan(sample.x, -1, 1, 100, count_time=1.0))
     """
+    
     is_eiger = ("eiger" in det.name.lower()) or ("eiger" in det.prefix.lower())
     low_rate = rate_limit * grace_factor
 
@@ -56,7 +46,7 @@ def auto_attenuate(
     det.stats1.compute_statistics.put(1)
 
     # Start from maximum attenuation (minimum transmission) for safety
-    filter_beam.transmission.move(1e-6)
+    filter_beam.transmission.move(1e-10)
     time.sleep(0.5)
 
     showbeam()
@@ -82,8 +72,9 @@ def auto_attenuate(
 
             if rate > rate_limit:
                 new_trans = current_trans / filter_factor
-                print(f"    Rate too high -> reducing transmission to {new_trans:.6f}")
+                print(f"Rate too high. Reducing transmission to {new_trans:.6f}")
                 filter_beam.transmission.move(new_trans)
+
             elif rate < low_rate:
                 if rate > 0:
                     new_trans = current_trans * (0.75 * rate_limit / rate)

@@ -17,7 +17,7 @@ from .shutter_logic import *
 lambda2M = oregistry["lambda2M"]
 pv_registers = oregistry["pv_registers"]
 # keysight = oregistry["keysight"]
-softglue_8idi = oregistry["softglue_8idi"]
+softglue = oregistry["softglue"]
 softglue_8id_acq = oregistry["softglue_8id_acq"]
 
 def setup_lambda_ext_series(acq_time, acq_period, num_frames, file_header, file_name, frames_before_voltage=50):
@@ -63,9 +63,9 @@ def setup_lambda_ext_series(acq_time, acq_period, num_frames, file_header, file_
 
     lambda2M.cam.trigger_mode.put("External_ImagePer") # 
     # lambda2M.cam.trigger_mode.put("External_SequencePer") # 
-    softglue_8idi.acq_time.put(acq_time)
-    softglue_8idi.acq_period.put(acq_period)
-    softglue_8idi.num_triggers.put(num_frames)
+    softglue.acq_time.put(acq_time)
+    softglue.acq_period.put(acq_period)
+    softglue.num_triggers.put(num_frames)
     softglue_8id_acq.preset.put(frames_before_voltage)
 
 ############# Homebrew acquisition plan #############
@@ -86,12 +86,12 @@ def lambda_acquire_ext(acq_time, acq_period):
     showbeam()
     time.sleep(0.1)
     
-    softglue_8idi.stop_pulses.put("1!")
+    softglue.stop_pulses.put("1!")
     lambda2M.hdf1.capture.put(1)
     lambda2M.cam.acquire.put(1)
     time.sleep(0.5)
     softglue_8id_acq.load.put("1!")
-    softglue_8idi.start_pulses.put("1!")
+    softglue.start_pulses.put("1!")
 
     shutteroff()
     blockbeam()
@@ -187,7 +187,7 @@ def lambda_acq_ext_series(
     except Exception as e:
         print(f"Error occurred during measurement: {e}")
     finally:
-        softglue_8idi.stop_pulses.put("1!")
+        softglue.stop_pulses.put("1!")
         shutteroff()
         blockbeam()
         lambda2M.cam.acquire.put(0)

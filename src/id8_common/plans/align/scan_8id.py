@@ -17,7 +17,9 @@ from bluesky.plans import tune_centroid
 from bluesky.callbacks.fitting import PeakStats
 from apstools.plans.alignment import lineup2
 # from ..shutter_logic import *
+# from id8_common.devices import softglue
 from id8_common.plans.set.shutter_att import *
+# from id8_common.plans.set.auto_filter import *
 from id8_common.plans.acquire.ad_acq import *
 # from ..nexus_acq_eiger_int import setup_eiger_int_series
 import time
@@ -30,11 +32,113 @@ filter_beam = oregistry["filter_8ide"]
 tetramm1 = oregistry["tetramm1"]
 eiger4M = oregistry["eiger4M"]
 lambda2M = oregistry["lambda2M"]
-softglue_8idi = oregistry["softglue_8idi"]
+softglue = oregistry["softglue"]
 softglue_8id_acq = oregistry["softglue_8id_acq"]
 filter_beam = oregistry["filter_8ide"]
 rheometer = oregistry["rheometer"]
 
+
+def auto_att(
+    det,
+    pilot_exptime: float = 0.05,
+    rate_limit: float = 1e5,
+    filter_factor: float = 5.0,
+    retry_max: int = 10,
+    grace_factor: float = 0.25,
+):
+    """Find the optimal attenuation using short pilot exposures.
+
+    Args:
+        det:            eiger4M or lambda2M
+        pilot_exptime:  duration of each test frame (s)
+        rate_limit:     max acceptable count rate (max pixel cts/s)
+        filter_factor:  transmission multiplier per step, must be > 1
+        retry_max:      max iterations before giving up
+        grace_factor:   lower rate bound = rate_limit * grace_factor
+
+    Example:
+
+        auto_attenuate(eiger4M, pilot_exptime=0.05, rate_limit=4e5)
+  """
+    
+    is_eiger = ("eiger" in det.name.lower()) or ("eiger" in det.prefix.lower())
+    low_rate = rate_limit * grace_factor
+
+    orig_acq_time = det.cam.acquire_time.get()
+    orig_acq_period = det.cam.acquire_period.get()
+
+    det.cam.acquire_time.put(pilot_exptime)
+    det.cam.acquire_period.put(pilot_exptime)
+
+    if is_eiger:
+        det.cam.trigger_mode.put("Internal Series")
+        det.cam.num_images.put(1)
+        det.cam.num_triggers.put(1)
+        det.cam.manual_trigger.put("Disable")
+    else:
+        # lambda2M
+        det.cam.trigger_mode.put("Internal")
+        det.cam.num_images.put(1)
+
+    det.stats1.enable.put(1)
+    det.stats1.compute_statistics.put(1)
+
+    # Start from maximum attenuation (minimum transmission) for safety
+    filter_beam.transmission.move(1e-10)
+    time.sleep(0.5)
+
+    showbeam()
+    try:
+        for attempt in range(retry_max):
+            det.cam.acquire.put(1)
+            t0 = time.time()
+            timeout = pilot_exptime * 5 + 2
+            while det.cam.acquire.get() == 1:
+                time.sleep(0.02)
+                if time.time() - t0 > timeout:
+                    print("  WARNING: pilot frame timed out")
+                    break
+
+            max_cts = det.stats1.max_value.get()
+            rate = max_cts / pilot_exptime
+            current_trans = filter_beam.transmission.readback.get()
+
+            print(
+                f"Attempt {attempt + 1}: trans={current_trans:.4f}"
+                f"max_cts={max_cts:.0f}  rate={rate:.0f} cts/s"
+            )
+
+            if rate > rate_limit:
+                new_trans = current_trans / filter_factor
+                print(f"Rate too high. Reducing transmission to {new_trans:.6f}")
+                filter_beam.transmission.move(new_trans)
+
+            elif rate < low_rate:
+                if rate > 0:
+                    new_trans = current_trans * (0.75 * rate_limit / rate)
+                else:
+                    # rate=0: jump to a coarse fraction of max rather than tiny multiplier steps
+                    new_trans = min(current_trans * 1000, 0.01)
+                new_trans = min(new_trans, 1.0)
+                if new_trans >= current_trans * 0.999:
+                    if current_trans >= 0.999:
+                        print("WARNING: already at max transmission, beam too weak.")
+                        break
+                print(f"Rate too low. Raising transmission to {new_trans:.4f}")
+                filter_beam.transmission.move(new_trans)
+            else:
+                print(f"    Rate in [{low_rate:.0f}, {rate_limit:.0f}] cts/s -- converged.")
+                break
+        else:
+            print(f"WARNING: auto_attenuate did not converge in {retry_max} attempts")
+    finally:
+        blockbeam()
+        det.cam.acquire_time.put(orig_acq_time)
+        det.cam.acquire_period.put(orig_acq_period)
+
+    trans = filter_beam.transmission.readback.get()
+    atten = filter_beam.attenuation.readback.get()
+    print(f"  Final: transmission={trans:.4f}  attenuation={atten}")
 
 def att(att_ratio: Optional[float] = None):
     """Set the attenuation ratio with multiple attempts.
@@ -127,7 +231,7 @@ def save_images(det, save_img, num_pts, num_frames=1, file_path=None, folder_pre
                     yield from bps.mv(det.cam.num_triggers, 1)
                 if has(det.cam, "num_images"):
                     yield from bps.mv(det.cam.num_images, 1)
-                setup_eiger_int_series(
+                setup_eiger_internal(
                     acq_time=float(det.cam.acquire_time.get()) if has(det.cam, "acquire_time") else 1.0,
                     num_frames=num_frames,
                     file_header=file_header,
@@ -198,7 +302,7 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
         finally:
             if save_img == 1:
                 det.hdf1.capture.put(0)
-                print("TetrAMM HDF capture stopped.")
+                print('# images captured: ', det.cam.num_images.get())
         return
 
     if is_lambda:
@@ -212,9 +316,9 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
             det.cam.acquire_period, count_time,
             det.cam.num_images, num_pts,
             det.hdf1.num_capture, num_pts,
-            softglue_8idi.num_triggers, 1,
-            softglue_8idi.acq_time, count_time,
-            softglue_8idi.acq_period, count_time,
+            softglue.num_triggers, 1,
+            softglue.acq_time, count_time,
+            softglue.acq_period, count_time,
         )
 
         start_pos = motor.position
@@ -226,7 +330,7 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
 
         def step_lambda(step, pos_cache):
             yield from bps.move_per_step(step, pos_cache)
-            softglue_8idi.start_pulses.put("1!")
+            softglue.start_pulses.put("1!")
             yield from bps.create("primary")
             yield from bps.read(motor)
             yield from bps.read(det.stats1)
@@ -243,7 +347,7 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
                     yield from step_lambda({motor: pos}, pos_cache)
 
             finally:                
-                softglue_8idi.stop_pulses.put("1!")
+                softglue.stop_pulses.put("1!")
                 det.cam.acquire.put(0)
                 det.hdf1.capture.put(0)
                 blockbeam()
@@ -424,14 +528,14 @@ def d2scan(
             det.cam.acquire_period, count_time,
             det.cam.num_images, num_pts,
             det.hdf1.num_capture, num_pts,
-            softglue_8idi.num_triggers, 1,
-            softglue_8idi.acq_time, count_time,
-            softglue_8idi.acq_period, count_time,
+            softglue.num_triggers, 1,
+            softglue.acq_time, count_time,
+            softglue.acq_period, count_time,
         )
 
         def step_lambda(step_dict, pc):
             yield from bps.move_per_step(step_dict, pc)
-            softglue_8idi.start_pulses.put("1!")
+            softglue.start_pulses.put("1!")
             yield from bps.create("primary")
             yield from bps.read(motor1)
             yield from bps.read(motor2)
@@ -447,7 +551,7 @@ def d2scan(
                 for p1, p2 in zip(positions1, positions2):
                     yield from step_lambda({motor1: p1, motor2: p2}, pos_cache)
             finally:
-                softglue_8idi.stop_pulses.put("1!")
+                softglue.stop_pulses.put("1!")
                 det.cam.acquire.put(0)
                 det.hdf1.capture.put(0)
                 blockbeam()
@@ -612,14 +716,14 @@ def ascan(
             det.cam.acquire_period, count_time,
             det.cam.num_images, num_pts,
             det.hdf1.num_capture, num_pts,
-            softglue_8idi.num_triggers, 1,
-            softglue_8idi.acq_time, count_time,
-            softglue_8idi.acq_period, count_time,
+            softglue.num_triggers, 1,
+            softglue.acq_time, count_time,
+            softglue.acq_period, count_time,
         )
 
         def step_lambda(step_dict, pc):
             yield from bps.move_per_step(step_dict, pc)
-            softglue_8idi.start_pulses.put("1!")
+            softglue.start_pulses.put("1!")
             yield from bps.create("primary")
             yield from bps.read(motor)
             yield from bps.read(det.stats1)
@@ -634,7 +738,7 @@ def ascan(
                 for pos in positions:
                     yield from step_lambda({motor: pos}, pos_cache)
             finally:
-                softglue_8idi.stop_pulses.put("1!")
+                softglue.stop_pulses.put("1!")
                 det.cam.acquire.put(0)
                 det.hdf1.capture.put(0)
                 blockbeam()
@@ -803,14 +907,14 @@ def a2scan(
             det.cam.acquire_period, count_time,
             det.cam.num_images, num_pts,
             det.hdf1.num_capture, num_pts,
-            softglue_8idi.num_triggers, 1,
-            softglue_8idi.acq_time, count_time,
-            softglue_8idi.acq_period, count_time,
+            softglue.num_triggers, 1,
+            softglue.acq_time, count_time,
+            softglue.acq_period, count_time,
         )
 
         def step_lambda(step_dict, pc):
             yield from bps.move_per_step(step_dict, pc)
-            softglue_8idi.start_pulses.put("1!")
+            softglue.start_pulses.put("1!")
             yield from bps.create("primary")
             yield from bps.read(motor1)
             yield from bps.read(motor2)
@@ -826,7 +930,7 @@ def a2scan(
                 for p1, p2 in zip(positions1, positions2):
                     yield from step_lambda({motor1: p1, motor2: p2}, pos_cache)
             finally:
-                softglue_8idi.stop_pulses.put("1!")
+                softglue.stop_pulses.put("1!")
                 det.cam.acquire.put(0)
                 det.hdf1.capture.put(0)
                 blockbeam()

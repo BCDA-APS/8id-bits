@@ -66,12 +66,12 @@ def dm_run_job(workflowProcApi: WorkflowProcApi, dmuser: str, file_name: str):
             gpuID = -2
             machine_name = get_machine_name()
         else:
-            gpuID = -1
+            gpuID = -2
             machine_name = analysis_machine
 
-        if use_subfolder == "Yes":
+        if use_subfolder == "yes":
             use_subfolder_flag = "True"
-        elif use_subfolder == "No":   
+        elif use_subfolder == "no":   
             use_subfolder_flag = "False"
         else: 
             print("Sub folder options can only be either Yes or No")

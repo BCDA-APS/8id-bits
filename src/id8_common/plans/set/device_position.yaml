@@ -1,0 +1,79 @@
+# Stage positions for select_device().
+#
+# motors: list of {device, position} pairs — supports any number of axes.
+#   device follows the "registry_key.attribute" dotted notation.
+# registers (detectors only): dotted-path → value written via .put() before motion.
+# valve (sample_envs only): dotted path to a device whose .put(1/0) gates motion.
+
+detectors:
+
+  eiger4M:
+    motors:
+      - device: detector.x
+        position: 256.0
+      - device: detector.y
+        position: 77.0
+    db_x: 714.0
+    db_y: 817.0
+    registers:
+      softglue.enable_rigaku: '0'
+      pv_registers.workflow_name: xpcs8-boost-corr
+      pv_registers.qmap_file: eiger4m_qmap_default.hdf
+      pv_registers.det_pixel_size: 75.0e-6    # metres
+
+  rigaku3M:
+    motors:
+      - device: detector.x
+        position: -230.0
+      - device: detector.y
+        position: 170.0
+    db_x: 1693.0
+    db_y: 852.0
+    registers:
+      softglue.enable_rigaku: '1'
+      pv_registers.workflow_name: xpcs8-boost-corr
+      pv_registers.qmap_file: rigaku3m_qmap_default.hdf
+      pv_registers.det_pixel_size: 76.0e-6    # metres
+
+diagnostics:
+
+  microscope:
+    motors:
+      - device: cam_stage_8idi.x
+        position: -0.105
+      - device: cam_stage_8idi.y
+        position: -0.184
+
+  pind:
+    motors:
+      - device: cam_stage_8idi.x
+        position: -205.0
+      - device: cam_stage_8idi.y
+        position: -0.184
+
+  wavefront:
+    motors:
+      - device: cam_stage_8idi.x
+        position: -114.75
+      - device: cam_stage_8idi.y
+        position: -0.184
+
+sample_envs:
+
+  qnw:
+    motors:
+      - device: granite.x
+        position: 923.0
+    valve: granite_8idi_valve.enable
+
+  rheometer:
+    motors:
+      - device: granite.x
+        position: 73.7
+    valve: granite_8idi_valve.enable
+
+  robot:
+    motors:
+      - device: granite.x
+        position: 62.0
+    valve: granite_8idi_valve.enable

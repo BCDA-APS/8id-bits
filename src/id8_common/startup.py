@@ -134,16 +134,13 @@ from .plans.acquire.ad_acq import *
 from .plans.acquire.tetramm_acq import *
 from .plans.acquire.master_plan import *
 
-# from .plans.nexus_acq_eiger_int import *
-# from .plans.nexus_acq_eiger_ext import *
-# from .plans.nexus_acq_lambda_int import *
-# from .plans.nexus_acq_lambda_ext import *
-# from .plans.nexus_acq_rigaku_zdt import *
-# from .plans.tetramm_acq import *
-# from .plans.nexus_acq_eiger_int_wei import *
-
 # import align plans
 from .plans.align.scan_8id import *
+
+# import set plans
+from .plans.set.select_sample import select_sample
+from .plans.set.select_device import *
+from .plans.set.qnw_plans import *
 
 # import calibrate plans
 

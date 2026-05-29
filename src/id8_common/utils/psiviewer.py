@@ -67,7 +67,7 @@ SYNCED_MSG = 'Synced'
 NOT_SYNCED_MSG = 'Not Synced'
 
 ###### MOTOR PVS #######
-DELTA_RBV = ' 8ideSoft:CR8-E1:m5.RBV'
+DELTA_RBV = '8ideSoft:CR8-E1:m5.RBV'
 NU_RBV = '8ideSoft:CR8-E1:m4.RBV'
 MU_RBV = '8ideSoft:CR8-E1:m6.RBV'
 ETA_RBV = '8ideSoft:CR8-E1:m7.RBV'
@@ -75,30 +75,21 @@ CHI_RBV = '8ideSoft:CR8-E1:m8.RBV'
 PHI_RBV = '8ideSoft:CR8-E1:m9.RBV'
 
 ###### XRAY PVS #######
-ENERGY_RBV = 'S08ID:USID:EnergyM' # this is the upstream gap energy, maybe update to mono
-# POLARIZATION_RBV = 'S29ID:ActualModeM'
+ENERGY_RBV = '8idaSoft:MN1:Energy.RBV' 
 
 ###### UB PVS ######
 UB_MATRIX_RBV = ''
-UB_ENERGY_RBV = ''
+UB_ENERGY_RBV = '8idaSoft:MN1:Energy.RBV'
 UB_OR0_RBV = ''
 UB_OR1_RBV = ''
 LATTICE_RBV = ''
 SAMPLE_NAME_RBV = ''
 NO_SOLUTION_MSG = 'No solution!'
 
-POLARIZATION_DICT = {
-    0: 'CW, RCP',
-    1: 'CCW, LCP',
-    2: 'V',
-    3: 'H',
-    4: 'H, Neg',
-}
-
 DEFAULT_SAMPLE = {
     'name': 'SrTiO3',
     'lattice': [3.905, 3.905, 3.905, 90, 90, 90],
-    'UB_energy': 8000,
+    'UB_energy': UB_ENERGY_RBV,
     'or0':[0, 0, 1, 98.213, 0, 0, 49.1065, 0, 0],
     'or1':[1, 0, 0, 98.213, 0, 0, 49.1065+90, 0, 0],
     'UB': np.array([[1.609, 0, 0],[0, 1.609, 0],[0, 0, -1.609]]),
@@ -112,7 +103,6 @@ DEFAULT_GEOMETRY = {
     'chi': 0,
     'phi': 0,
     'energy': 8000,
-    'polarization': 0
 }
 
 PSI_MODES = [
@@ -597,8 +587,8 @@ class MonitorWindow(QMainWindow):
         self.motorDisplayLayout.setHorizontalSpacing(5)
         self.motorDisplayLayout.setContentsMargins(0, 0, 0, 0)
 
-        motor_names = ['energy', 'polarization', 'delta', 'nu', 'mu', 'eta', 'chi', 'phi']
-        motor_labels = ['Energy (eV)', 'Polarization', 'delta', 'nu', 'mu', 'eta', 'chi', 'phi']
+        motor_names = ['energy', 'delta', 'nu', 'mu', 'eta', 'chi', 'phi']
+        motor_labels = ['Energy (eV)', 'delta', 'nu', 'mu', 'eta', 'chi', 'phi']
 
         for col, label_text in enumerate(motor_labels):
             label = QLabel(label_text)
@@ -612,7 +602,6 @@ class MonitorWindow(QMainWindow):
             self.motorDisplayMap[display_name] = line_edit
             self.motorDisplayLayout.addWidget(line_edit, 1, col)
 
-        self.motorDisplayMap['polarization'].setReadOnly(True)
         self.generalLayout.addLayout(self.motorDisplayLayout)
 
     def _createLatticeDisplay(self):
@@ -788,15 +777,10 @@ class MonitorWindow(QMainWindow):
             self._energy = value
             # self._psi_sim.calc.wavelength = 12398.4/self._energy
             self._psi_sim.core.wavelength = 12398.4 / self._energy
-        elif name == 'polarization':
-            self.motorDisplayMap[name].setText(value)
-            self._polarization = value
 
     def getXrayDisplayLayout(self, name):
         if name == 'energy':
             return float(self.motorDisplayMap[name].text())
-        elif name == 'polarization':
-            return self.motorDisplayMap[name].text()
     
     def updateStatusDisplayLayout(self, display_name, text):
         self.statusDisplayMap[display_name].setText(str(text))
@@ -1023,7 +1007,6 @@ class MonitorWindow(QMainWindow):
         if self.isXrayOnline:
             try:
                 self._energy = float(caget(ENERGY_RBV, timeout=0.1))
-                self._polarization = int(caget(POLARIZATION_RBV, timeout=0.1))
                 self._xray_synced= True
                 self.updateStatusDisplayLayout('xray_status', SYNCED_MSG)
                 self.isXrayOnline = True
@@ -1033,11 +1016,9 @@ class MonitorWindow(QMainWindow):
         else:
             self.loadDefaultXray()
         self.updateXrayDisplayLayout('energy', self._energy)
-        self.updateXrayDisplayLayout('polarization', POLARIZATION_DICT[self._polarization])
 
     def loadDefaultXray(self):
             self._energy = DEFAULT_GEOMETRY['energy']
-            self._polarization = DEFAULT_GEOMETRY['polarization']
             self.updateStatusDisplayLayout('xray_status', NOT_SYNCED_MSG)
             self._xray_synced = False
 
