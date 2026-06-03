@@ -272,6 +272,10 @@ id8_common.devices.flight_path.FlightPath:
 # - name: robotic_pipette
 #   prefix: "8idiur5:UR5:"
 
+id8_common.devices.ur5_control.UR5:
+- name: ur5
+  prefix: "RobocartUR5:"
+
 id8_common.devices.tetramm_picoammeter.MyTetrAMM:
 - name: tetramm1
   prefix: "8idTetra:QUAD1:"
