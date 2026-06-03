@@ -338,6 +338,7 @@ def acquire_eiger_external():
 
     eiger4M.hdf1.capture.put(1)
     eiger4M.cam.acquire.put(1)
+    ttime.sleep(1.0)
 
     softglue.start_pulses.put("1!")
 
@@ -364,7 +365,10 @@ def acquire_eiger_external():
             ttime.sleep(0.1)
             count = +1
         eiger4M.hdf1.capture.put(0)
-
+    
+    softglue.pv_clear1.put("1!")
+    softglue.pv_clear2.put("1!")
+    
 
 def acquire_lambda_internal():
     lambda2M = get_connected_device("lambda2M")
@@ -516,74 +520,74 @@ def det_acq_series(wait_time=0):
     """
     det = None
     mode_info = None
-    # try:
-    post_align()
-    shutteroff()
+    try:
+        post_align()
+        shutteroff()
 
-    workflowProcApi, dmuser = dm_setup()
+        workflowProcApi, dmuser = dm_setup()
 
-    detector = pv_registers.det_name.get().strip()
-    mode = pv_registers.det_mode.get().strip()
+        detector = pv_registers.det_name.get().strip()
+        mode = pv_registers.det_mode.get().strip()
 
-    acq_time = float(pv_registers.acq_time.get())
-    acq_period = float(pv_registers.acq_period.get())
-    num_frames = int(pv_registers.num_frames.get())
-    num_reps = int(pv_registers.num_repeats.get())
+        acq_time = float(pv_registers.acq_time.get())
+        acq_period = float(pv_registers.acq_period.get())
+        num_frames = int(pv_registers.num_frames.get())
+        num_reps = int(pv_registers.num_repeats.get())
 
-    mode_info = ACQ_MODES[detector][mode]
+        mode_info = ACQ_MODES[detector][mode]
 
-    for device_name in mode_info["required_devices"]:
-        get_connected_device(device_name)
+        for device_name in mode_info["required_devices"]:
+            get_connected_device(device_name)
 
-    det = get_connected_device(detector)
-    setup_func = mode_info["setup"]
-    acquire_func = mode_info["acquire"]
+        det = get_connected_device(detector)
+        setup_func = mode_info["setup"]
+        acquire_func = mode_info["acquire"]
 
-    folder_prefix = gen_folder_prefix()
-    file_header = f"{folder_prefix}_f{num_frames:06d}"
+        folder_prefix = gen_folder_prefix()
+        file_header = f"{folder_prefix}_f{num_frames:06d}"
 
-    for rep in range(num_reps):
-        ttime.sleep(wait_time)
+        for rep in range(num_reps):
+            ttime.sleep(wait_time)
 
-        sample_mesh_move()
+            sample_mesh_move()
 
-        file_name = f"{file_header}_r{rep + 1:05d}"
+            file_name = f"{file_header}_r{rep + 1:05d}"
 
-        if mode_info["needs_acq_period"]:
-            metadata_fname = setup_func(
-                acq_time=acq_time,
-                acq_period=acq_period,
-                num_frames=num_frames,
-                file_header=file_header,
-                file_name=file_name,
-            )
-        else:
-            metadata_fname = setup_func(
-                acq_time=acq_time,
-                num_frames=num_frames,
-                file_header=file_header,
-                file_name=file_name,
-            )
+            if mode_info["needs_acq_period"]:
+                metadata_fname = setup_func(
+                    acq_time=acq_time,
+                    acq_period=acq_period,
+                    num_frames=num_frames,
+                    file_header=file_header,
+                    file_name=file_name,
+                )
+            else:
+                metadata_fname = setup_func(
+                    acq_time=acq_time,
+                    num_frames=num_frames,
+                    file_header=file_header,
+                    file_name=file_name,
+                )
 
-        time_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        print(f"\n{time_now}, Starting measurement {file_name}")
+            time_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            print(f"\n{time_now}, Starting measurement {file_name}")
 
-        acquire_func()
+            acquire_func()
 
-        time_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        print(f"{time_now}, Complete measurement {file_name}")
+            time_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            print(f"{time_now}, Complete measurement {file_name}")
 
-        create_nexus_format_metadata(metadata_fname, det=det)
+            create_nexus_format_metadata(metadata_fname, det=det)
 
-        dm_run_job(workflowProcApi, dmuser, file_name)
+            dm_run_job(workflowProcApi, dmuser, file_name)
 
-    # except KeyboardInterrupt:
-    #     cleanup_acquisition(det, mode_info)
-    #     raise RuntimeError("\n Bluesky plan stopped by user (Ctrl+C).")
-    # except Exception as e:
-    #     print(f"Error occurred during measurement: {e}")
-    # finally:
-    #     pass
+    except KeyboardInterrupt:
+        cleanup_acquisition(det, mode_info)
+        raise RuntimeError("\n Bluesky plan stopped by user (Ctrl+C).")
+    except Exception as e:
+        print(f"Error occurred during measurement: {e}")
+    finally:
+        pass
 
 
 # =============================================================================

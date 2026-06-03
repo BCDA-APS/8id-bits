@@ -445,6 +445,25 @@ xpcs_schema = {
                     "data": "/path/to/this/spec_file_name",
                 },
             },
+            # "fofb_s09": {
+            #     "type": "NXinstrument",
+            #     "required": False,
+            #     "description": "fofb s09",
+            #     "horizontal_loop": {
+            #         "type": "NX_NUMBER",
+            #         "units": "NX_DIMENSIONLESS",
+            #         "required": False,
+            #         "description": "Horizontal loop value of the fofb s09",
+            #         "data": 0.0,
+            #     },
+            #     "vertical_loop": {
+            #         "type": "NX_NUMBER",
+            #         "units": "NX_DIMENSIONLESS",
+            #         "required": False,
+            #         "description": "Vertical loop value of the fofb s09",
+            #         "data": 0.0,
+            #     },
+            # },
             "sl4": {
                 "type": "NXslit",
                 "required": False,

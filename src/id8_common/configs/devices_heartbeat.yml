@@ -3,6 +3,11 @@
 # Simulator devices (apsbits.utils.sim_creator) have no heartbeat_pv — they always load.
 # hklpy2 entries have no heartbeat_pv; the underlying motors are checked via huber.
 
+id8_common.devices.fofb:
+  - name: fofb_s09
+    prefix: S09-FOFB
+    heartbeat_pv: S09-FOFB:H:LoopStatusM
+
 apsbits.utils.sim_creator.predefined_device:
   - creator: ophyd.sim.motor
     name: sim_motor

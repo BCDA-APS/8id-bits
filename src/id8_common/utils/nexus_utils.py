@@ -18,6 +18,7 @@ from apsbits.core.instrument_init import oregistry
 from .default_metadata import default_metadata
 from .xpcs_schema import xpcs_schema
 
+# fofb = oregistry['fofb_s09']
 pv_registers = oregistry["pv_registers"]
 detector = oregistry["detector"]
 filter_8ide = oregistry["filter_8ide"]
@@ -224,6 +225,10 @@ def create_runtime_metadata_dict(
         "/entry/instrument/monochromator/wavelength": mono.wavelength.user_readback.value,
         "/entry/instrument/incident_beam/incident_energy": mono.energy.user_readback.value,
         "/entry/instrument/incident_beam/incident_energy_spread": 0.0001,
+
+        # "/entry/instrument/incident_beam/fofb_s09_horizontal": fofb_s09.h_loop.get(),
+        # "/entry/instrument/incident_beam/fofb_s09_vertical": fofb_s09.v_loop.get(),
+        
         # "/entry/instrument/incident_beam/incident_beam_intensity": (
         #     xbpm1.current1.mean_value.get() / xbpm1.current_scales.ch1.get()
         #     + xbpm1.current2.mean_value.get() / xbpm1.current_scales.ch2.get()

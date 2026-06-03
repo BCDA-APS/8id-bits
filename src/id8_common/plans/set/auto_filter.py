@@ -1,4 +1,59 @@
 
+import json
+import pathlib
+import time
+
+from apsbits.core.instrument_init import oregistry
+from id8_common.plans.set.shutter_att import showbeam, blockbeam
+
+filter_beam = oregistry["filter_8ide"]
+
+ATT_CACHE_PATH = pathlib.Path.home() / ".config" / "8id_bluesky" / "att_cache.json"
+
+def pos_key(pos: float) -> str:
+    return f"{pos:.4f}"
+
+def make_att_cache_key(motor, positions) -> str:
+    pos_str = ",".join(pos_key(p) for p in positions)
+    return f"{motor.name}:{pos_str}"
+
+def load_att_cache(key: str) -> dict | None:
+    """Return cached {pos_key: transmission} for this scan, or None if not found."""
+    if not ATT_CACHE_PATH.exists():
+        return None
+    data = json.loads(ATT_CACHE_PATH.read_text())
+    return data.get(key)
+
+def save_att_cache(key: str, att_map: dict) -> None:
+    ATT_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    data = json.loads(ATT_CACHE_PATH.read_text()) if ATT_CACHE_PATH.exists() else {}
+    data[key] = att_map
+    ATT_CACHE_PATH.write_text(json.dumps(data, indent=2))
+
+def run_att_pilot_scan(det, motor, positions, count_time, rate_limit, force=False) -> dict:
+    """
+    Walk every scan position, determine safe transmission via auto_att, return {pos_key: trans}.
+    Results are saved to cache. If cache already exists for this scan, returns it immediately
+    unless force=True.
+    """
+    key = make_att_cache_key(motor, positions)
+    if not force:
+        cached = load_att_cache(key)
+        if cached is not None:
+            print(f"  [att_cache] Using cached attenuation map ({len(cached)} positions)")
+            return cached
+
+    print(f"[att_cache] Running pilot scan over {len(positions)} positions")
+    att_map = {}
+    for pos in positions:
+        motor.move(pos, wait=True)
+        auto_att(det, pilot_exptime=count_time, rate_limit=rate_limit)
+        att_map[pos_key(pos)] = filter_beam.transmission.readback.get()
+
+    save_att_cache(key, att_map)
+    print(f"[att_cache] Pilot scan complete. Cache saved to {ATT_CACHE_PATH}")
+    return att_map
+
 def auto_att(
     det,
     pilot_exptime: float = 0.05,

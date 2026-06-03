@@ -35,6 +35,9 @@
 # Beryl:
 # 8idEiger4m.pl
 
+id8_common.devices.fofb.FOFB:
+  - name: fofb_s09
+    prefix: S09-FOFB
 
 apsbits.utils.sim_creator.predefined_device:
   - creator: ophyd.sim.motor
@@ -206,6 +209,9 @@ id8_common.devices.softglue.SoftGlue:
   pv_start_pulses: "8idMZ1:SG:plsTrn-1_Inp_Signal"  # 1! for starting pulses
   pv_stop_pulses: "8idMZ1:SG:plsTrn-1_Dis_Signal"  # 1 for stopping pulses. Change back to 0 when done.
   pv_enable_rigaku: "8idMZ1:SG:MUX2-1_SEL_Signal" # '1' for switching to Rigaku, '0' for all other detectors
+  pv_clear1: "8idMZ1:SG:UpCntr-1_CLEAR_Signal"  # example PV for clearing a counter or similar action
+  pv_clear2: "8idMZ1:SG:UpCntr-2_CLEAR_Signal"  # example PV for clearing a counter or similar action
+  pv_clear3: "8idMZ1:SG:UpCntr-3_CLEAR_Signal"  # example PV for clearing a counter or similar action
 
 id8_common.devices.softglue.softglue_mz2:  
 - name: "softglue_8id_mz2"
