@@ -13,7 +13,7 @@ cam_stage_8idi = oregistry["cam_stage_8idi"]
 def select_diagnostics(name: str):
 
     if name == "microscope":
-        cam_stage_8idi.x.move(-0.105)
+        cam_stage_8idi.x.move(-19.02)
         cam_stage_8idi.y.move(-0.184)
     if name == "pind":
         cam_stage_8idi.x.move(-205.0)

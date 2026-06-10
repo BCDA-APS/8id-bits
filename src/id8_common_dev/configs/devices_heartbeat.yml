@@ -390,3 +390,8 @@ id8_common.devices.pin_diode.PIND:
 - name: pd
   prefix: "8ideSoft:pdu1:"
   heartbeat_pv: "8ideSoft:pdu1:status2.RVAL"
+
+id8_common.devices.ur5_control.UR5:
+- name: ur5
+  prefix: "RobocartUR5:"
+  heartbeat_pv: "RobocartUR5:Receive:Joint1.VAL"

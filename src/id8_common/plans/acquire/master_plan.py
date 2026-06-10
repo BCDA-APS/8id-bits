@@ -7,6 +7,7 @@ from apsbits.core.instrument_init import oregistry
 from id8_common.plans.acquire.ad_acq import ACQ_MODES
 from id8_common.plans.acquire.ad_acq import det_acq_series
 from id8_common.plans.set.shutter_att import att
+from id8_common.plans.set.select_device import select_device
 
 
 pv_registers = oregistry["pv_registers"]
@@ -451,6 +452,7 @@ def run_measurement(measurement, sample_info):
     print("==============================================")
     print("")
 
+    select_device(measurement["detector"])
     det_acq_series(wait_time=wait_time)
 
 

@@ -51,6 +51,10 @@ default_metadata = {
     "/entry/instrument/beam_stop/x_position": 1.0,
     "/entry/instrument/beam_stop/y_position": 1.0,
     "/entry/instrument/beam_stop/size": 4.0,
+    
+    # "/entry/instrument/incident_beam/fofb_s09_horizontal": 1.0,
+    # "/entry/instrument/incident_beam/fofb_s09_vertical": 1.0,
+    
     "/entry/instrument/datamanagement/workflow_name": "boost_corr workflow",
     # "/entry/instrument/datamanagement/workflow_version": "0.0.1",
     # "/entry/instrument/datamanagement/workflow_kwargs": """{"key": "value"}""",
@@ -79,6 +83,21 @@ default_metadata = {
     "/entry/sample/short_description": "Short sample description",
     "/entry/sample/full_description": "Full sample description",
     "/entry/sample/lakeshore1": 1.0,
+
+    "/entry/sample/position_x": 1.0,
+    "/entry/sample/position_y": 1.0,
+    "/entry/sample/position_z": 1.0,
+    "/entry/sample/position_rheo_x": 1.0,
+    "/entry/sample/position_rheo_y": 1.0,
+    "/entry/sample/position_rheo_z": 1.0,
+    "/entry/sample/qnw_lakeshore": 1.0,
+    "/entry/sample/qnw1_temperature": 1.0,
+    "/entry/sample/qnw1_temperature_set": 1.0,
+    "/entry/sample/qnw2_temperature": 1.0,
+    "/entry/sample/qnw2_temperature_set": 1.0,
+    "/entry/sample/qnw3_temperature": 1.0,
+    "/entry/sample/qnw3_temperature_set": 1.0,
+
     "/entry/sample/keithley_chA_SrcLevelV": 1.0,
     "/entry/sample/keithley_chA_SrcLevelI": 1.0,
     "/entry/sample/keithley_chB_SrcLevelV": 1.0,

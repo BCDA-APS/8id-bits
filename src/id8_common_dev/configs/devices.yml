@@ -232,6 +232,10 @@ id8_common.devices.flight_path.FlightPath:
 - name: flight_path_8idi
   prefix: "8idiSoft:FLIGHT:"
 
+id8_common.devices.ur5_control.UR5:
+- name: ur5
+  prefix: "RobocartUR5:"
+
 # id8_common.devices.ur5_robot.UR5_Pipette:
 # - name: robotic_pipette
 #   prefix: "8idiur5:UR5:"

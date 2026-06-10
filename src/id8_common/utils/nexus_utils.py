@@ -41,6 +41,11 @@ mono_slit = oregistry["mono_slit"]
 # bk_pid = oregistry["bk_pid"]
 # keysight = oregistry["keysight"]
 flight_path_8idi = oregistry["flight_path_8idi"]
+rheometer = oregistry["rheometer"]
+sample = oregistry["sample"]
+qnw_env1 = oregistry["qnw_env1"]
+qnw_env2 = oregistry["qnw_env2"]
+qnw_env3 = oregistry["qnw_env3"]
 
 def _get_ring_current():
    
@@ -246,6 +251,20 @@ def create_runtime_metadata_dict(
         "/entry/instrument/attenuator_1/attenuator_index": (filter_8ide.index.readback.get()),
         "/entry/instrument/attenuator_2/attenuator_transmission": (0),
         "/entry/instrument/attenuator_2/attenuator_index": (0),
+        
+        "/entry/sample/position_x": sample.x.position,
+        "/entry/sample/position_y": sample.y.position,
+        "/entry/sample/position_z": sample.z.position,
+        "/entry/sample/position_rheo_x": rheometer.x.position,
+        "/entry/sample/position_rheo_y": rheometer.y.position,
+        "/entry/sample/position_rheo_z": rheometer.z.position,
+        "/entry/sample/qnw1_temperature": qnw_env1.readback.get(),  # Air QNW
+        "/entry/sample/qnw1_temperature_set": qnw_env1.setpoint.get(),
+        "/entry/sample/qnw2_temperature": qnw_env2.readback.get(),
+        "/entry/sample/qnw2_temperature_set": qnw_env2.setpoint.get(),
+        "/entry/sample/qnw3_temperature": qnw_env3.readback.get(),
+        "/entry/sample/qnw3_temperature_set": qnw_env3.setpoint.get(),
+
         "/entry/sample/huber_nu": huber.nu.position,
         "/entry/sample/huber_delta": huber.delta.position,
         "/entry/sample/huber_mu": huber.mu.position,

@@ -45,16 +45,16 @@ apsbits.utils.sim_creator.predefined_device:
   - creator: ophyd.sim.noisy_det
     name: sim_det
 
-ophyd.EpicsMotor:
-  - name: fl2
-    prefix: 8ideSoft:CR8-E2:m7
-    labels: ["motor"]
-  - name: fl3
-    prefix: 8idiSoft:CR8-I2:m7
-    labels: ["motor"]
-  - name: flag4
-    prefix: 8iddSoft:CR8-D1:m1
-    labels: ["motor"]
+# ophyd.EpicsMotor:
+#   - name: fl2
+#     prefix: 8ideSoft:CR8-E2:m7
+#     labels: ["motor"]
+#   - name: fl3
+#     prefix: 8idiSoft:CR8-I2:m7
+#     labels: ["motor"]
+  # - name: flag4
+  #   prefix: 8iddSoft:CR8-D1:m1
+  #   labels: ["motor"]
 
 id8_common.devices.xy_motors.XY_Motors:
 - name: cam_stage_8idi
@@ -274,13 +274,10 @@ id8_common.devices.flight_path.FlightPath:
 - name: flight_path_8idi
   prefix: "8idiSoft:FLIGHT:"
 
-# id8_common.devices.ur5_robot.UR5_Pipette:
-# - name: robotic_pipette
-#   prefix: "8idiur5:UR5:"
-
 id8_common.devices.ur5_control.UR5:
 - name: ur5
   prefix: "RobocartUR5:"
+
 
 id8_common.devices.tetramm_picoammeter.MyTetrAMM:
 - name: tetramm1

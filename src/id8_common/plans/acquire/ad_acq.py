@@ -285,6 +285,12 @@ def setup_lambda_internal(acq_time, num_frames, file_header, file_name):
 
 def setup_rigaku_zdt(acq_time, num_frames, file_header, file_name):
     rigaku3M = get_connected_device("rigaku3M")
+    softglue = get_connected_device("softglue")
+
+    softglue.enable_rigaku.put('1')
+
+    rigaku3M.cam.trigger_mode.put('Start with Trigger')
+
     file_path, full_path = get_rigaku_file_path(file_header, file_name)
 
     rigaku3M.cam.acquire_time.put(acq_time)

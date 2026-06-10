@@ -88,16 +88,17 @@ else:
     from bluesky import plans as bp  # noqa: F401
 
 # Experiment specific logic, device and plan loading. # Create the devices.
-offline_devices = []
-offline_devices += safe_make_devices(file="devices.yml", device_manager=instrument)
-offline_devices += safe_make_devices(file="ad_devices.yml", device_manager=instrument)
-if offline_devices:
-    print(f"\033[91m\n*** Devices not online: {offline_devices} ***\n\033[0m")
-if host_on_aps_subnet(): # test this 
-    make_devices(clear=False, file="devices_aps_only.yml", device_manager=instrument)
-# make_devices(clear=False, file="devices.yml", device_manager=instrument)
-# make_devices(clear=False, file="ad_devices.yml", device_manager=instrument)
-# make_devices(clear=False, file="devices_aps_only.yml", device_manager=instrument)
+# offline_devices = []
+# offline_devices += safe_make_devices(file="devices.yml", device_manager=instrument)
+# offline_devices += safe_make_devices(file="ad_devices.yml", device_manager=instrument)
+# if offline_devices:
+#     print(f"\033[91m\n*** Devices not online: {offline_devices} ***\n\033[0m")
+# if host_on_aps_subnet(): # test this 
+#     make_devices(clear=False, file="devices_aps_only.yml", device_manager=instrument)
+
+make_devices(clear=False, file="devices.yml", device_manager=instrument)
+make_devices(clear=False, file="ad_devices.yml", device_manager=instrument)
+make_devices(clear=False, file="devices_aps_only.yml", device_manager=instrument)
 
 from id8_common.devices.area_detector import ad_setup
 ad_setup(oregistry["eiger4M"], iconfig)

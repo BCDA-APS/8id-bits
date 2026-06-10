@@ -200,7 +200,7 @@ def save_images(det, save_img, num_pts, num_frames=1, file_path=None, folder_pre
             #     pv_registers.file_path, file_path,
             #     pv_registers.metadata_full_path, f"{file_path}/{file_name}_metadata.hdf",
             # )
-            return  # capture managed manually in dscan
+            return  
 
         # for eiger4m, lambda2m 
         if has(det, "cam"):
@@ -223,7 +223,7 @@ def save_images(det, save_img, num_pts, num_frames=1, file_path=None, folder_pre
                 yield from bps.mv(det.hdf1.file_path, file_path)
 
         if has(det, "cam"):
-            det.cam.trigger_mode.put(0)
+            # det.cam.trigger_mode.put(0)
             if is_eiger:
                 if has(det.cam, "trigger_mode"):
                     yield from bps.mv(det.cam.trigger_mode, "Internal Enable")
@@ -290,7 +290,6 @@ def dscan_auto(motor, rel_begin, rel_end, num_pts, count_time,
             )
         finally:
             det.hdf1.capture.put(0)
-            print('# images captured: ', det.cam.num_images.get())
         return
 
     if is_lambda:
@@ -457,14 +456,13 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
     
     folder_prefix = gen_folder_prefix() if save_img == 1 else ""
     md = {"Image file": folder_prefix, "detectors": [det.name], "motors": [motor.name], "plan_name": "dscan", "num_points": num_pts}
+    
     yield from save_images(det, save_img, num_pts, folder_prefix=folder_prefix)
 
     if is_tetramm:
-        # yield from save_images(det, save_img, num_pts)
-        if save_img == 1:
-            det.hdf1.enable.put(1)
-            det.hdf1.capture.put(1)
-            print(f"TetrAMM HDF capture armed: {det.hdf1.file_name.get()}")
+        det.hdf1.enable.put(1)
+        det.hdf1.capture.put(1)
+        print(f"TetrAMM HDF capture armed: {det.hdf1.file_name.get()}")
 
         start_pos = motor.position
         positions = np.linspace(start_pos + rel_begin, start_pos + rel_end, num_pts)
@@ -486,13 +484,9 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
         finally:
             if save_img == 1:
                 det.hdf1.capture.put(0)
-                print('# images captured: ', det.cam.num_images.get())
         return
 
     if is_lambda:
-        
-        # yield from save_images(det, save_img, num_pts)
-
         yield from bps.mv(
             det.cam.operating_mode, 3, # 24-bit dual threshold mode
             det.cam.trigger_mode, "External_ImagePer",
@@ -536,7 +530,10 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
                 det.hdf1.capture.put(0)
                 blockbeam()
                 yield from bps.mv(motor, start_pos)
-
+        
+        shutteron()
+        showbeam()
+        
         try:
             yield from bpp.stage_wrapper(
                 bpp.run_wrapper(inner_lambda(), md=md), [motor],
@@ -556,9 +553,8 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
         # Set timing first (save_images reads acquire_time for setup_eiger_int_series)
         yield from bps.mv(
             det.cam.acquire_time, count_time,
-            det.cam.acquire_period, count_time,
+            # det.cam.acquire_period, count_time,
         )
-        # yield from save_images(det, save_img, num_pts)
 
         # Correct settings after save_images (setup_eiger_int_series resets:
         # trigger_mode="Internal Series", num_triggers=1, manual_trigger="Disable",
@@ -570,7 +566,6 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
             det.cam.num_triggers, num_pts,
             det.hdf1.num_capture, num_pts,
         )
-
         # Set stage_sigs for pre-armed software-trigger mode
         cam_keys = ("trigger_mode", "manual_trigger", "num_triggers", "wait_for_plugins")
         saved = {k: det.cam.stage_sigs[k] for k in cam_keys if k in det.cam.stage_sigs}
@@ -582,11 +577,11 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
         start_pos = motor.position
         positions = np.linspace(start_pos + rel_begin, start_pos + rel_end, num_pts)
         pos_cache = {motor: None}
-
         def step(detectors, step, pos_cache):
             """Move motor, fire software trigger, wait for frame, read motor."""
             yield from bps.move_per_step(step, pos_cache)
             det.cam.special_trigger_button.put(1, wait=False)
+            yield from bps.sleep(count_time)
             yield from bps.create("primary")
             yield from bps.read(motor)
             yield from bps.read(det.stats1)
@@ -595,15 +590,15 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
             yield from bps.save()
 
         def inner():
-            # Start pre-armed acquisition (accepts num_pts software triggers)
-            det.cam.acquire.put(1)
+            '''Start pre-armed acquisition (accepts num_pts software triggers'''
+            yield from bps.abs_set(det.cam.acquire, 1, wait=False)
+            showbeam()
             try:
                 for pos in positions:
                     yield from step([det], {motor: pos}, pos_cache)
             finally:
-                # Wait for HDF to flush all frames before stage_wrapper unstages
                 t0 = time.time()
-                timeout = num_pts * count_time * 3 + 10
+                timeout = num_pts * count_time + 10
                 while det.hdf1.num_captured.get() < num_pts:
                     yield from bps.sleep(0.05)
                     if time.time() - t0 > timeout:
@@ -611,7 +606,6 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
                         break
                 det.cam.acquire.put(0)
                 yield from bps.mv(motor, start_pos)  # return to start position
-
         try:
             yield from bpp.stage_wrapper(
                 bpp.run_wrapper(inner(), md=md),
@@ -627,6 +621,7 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
             # Return detector to normal state: Internal Enable, manual trigger off
             det.cam.trigger_mode.put("Internal Enable")
             det.cam.manual_trigger.put("Disable")
+            blockbeam()
             print('# images captured: ', det.hdf1.num_captured.get())
 
 

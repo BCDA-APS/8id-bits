@@ -10,6 +10,7 @@ import time
 shutter_8ide = oregistry["shutter_8ide"]
 pd = oregistry["pd"]
 filter_beam = oregistry["filter_8ide"]
+softglue = oregistry["softglue"]
 
 def showbeam():
     """Open the beam shutter to show the beam."""
@@ -40,6 +41,7 @@ def post_align():
 def pre_align():
     """Configure system for pre-alignment state by disabling shutter control."""
     pe.caput("8idiSoft:FLIGHT:bo1:8", 0)
+    softglue.enable_rigaku.put('0')
     shutteroff()
     time.sleep(0.5)
 

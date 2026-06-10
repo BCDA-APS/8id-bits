@@ -13,8 +13,8 @@ detectors:
         position: 256.0
       - device: detector.y
         position: 77.0
-    db_x: 714.0
-    db_y: 817.0
+    db_x: 716.0
+    db_y: 815.0
     registers:
       softglue.enable_rigaku: '0'
       pv_registers.workflow_name: xpcs8-boost-corr
@@ -27,8 +27,8 @@ detectors:
         position: -230.0
       - device: detector.y
         position: 170.0
-    db_x: 1693.0
-    db_y: 852.0
+    db_x: 1646.0
+    db_y: 847.0
     registers:
       softglue.enable_rigaku: '1'
       pv_registers.workflow_name: xpcs8-boost-corr
@@ -40,23 +40,23 @@ diagnostics:
   microscope:
     motors:
       - device: cam_stage_8idi.x
-        position: -0.105
+        position: 155
       - device: cam_stage_8idi.y
-        position: -0.184
+        position: 2.6
 
   pind:
     motors:
       - device: cam_stage_8idi.x
-        position: -205.0
+        position: 100
       - device: cam_stage_8idi.y
-        position: -0.184
+        position: 2.6
 
   wavefront:
     motors:
       - device: cam_stage_8idi.x
-        position: -114.75
+        position: -19.02
       - device: cam_stage_8idi.y
-        position: -0.184
+        position: 2.6
 
 sample_envs:
 
@@ -77,3 +77,5 @@ sample_envs:
       - device: granite.x
         position: 62.0
     valve: granite_8idi_valve.enable
+
+

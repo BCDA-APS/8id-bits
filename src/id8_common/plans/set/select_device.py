@@ -8,6 +8,7 @@ device_position.yaml so that hardware values stay out of the code.
 from pathlib import Path
 
 import yaml
+import time as ttime
 from apsbits.core.instrument_init import oregistry
 
 pv_registers = oregistry["pv_registers"]
@@ -29,9 +30,9 @@ def _resolve(dotted: str):
     return obj
 
 
-def _move_motors(motors_cfg: list):
+def _move_motors(motors_cfg: list, timeout: float = 300):
     for m in motors_cfg:
-        _resolve(m["device"]).move(m["position"])
+        _resolve(m["device"]).move(m["position"], wait=True, timeout=timeout)
 
 
 def select_device(name: str):
@@ -78,12 +79,15 @@ def select_device(name: str):
         valve_path = cfg.get("valve")
 
         if valve_path:
-            _resolve(valve_path).put(1)
+            _resolve(valve_path).put(1, wait=True)
+        ttime.sleep(5)  # wait for valve to open
 
         _move_motors(cfg["motors"])
+        ttime.sleep(5)  # wait after move
 
         if valve_path:
-            _resolve(valve_path).put(0)
+            _resolve(valve_path).put(0, wait=True)
+        ttime.sleep(1)  # wait for valve to close
 
     else:
         all_names = (
