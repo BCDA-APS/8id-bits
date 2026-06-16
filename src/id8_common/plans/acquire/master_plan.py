@@ -246,6 +246,13 @@ def validate_timing(measurement):
     if acq_time <= 0:
         raise ValueError("acq_time must be > 0.")
 
+    min_acq_time = mode_info.get("min_acq_time")
+    if min_acq_time is not None and acq_time < min_acq_time:
+        raise ValueError(
+            f"{detector} {mode} requires acq_time >= {min_acq_time:.2e} s "
+            f"(got {acq_time:.2e} s)."
+        )
+
     if mode_info["needs_acq_period"]:
         if "acq_period" not in measurement:
             raise ValueError(f"{detector} {mode} requires acq_period.")
@@ -453,6 +460,7 @@ def run_measurement(measurement, sample_info):
     print("")
 
     select_device(measurement["detector"])
+    
     det_acq_series(wait_time=wait_time)
 
 

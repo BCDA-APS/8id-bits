@@ -2,9 +2,10 @@
 Consolidated acquisition script for 8-ID detectors.
 
 Supported modes:
-    eiger4M  : "Internal Series", "External Enable"
-    lambda2M : "Internal"
-    rigaku3M : "ZDT"
+    eiger4M       : "Internal Series", "External Enable"
+    lambda2M      : "Internal"
+    rigaku3M      : "ZDT", "ZDT4bit", "ZDT8bit"
+    rigaku3M_epics: "EPICS"
 """
 
 from datetime import datetime
@@ -310,6 +311,92 @@ def setup_rigaku_zdt(acq_time, num_frames, file_header, file_name):
     return metadata_fname
 
 
+def setup_rigaku_zdt4bit(acq_time, num_frames, file_header, file_name):
+    rigaku3M = get_connected_device("rigaku3M")
+    softglue = get_connected_device("softglue")
+
+    softglue.enable_rigaku.put('1')
+
+    rigaku3M.cam.trigger_mode.put('Start with Trigger')
+
+    file_path, full_path = get_rigaku_file_path(file_header, file_name)
+
+    rigaku3M.cam.acquire_time.put(acq_time)
+    rigaku3M.cam.acquire_period.put(acq_time)
+
+    rigaku3M.cam.fast_file_name.put(f"{file_name}.bin")
+    rigaku3M.cam.fast_file_path.put(file_path)
+
+    rigaku3M.cam.num_images.put(num_frames)
+    rigaku3M.cam.output_control.put("Sparsified")
+    rigaku3M.cam.output_resolution.put("4 Bit")
+
+    os.makedirs(full_path, mode=0o770, exist_ok=True)
+
+    metadata_fname = f"{full_path}/{file_name}_metadata.hdf"
+
+    return metadata_fname
+
+
+def setup_rigaku_zdt8bit(acq_time, num_frames, file_header, file_name):
+    rigaku3M = get_connected_device("rigaku3M")
+    softglue = get_connected_device("softglue")
+
+    softglue.enable_rigaku.put('1')
+
+    rigaku3M.cam.trigger_mode.put('Start with Trigger')
+
+    file_path, full_path = get_rigaku_file_path(file_header, file_name)
+
+    rigaku3M.cam.acquire_time.put(acq_time)
+    rigaku3M.cam.acquire_period.put(acq_time)
+
+    rigaku3M.cam.fast_file_name.put(f"{file_name}.bin")
+    rigaku3M.cam.fast_file_path.put(file_path)
+
+    rigaku3M.cam.num_images.put(num_frames)
+    rigaku3M.cam.output_control.put("Sparsified")
+    rigaku3M.cam.output_resolution.put("8 Bit")
+
+    os.makedirs(full_path, mode=0o770, exist_ok=True)
+
+    metadata_fname = f"{full_path}/{file_name}_metadata.hdf"
+
+    return metadata_fname
+
+
+def setup_rigaku_epics(acq_time, num_frames, file_header, file_name):
+    rigaku3M = get_connected_device("rigaku3M")
+    softglue = get_connected_device("softglue")
+
+    softglue.enable_rigaku.put('1')
+
+    rigaku3M.cam.trigger_mode.put('Start with Trigger')
+
+    file_path, full_path = get_rigaku_file_path(file_header, file_name)
+
+    rigaku3M.cam.acquire_time.put(acq_time)
+    rigaku3M.cam.acquire_period.put(acq_time)
+
+    rigaku3M.cam.fast_file_name.put(f"{file_name}.bin")
+    rigaku3M.cam.fast_file_path.put(file_path)
+
+    rigaku3M.cam.num_images.put(num_frames)
+    rigaku3M.cam.output_control.put("areaDetector")
+    rigaku3M.cam.output_resolution.put("16 Bit")
+
+    rigaku3M.hdf1.file_name.put(file_name)
+    rigaku3M.hdf1.file_path.put(full_path)
+    rigaku3M.hdf1.num_capture.put(num_frames)
+
+    os.makedirs(full_path, mode=0o770, exist_ok=True)
+
+    metadata_fname = f"{full_path}/{file_name}_metadata.hdf"
+
+    return metadata_fname
+
+
+
 # =============================================================================
 # Detector acquire functions
 # =============================================================================
@@ -413,6 +500,27 @@ def acquire_rigaku_zdt():
     blockbeam()
 
 
+def acquire_rigaku_epics():
+    rigaku3M = get_connected_device("rigaku3M")
+
+    showbeam()
+    ttime.sleep(0.1)
+
+    rigaku3M.hdf1.capture.put(1)
+    rigaku3M.cam.acquire.put(1)
+
+    while rigaku3M.cam.detector_state.get() != 1:
+        ttime.sleep(0.1)
+
+    while rigaku3M.cam.detector_state.get() != 0:
+        ttime.sleep(0.1)
+
+    blockbeam()
+
+    while rigaku3M.hdf1.capture.get() == 1:
+        ttime.sleep(0.1)
+
+
 # =============================================================================
 # Mode table
 # =============================================================================
@@ -448,6 +556,31 @@ ACQ_MODES = {
             "acquire": acquire_rigaku_zdt,
             "needs_acq_period": False,
             "required_devices": ["rigaku3M"],
+            "min_acq_time": 20e-6,
+        },
+        "ZDT4bit": {
+            "setup": setup_rigaku_zdt4bit,
+            "acquire": acquire_rigaku_zdt,
+            "needs_acq_period": False,
+            "required_devices": ["rigaku3M"],
+            "min_acq_time": 40e-6,
+        },
+        "ZDT8bit": {
+            "setup": setup_rigaku_zdt8bit,
+            "acquire": acquire_rigaku_zdt,
+            "needs_acq_period": False,
+            "required_devices": ["rigaku3M"],
+            "min_acq_time": 80e-6,
+        },
+    },
+
+    "rigaku3M_epics": {
+        "EPICS": {
+            "setup": setup_rigaku_epics,
+            "acquire": acquire_rigaku_epics,
+            "needs_acq_period": False,
+            "required_devices": ["rigaku3M"],
+            "hardware_device": "rigaku3M",
         },
     },
 }
@@ -545,7 +678,7 @@ def det_acq_series(wait_time=0):
         for device_name in mode_info["required_devices"]:
             get_connected_device(device_name)
 
-        det = get_connected_device(detector)
+        det = get_connected_device(mode_info.get("hardware_device", detector))
         setup_func = mode_info["setup"]
         acquire_func = mode_info["acquire"]
 
@@ -738,6 +871,26 @@ def det_acq_series(wait_time=0):
 # pv_registers.acq_time.put(2e-5)
 # pv_registers.acq_period.put(2e-5)
 # pv_registers.num_frames.put(100000)
+# pv_registers.num_repeats.put(5)
+#
+# pv_registers.sample_move.put("No")
+#
+# det_acq_series(wait_time=0)
+
+
+# -----------------------------------------------------------------------------
+# Example 6: Rigaku EPICS (slow, HDF5 output via areaDetector plugin)
+# -----------------------------------------------------------------------------
+#
+# pv_registers.header.put("A")
+# pv_registers.sample_name.put("G10")
+# pv_registers.measurement_num.put(12)
+#
+# pv_registers.det_name.put("rigaku3M_epics")
+# pv_registers.det_mode.put("EPICS")
+# pv_registers.acq_time.put(0.001)
+# pv_registers.acq_period.put(0.001)
+# pv_registers.num_frames.put(1000)
 # pv_registers.num_repeats.put(5)
 #
 # pv_registers.sample_move.put("No")

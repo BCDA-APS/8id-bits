@@ -18,10 +18,22 @@ detectors:
     registers:
       softglue.enable_rigaku: '0'
       pv_registers.workflow_name: xpcs8-boost-corr
-      pv_registers.qmap_file: eiger4m_qmap_default.hdf
       pv_registers.det_pixel_size: 75.0e-6    # metres
 
   rigaku3M:
+    motors:
+      - device: detector.x
+        position: -230.0
+      - device: detector.y
+        position: 180.0
+    db_x: 1644.0
+    db_y: 977.0
+    registers:
+      softglue.enable_rigaku: '1'
+      pv_registers.workflow_name: xpcs8-boost-corr
+      pv_registers.det_pixel_size: 76.0e-6    # metres
+
+  rigaku3M_epics:
     motors:
       - device: detector.x
         position: -230.0
@@ -32,7 +44,6 @@ detectors:
     registers:
       softglue.enable_rigaku: '1'
       pv_registers.workflow_name: xpcs8-boost-corr
-      pv_registers.qmap_file: rigaku3m_qmap_default.hdf
       pv_registers.det_pixel_size: 76.0e-6    # metres
 
 diagnostics:
