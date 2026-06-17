@@ -7,6 +7,8 @@ setpoints, motion parameters, and the move/stop triggers needed to drive
 the arm from Bluesky.
 """
 
+import time
+
 from ophyd import Component
 from ophyd import Device
 from ophyd import EpicsSignal
@@ -55,6 +57,14 @@ class _UR5JointGroup(Device):
     set_timeout = 60.0
 
     def set(self, target):
+        t0 = time.monotonic()
+        while self.done.get() == 0:
+            if time.monotonic() - t0 > self.set_timeout:
+                raise TimeoutError(
+                    f"UR5 joint move did not complete within {self.set_timeout}s"
+                )
+            time.sleep(0.05)
+
         targets = tuple(target)
         if len(targets) != 6:
             raise ValueError(
@@ -95,6 +105,14 @@ class _UR5PoseGroup(Device):
     set_timeout = 60.0
 
     def set(self, target):
+        t0 = time.monotonic()
+        while self.done.get() == 0:
+            if time.monotonic() - t0 > self.set_timeout:
+                raise TimeoutError(
+                    f"UR5 pose move did not complete within {self.set_timeout}s"
+                )
+            time.sleep(0.05)
+
         targets = tuple(target)
         if len(targets) != 6:
             raise ValueError(
@@ -111,6 +129,8 @@ class _UR5PoseGroup(Device):
             timeout=self.set_timeout,
         )
         self.actuate.put(1)
+        status.wait()
+        time.sleep(3)
         return status
 
 
