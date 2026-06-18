@@ -425,6 +425,9 @@ def acquire_eiger_external():
     eiger4M = get_connected_device("eiger4M")
     softglue = get_connected_device("softglue")
 
+    softglue.pv_clear1.put("1!")
+    softglue.pv_clear2.put("1!")
+
     shutteron()
     showbeam()
     ttime.sleep(0.1)
@@ -448,19 +451,16 @@ def acquire_eiger_external():
             break
     blockbeam()
 
-    frame_num_set = eiger4M.hdf1.queue_size.get()
+    frame_num_set = eiger4M.hdf1.num_capture.get()
     count = 0
-    while count < 100:  # 100 and 0.1 s are some empirical number for timeout conditions
-        frame_num_processed = eiger4M.hdf1.queue_free.get()
+    while count < 600:  # 100 and 0.1 s are some empirical number for timeout conditions
+        frame_num_processed = eiger4M.hdf1.num_captured.get()
         if frame_num_processed == frame_num_set:
             break
         else:
             ttime.sleep(0.1)
-            count = +1
-        eiger4M.hdf1.capture.put(0)
-    
-    softglue.pv_clear1.put("1!")
-    softglue.pv_clear2.put("1!")
+            count += 1
+    eiger4M.hdf1.capture.put(0)
     
 
 def acquire_lambda_internal():
@@ -712,12 +712,14 @@ def det_acq_series(wait_time=0):
             print(f"\n{time_now}, Starting measurement {file_name}")
 
             acquire_func()
-
+ 
             time_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             print(f"{time_now}, Complete measurement {file_name}")
 
+            print(f"{time_now}, Writing metadata, {file_name}")
             create_nexus_format_metadata(metadata_fname, det=det)
 
+            print(f"{time_now}, Submitting to DM, {file_name}")
             dm_run_job(workflowProcApi, dmuser, file_name)
 
     except KeyboardInterrupt:
