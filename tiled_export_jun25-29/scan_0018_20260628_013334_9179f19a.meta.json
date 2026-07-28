@@ -1,0 +1,121 @@
+{
+  "uid": "9179f19a-76be-4e33-9576-6857c36f32cc",
+  "start": {
+    "pid": 1607767,
+    "uid": "9179f19a-76be-4e33-9576-6857c36f32cc",
+    "time": 1782628414.0008395,
+    "hints": {
+      "dimensions": [
+        [
+          [
+            "sample_x"
+          ],
+          "primary"
+        ]
+      ]
+    },
+    "motors": [
+      "sample_x"
+    ],
+    "iconfig": {
+      "BEC": {
+        "PLOTS": false,
+        "TABLE": true,
+        "HEADING": true,
+        "BASELINE": true
+      },
+      "OPHYD": {
+        "TIMEOUTS": {
+          "PV_READ": 5,
+          "PV_WRITE": 5,
+          "PV_CONNECTION": 5
+        },
+        "CONTROL_LAYER": "PyEpics"
+      },
+      "RUN_ENGINE": {
+        "MD_PATH": ".re_md_dict.yml",
+        "DEFAULT_METADATA": {
+          "beamline_id": "8-ID-E",
+          "proposal_id": "commissioning 2026-2",
+          "instrument_name": "8-ID"
+        },
+        "USE_PROGRESS_BAR": false
+      },
+      "ICONFIG_PATH": "/home/beams10/8IDIUSER/bluesky/src/id8_common/configs/iconfig.yml",
+      "DM_SETUP_FILE": "/home/dm/etc/dm.setup.sh",
+      "BASELINE_LABEL": {
+        "ENABLE": true
+      },
+      "ICONFIG_VERSION": "2.0.1",
+      "INSTRUMENT_PATH": "/home/beams10/8IDIUSER/bluesky/src/id8_common/configs",
+      "SPEC_DATA_FILES": {
+        "ENABLE": true,
+        "FILE_EXTENSION": "dat"
+      },
+      "TILED_PATH_NAME": "/raw",
+      "INSTRUMENT_FOLDER": "configs",
+      "XMODE_DEBUG_LEVEL": "Plain",
+      "TILED_PROFILE_NAME": "8ide",
+      "ALLOW_AREA_DETECTOR_WARMUP": true
+    },
+    "scan_id": 18,
+    "login_id": "8idiuser@pearl.xray.aps.anl.gov",
+    "versions": {
+      "h5py": "3.15.1",
+      "epics": "3.5.8",
+      "numpy": "2.3.5",
+      "ophyd": "1.11.0",
+      "python": "3.11.14",
+      "apsbits": "2.0.1",
+      "bluesky": "1.14.6",
+      "apstools": "1.7.9",
+      "pysumreg": "1.0.7",
+      "databroker": "1.2.5",
+      "matplotlib": "3.10.7",
+      "pyRestTable": "2020.0.10"
+    },
+    "detectors": [
+      "tetramm1"
+    ],
+    "plan_args": {
+      "num": 60,
+      "args": [
+        "EpicsMotor(prefix='8idiAerotech:m1', name='sample_x', parent='sample', settle_time=0.0, timeout=None, read_attrs=['user_readback', 'user_setpoint'], configuration_attrs=['user_offset', 'user_offset_dir', 'velocity', 'acceleration', 'motor_egu'])",
+        -3,
+        3
+      ],
+      "per_step": "None",
+      "detectors": [
+        "MyTetrAMM(prefix='8idTetra:QUAD1:', name='tetramm1', read_attrs=['conf', 'current_names', 'current_offsets', 'current_offset_calcs', 'current_scales', 'image', 'current1', 'current1.mean_value', 'current2', 'current2.mean_value', 'current3', 'current3.mean_value', 'current4', 'current4.mean_value', 'sum_all', 'sum_all.mean_value', 'hdf1'], configuration_attrs=['configuration_names', 'integration_time', 'averaging_time', 'conf', 'current_names', 'current_names.ch1', 'current_names.ch2', 'current_names.ch3', 'current_names.ch4', 'current_offsets', 'current_offsets.ch1', 'current_offsets.ch2', 'current_offsets.ch3', 'current_offsets.ch4', 'current_offset_calcs', 'current_offset_calcs.ch1', 'current_offset_calcs.ch2', 'current_offset_calcs.ch3', 'current_offset_calcs.ch4', 'current_scales', 'current_scales.ch1', 'current_scales.ch2', 'current_scales.ch3', 'current_scales.ch4', 'position_offset_x', 'position_offset_y', 'position_offset_calc_x', 'position_offset_calc_y', 'position_scale_x', 'position_scale_y', 'image', 'current1', 'current2', 'current3', 'current4', 'sum_all', 'hdf1'])"
+      ]
+    },
+    "plan_name": "rel_scan",
+    "plan_type": "generator",
+    "num_points": 60,
+    "beamline_id": "8-ID-E",
+    "proposal_id": "commissioning 2026-2",
+    "conda_prefix": "/home/beams/8IDIUSER/.conda/envs/8id_bits",
+    "plan_pattern": "inner_product",
+    "num_intervals": 59,
+    "instrument_name": "8-ID",
+    "plan_pattern_args": {
+      "num": 60,
+      "args": [
+        "EpicsMotor(prefix='8idiAerotech:m1', name='sample_x', parent='sample', settle_time=0.0, timeout=None, read_attrs=['user_readback', 'user_setpoint'], configuration_attrs=['user_offset', 'user_offset_dir', 'velocity', 'acceleration', 'motor_egu'])",
+        -3,
+        3
+      ]
+    },
+    "plan_pattern_module": "bluesky.plan_patterns"
+  },
+  "stop": {
+    "uid": "e5a068ae-af86-4873-b34f-7b9354999a31",
+    "time": 1782628438.1411228,
+    "reason": "",
+    "run_start": "9179f19a-76be-4e33-9576-6857c36f32cc",
+    "num_events": {
+      "primary": 60
+    },
+    "exit_status": "success"
+  }
+}

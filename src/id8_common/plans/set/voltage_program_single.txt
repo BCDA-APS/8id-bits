@@ -1,0 +1,5 @@
+60 # preset
+40 # bias time
+80 # pulse_period
+-5 # min voltage
+5 # max voltage

@@ -22,14 +22,14 @@ import time
 from apsbits.core.instrument_init import oregistry
 
 ## For air QNW
-qnw_env1 = oregistry["qnw_env1"]
-qnw_env2 = oregistry["qnw_env2"]
-qnw_env3 = oregistry["qnw_env3"]
+# qnw_env1 = oregistry["qnw_env1"]
+# qnw_env2 = oregistry["qnw_env2"]
+# qnw_env3 = oregistry["qnw_env3"]
 
 # For vacuum QNW
-# qnw_env1 = oregistry["qnw_vac1"]
-# qnw_env2 = oregistry["qnw_vac2"]
-# qnw_env3 = oregistry["qnw_vac3"]
+qnw_env1 = oregistry["qnw_vac1"]
+qnw_env2 = oregistry["qnw_vac2"]
+qnw_env3 = oregistry["qnw_vac3"]
 
 qnw_controllers = [qnw_env1, qnw_env2, qnw_env3]
 

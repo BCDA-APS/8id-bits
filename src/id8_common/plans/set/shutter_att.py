@@ -15,12 +15,12 @@ softglue = oregistry["softglue"]
 def showbeam():
     """Open the beam shutter to show the beam."""
     shutter_8ide.operation.put(0)
-    time.sleep(0.5)
+    time.sleep(0.05)
 
 def blockbeam():
     """Block the beam by closing the shutter."""
     shutter_8ide.operation.put(1)
-    time.sleep(0.5)
+    time.sleep(0.05)
 
 def shutteron():
     """Enable the shutter control logic."""

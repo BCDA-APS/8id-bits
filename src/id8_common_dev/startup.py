@@ -155,7 +155,6 @@ from .plans.select_sample_env import select_sample_env
 from .plans.select_diagnostics import *
 from .plans.sample_info_unpack import select_sample
 from .plans.select_detector import *
-# from .plans.scan_8idi import *
 from .plans.qnw_plans import *
 
 

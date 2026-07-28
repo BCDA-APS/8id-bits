@@ -3,12 +3,13 @@ Consolidated acquisition script for 8-ID detectors.
 
 Supported modes:
     eiger4M       : "Internal Series", "External Enable"
-    lambda2M      : "Internal"
+    lambda2M      : "Internal", "External"
     rigaku3M      : "ZDT", "ZDT4bit", "ZDT8bit"
     rigaku3M_epics: "EPICS"
 """
 
 from datetime import datetime
+import importlib.util
 import os
 import time as ttime
 import numpy as np
@@ -26,12 +27,51 @@ from id8_common.plans.set.shutter_att import shutteroff
 from id8_common.plans.set.shutter_att import post_align
 # from id8_common.plans.set.shutter_att import att
 
-
 pv_registers = oregistry["pv_registers"]
 
 # =============================================================================
 # General helpers
 # =============================================================================
+
+HOOK_FUNCTION_NAME = "run"
+active_hooks = []
+
+def load_hooks(hooks_spec):
+    
+    callables = []
+
+    if not hooks_spec:
+        return callables
+
+    for entry in hooks_spec:
+        location = entry["location"]
+
+        if not os.path.isfile(location):
+            raise FileNotFoundError(f"Hook file not found: {location}")
+
+        base = os.path.splitext(os.path.basename(location))[0]
+        spec = importlib.util.spec_from_file_location(f"_hook_{base}", location)
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+
+        if not hasattr(module, HOOK_FUNCTION_NAME):
+            raise AttributeError(
+                f"Hook file {location} has no function '{HOOK_FUNCTION_NAME}'."
+            )
+
+        callables.append(getattr(module, HOOK_FUNCTION_NAME))
+
+    return callables
+
+
+def run_hooks(hook_callables):
+    """Call each loaded hook function. Safe to call with None or []."""
+    if not hook_callables:
+        return
+
+    for fn in hook_callables:
+        fn()
+
 
 def get_connected_device(device_name):
     device = oregistry[device_name]
@@ -241,6 +281,7 @@ def setup_eiger_internal(acq_time, num_frames, file_header, file_name):
 def setup_eiger_external(acq_time, acq_period, num_frames, file_header, file_name):
     eiger4M = get_connected_device("eiger4M")
     softglue = get_connected_device("softglue")
+    softglue_8id_mz2 = get_connected_device("softglue_8id_mz2")
 
     file_path = get_common_file_path(file_header, file_name)
 
@@ -278,6 +319,33 @@ def setup_lambda_internal(acq_time, num_frames, file_header, file_name):
 
     lambda2M.cam.num_images.put(num_frames)
     lambda2M.hdf1.num_capture.put(num_frames)
+
+    metadata_fname = f"{file_path}/{file_name}_metadata.hdf"
+
+    return metadata_fname
+
+
+def setup_lambda_external(acq_time, acq_period, num_frames, file_header, file_name):
+    lambda2M = get_connected_device("lambda2M")
+    softglue = get_connected_device("softglue")
+
+    file_path = get_common_file_path(file_header, file_name)
+
+    lambda2M.hdf1.enable.put(1)
+
+    lambda2M.cam.acquire_time.put(acq_time)
+    lambda2M.cam.acquire_period.put(acq_period)
+
+    lambda2M.hdf1.file_name.put(file_name)
+    lambda2M.hdf1.file_path.put(file_path)
+    lambda2M.hdf1.num_capture.put(num_frames)
+
+    lambda2M.cam.num_images.put(num_frames)
+    lambda2M.cam.trigger_mode.put("External_ImagePer")
+
+    softglue.acq_time.put(acq_time)
+    softglue.acq_period.put(acq_period)
+    softglue.num_triggers.put(num_frames)
 
     metadata_fname = f"{file_path}/{file_name}_metadata.hdf"
 
@@ -440,7 +508,7 @@ def acquire_eiger_external():
 
     while True:
         #### QZ on 2026/01/06 ####
-        # without the 0.5 s wait time, the repeating acqs go out of sync. 
+        # without the 0.5 s wait time, the repeating acqs go out of sync.
         # Don't know why and maybe the 0.5 s can be made shorter
         #### QZ on 2026/01/06 ####
         ttime.sleep(0.5)
@@ -465,15 +533,20 @@ def acquire_eiger_external():
 
 def acquire_lambda_internal():
     lambda2M = get_connected_device("lambda2M")
-
     lambda2M.cam.acquire.put(0)
-    ttime.sleep(1.0)
 
+    shutteroff()
     showbeam()
 
     lambda2M.hdf1.capture.put(1)
     lambda2M.cam.acquire.put(1)
 
+    #  '''keithley voltage sequence'''
+    # while lambda2M.cam.acquire.get() == 1:
+    #     volt_cycle_single(voltage_file = np.loadtxt('/home/beams10/8IDIUSER/bluesky/src/id8_common/plans/set/voltage_program_single.txt')) 
+        # volt_cycle_series(voltage_file_series=np.loadtxt('/home/beams10/8IDIUSER/bluesky/src/id8_common/plans/set/voltage_program_series.txt')
+
+    ttime.sleep(0.5)
     while lambda2M.cam.acquire.get() == 1:
         ttime.sleep(0.05)
 
@@ -481,6 +554,57 @@ def acquire_lambda_internal():
 
     while lambda2M.hdf1.capture.get() == 1:
         ttime.sleep(0.05)
+
+
+def acquire_lambda_external():
+    lambda2M = get_connected_device("lambda2M")
+    softglue = get_connected_device("softglue")
+    softglue_8id_mz2 = get_connected_device("softglue_8id_mz2")
+    # dpKeysight = get_connected_device("dpKeysight")
+
+    # Stop any TV/live mode that might be running before external acquisition.
+    lambda2M.cam.acquire.put(0)
+
+    softglue.pv_clear1.put("1!")
+    softglue.pv_clear2.put("1!")
+
+    shutteron()
+    showbeam()
+    ttime.sleep(0.1)
+
+    lambda2M.hdf1.capture.put(1)
+    lambda2M.cam.acquire.put(1)
+    ttime.sleep(1.0)
+    
+    softglue.start_pulses.put("1!")
+    softglue_8id_mz2.load.put("1!")
+
+    while lambda2M.cam.acquire.get() == 1:
+        run_hooks(active_hooks)
+
+    while True:
+        ttime.sleep(0.5)
+        det_status = lambda2M.cam.acquire.get()
+        if det_status == 1:
+            ttime.sleep(0.1)
+        if det_status == 0:
+            break
+    blockbeam()
+
+    frame_num_set = lambda2M.hdf1.num_capture.get()
+    count = 0
+
+    # dpKeysight.output.put(0)
+
+
+    while count < 600:  # 600 and 0.1 s are some empirical number for timeout conditions
+        frame_num_processed = lambda2M.hdf1.num_captured.get()
+        if frame_num_processed == frame_num_set:
+            break
+        else:
+            ttime.sleep(0.1)
+            count += 1
+    lambda2M.hdf1.capture.put(0)
 
 
 def acquire_rigaku_zdt():
@@ -547,6 +671,12 @@ ACQ_MODES = {
             "acquire": acquire_lambda_internal,
             "needs_acq_period": False,
             "required_devices": ["lambda2M"],
+        },
+        "External": {
+            "setup": setup_lambda_external,
+            "acquire": acquire_lambda_external,
+            "needs_acq_period": True,
+            "required_devices": ["lambda2M", "softglue"],
         },
     },
 
@@ -615,7 +745,7 @@ def cleanup_acquisition(det=None, mode_info=None):
 # Main user-facing acquisition function
 # =============================================================================
 
-def det_acq_series(wait_time=0):
+def det_acq_series(wait_time=0, hooks=None):
     """
     Run repeated detector acquisitions.
 
@@ -649,6 +779,13 @@ def det_acq_series(wait_time=0):
     wait_time:
         Wait time before each repeated acquisition.
 
+    hooks:
+        Optional list of hook specs, e.g.
+            [{"location": "/path/to/test_hook.py"}]
+        Each file must define a function named "run" (see HOOK_FUNCTION_NAME).
+        Currently only lambda2M "External" acquisition calls the hooks, once per
+        pass of its acquire loop while frames are being collected.
+
     File naming:
         gen_folder_prefix() generates:
             A0012_G10_a0007
@@ -657,9 +794,13 @@ def det_acq_series(wait_time=0):
             _f001000
             _r00001
     """
+    global active_hooks
+
     det = None
     mode_info = None
     try:
+        active_hooks = load_hooks(hooks)
+
         post_align()
         shutteroff()
 

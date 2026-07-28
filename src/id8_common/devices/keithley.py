@@ -6,6 +6,21 @@ from ophyd import Component
 from ophyd import Device
 from ophyd import EpicsSignalRO, EpicsSignal
 
+class Keithley2400(Device):
+    output = Component(EpicsSignal, "enableBO")
+
+    '''source'''
+    set_volt = Component(EpicsSignal, "setVoltAO")
+    set_curr = Component(EpicsSignal, "setCurrAO")
+
+    set_compl_volt = Component(EpicsSignal, "setComplVoltAO")
+    set_compl_curr = Component(EpicsSignal, "setComplCurrAO")
+
+    '''measure'''
+    meas_volt = Component(EpicsSignalRO, 'measVoltAI')
+    meas_curr = Component(EpicsSignalRO, 'measCurrAI')
+    output_status = Component(EpicsSignalRO, "enabledBI")
+
 class Keithley(Device):
     """Device representing a Keithley 2600 class device.
     Component(EpicsSignal, "")

@@ -21,6 +21,7 @@ from apstools.plans.alignment import lineup2
 from id8_common.plans.set.shutter_att import *
 from id8_common.plans.set.auto_filter import *
 from id8_common.plans.acquire.ad_acq import *
+# from ..nexus_acq_eiger_int import setup_eiger_int_series
 import time
 import numpy as np
 
@@ -36,108 +37,6 @@ softglue_8id_acq = oregistry["softglue_8id_acq"]
 filter_beam = oregistry["filter_8ide"]
 rheometer = oregistry["rheometer"]
 
-
-def auto_att(
-    det,
-    pilot_exptime: float = 0.05,
-    rate_limit: float = 1e5,
-    filter_factor: float = 5.0,
-    retry_max: int = 10,
-    grace_factor: float = 0.25,
-):
-    """Find the optimal attenuation using short pilot exposures.
-
-    Args:
-        det:            eiger4M or lambda2M
-        pilot_exptime:  duration of each test frame (s)
-        rate_limit:     max acceptable count rate (max pixel cts/s)
-        filter_factor:  transmission multiplier per step, must be > 1
-        retry_max:      max iterations before giving up
-        grace_factor:   lower rate bound = rate_limit * grace_factor
-
-    Example:
-
-        auto_att(eiger4M, pilot_exptime=0.05, rate_limit=4e5)
-  """
-    
-    is_eiger = ("eiger" in det.name.lower()) or ("eiger" in det.prefix.lower())
-    low_rate = rate_limit * grace_factor
-
-    orig_acq_time = det.cam.acquire_time.get()
-    orig_acq_period = det.cam.acquire_period.get()
-
-    det.cam.acquire_time.put(pilot_exptime)
-    det.cam.acquire_period.put(pilot_exptime)
-
-    if is_eiger:
-        det.cam.trigger_mode.put("Internal Series")
-        det.cam.num_images.put(1)
-        det.cam.num_triggers.put(1)
-        det.cam.manual_trigger.put("Disable")
-    else:
-        # lambda2M
-        det.cam.trigger_mode.put("Internal")
-        det.cam.num_images.put(1)
-
-    det.stats1.enable.put(1)
-    det.stats1.compute_statistics.put(1)
-
-    # Start from maximum attenuation (minimum transmission) for safety
-    filter_beam.transmission.move(1e-10)
-    time.sleep(0.5)
-
-    showbeam()
-    try:
-        for attempt in range(retry_max):
-            det.cam.acquire.put(1)
-            t0 = time.time()
-            timeout = pilot_exptime * 5 + 2
-            while det.cam.acquire.get() == 1:
-                time.sleep(0.02)
-                if time.time() - t0 > timeout:
-                    print("  WARNING: pilot frame timed out")
-                    break
-
-            max_cts = det.stats1.max_value.get()
-            rate = max_cts / pilot_exptime
-            current_trans = filter_beam.transmission.readback.get()
-
-            print(
-                f"Attempt {attempt + 1}: trans={current_trans:.4f}"
-                f"max_cts={max_cts:.0f}  rate={rate:.0f} cts/s"
-            )
-
-            if rate > rate_limit:
-                new_trans = current_trans / filter_factor
-                print(f"Rate too high. Reducing transmission to {new_trans:.6f}")
-                filter_beam.transmission.move(new_trans)
-
-            elif rate < low_rate:
-                if rate > 0:
-                    new_trans = current_trans * (0.75 * rate_limit / rate)
-                else:
-                    # rate=0: jump to a coarse fraction of max rather than tiny multiplier steps
-                    new_trans = min(current_trans * 1000, 0.01)
-                new_trans = min(new_trans, 1.0)
-                if new_trans >= current_trans * 0.999:
-                    if current_trans >= 0.999:
-                        print("WARNING: already at max transmission, beam too weak.")
-                        break
-                print(f"Rate too low. Raising transmission to {new_trans:.4f}")
-                filter_beam.transmission.move(new_trans)
-            else:
-                print(f"    Rate in [{low_rate:.0f}, {rate_limit:.0f}] cts/s -- converged.")
-                break
-        else:
-            print(f"WARNING: auto_attenuate did not converge in {retry_max} attempts")
-    finally:
-        blockbeam()
-        det.cam.acquire_time.put(orig_acq_time)
-        det.cam.acquire_period.put(orig_acq_period)
-
-    trans = filter_beam.transmission.readback.get()
-    atten = filter_beam.attenuation.readback.get()
-    print(f"  Final: transmission={trans:.4f}  attenuation={atten}")
 
 def att(att_ratio: Optional[float] = None):
     """Set the attenuation ratio with multiple attempts.
@@ -172,7 +71,7 @@ def save_images(det, save_img, num_pts, num_frames=1, file_path=None, folder_pre
             folder_prefix = gen_folder_prefix()
 
         if file_path is None:
-            file_path = "/gdata/dm/8ID/8IDE/2026-1/comm202602/data/bluesky/"
+            file_path = "/gdata/dm/8ID/8IDE/2026-2/hung202607/data/bluesky/"
         
         is_eiger = ("eiger" in det.name.lower()) or ("eiger" in det.prefix.lower())
         is_tetramm = "tetramm" in det.name.lower()
@@ -199,7 +98,7 @@ def save_images(det, save_img, num_pts, num_frames=1, file_path=None, folder_pre
             #     pv_registers.file_path, file_path,
             #     pv_registers.metadata_full_path, f"{file_path}/{file_name}_metadata.hdf",
             # )
-            return  # capture managed manually in dscan
+            return  
 
         # for eiger4m, lambda2m 
         if has(det, "cam"):
@@ -222,7 +121,7 @@ def save_images(det, save_img, num_pts, num_frames=1, file_path=None, folder_pre
                 yield from bps.mv(det.hdf1.file_path, file_path)
 
         if has(det, "cam"):
-            det.cam.trigger_mode.put(0)
+            # det.cam.trigger_mode.put(0)
             if is_eiger:
                 if has(det.cam, "trigger_mode"):
                     yield from bps.mv(det.cam.trigger_mode, "Internal Enable")
@@ -240,212 +139,12 @@ def save_images(det, save_img, num_pts, num_frames=1, file_path=None, folder_pre
                 if has(det.cam, "num_images"):
                     yield from bps.mv(det.cam.num_images, num_frames)
 
-def dscan_auto(motor, rel_begin, rel_end, num_pts, count_time,
-               det=eiger4M, att_ratio=1e6):
-    """
-    Pre-armed software-trigger scan for fast acquisitions.
-
-    args:
-        motor: ophyd positioner
-        rel_begin, rel_end: relative start/end (motor units)
-        num_pts: number of points
-        count_time: detector acquisition time per point (s)
-        det: detector (eiger4M, lambda2M, or tetramm1)
-        att_ratio: attenuation ratio
-        save_img: 1 save, 0 don't save
-    """
-    pre_align()
-    att(att_ratio)
-    PIND_status(0)
-
-    is_tetramm = "tetramm" in det.name.lower()
-    is_eiger = ("eiger" in det.name.lower()) or ("eiger" in det.prefix.lower())
-    is_lambda = ("lambda" in det.name.lower()) or ("lambda" in det.prefix.lower())
-    
-    folder_prefix = gen_folder_prefix() if save_img == 1 else ""
-    md = {"Image file": folder_prefix, "detectors": [det.name], "motors": [motor.name], "plan_name": "dscan", "num_points": num_pts}
-    yield from save_images(det, save_img, num_pts, folder_prefix=folder_prefix)
-
-    if is_tetramm:
-        det.hdf1.enable.put(1)
-        det.hdf1.capture.put(1)
-        print(f"TetrAMM HDF capture armed: {det.hdf1.file_name.get()}")
-        start_pos = motor.position
-        positions = np.linspace(start_pos + rel_begin, start_pos + rel_end, num_pts)
-        pos_cache = {motor: None}
-
-        def inner_tetramm():
-            try:
-                for pos in positions:
-                    yield from bps.move_per_step({motor: pos}, pos_cache)
-                    yield from bps.trigger_and_read([det, motor])
-            finally:
-                yield from bps.mv(motor, start_pos)
-
-        try:
-            yield from bpp.stage_wrapper(
-                bpp.run_wrapper(inner_tetramm(), md=md),
-                [det, motor],
-            )
-        finally:
-            det.hdf1.capture.put(0)
-            print('# images captured: ', det.cam.num_images.get())
-        return
-
-    if is_lambda:
-        yield from bps.mv(
-            det.cam.operating_mode, 3, # 24-bit dual threshold mode
-            det.cam.trigger_mode, "External_ImagePer",
-            det.cam.acquire_time, count_time,
-            det.cam.acquire_period, count_time,
-            det.cam.num_images, num_pts,
-            det.hdf1.num_capture, num_pts,
-            softglue.num_triggers, 1,
-            softglue.acq_time, count_time,
-            softglue.acq_period, count_time,
-        )
-        start_pos = motor.position
-        positions = np.linspace(start_pos + rel_begin, start_pos + rel_end, num_pts)
-        pos_cache = {motor: None}
-        shutteron()
-        showbeam()
-
-        def step_lambda(step, pos_cache):
-            yield from bps.move_per_step(step, pos_cache)
-            softglue.start_pulses.put("1!")
-            yield from bps.create("primary")
-            yield from bps.read(motor)
-            yield from bps.read(det.stats1)
-            yield from bps.read(det.stats2)
-            yield from bps.read(det.stats3)
-            yield from bps.save()
-    
-        def inner_lambda():
-                # Phase 1: determine attenuation at every position (uses cache if available)
-                att_map = run_att_pilot_scan(det, motor, positions, count_time, rate_limit)
-                yield from bps.mv(motor, start_pos)
-
-                # Phase 2: actual acquisition, pre-armed
-                det.cam.acquire.put(1)
-                det.hdf1.capture.put(1)
-                showbeam()
-                try:
-                    for pos in positions:
-                        yield from bps.mv(filter_beam.transmission, att_map[pos_key(pos)])
-                        yield from step_lambda({motor: pos}, pos_cache)
-                finally:
-                    det.cam.acquire.put(0)
-                    det.hdf1.capture.put(0)
-                    softglue.stop_pulses.put("1!")
-                    blockbeam()
-                    yield from bps.mv(motor, start_pos)
-
-        try:
-            yield from bpp.stage_wrapper(
-                bpp.run_wrapper(inner_lambda(), md=md), [motor],
-            )
-        
-        finally:
-            det.cam.operating_mode.put(3)
-            det.cam.trigger_mode.put(0)
-            softglue_8id_acq.preset.put(50)
-            blockbeam()
-            shutteroff()
-            print('# images captured: ', det.cam.num_images.get())
-        
-        return
-
-    # eiger4M
-    if is_eiger:
-        # Set timing first (save_images reads acquire_time for setup_eiger_int_series)
-        yield from bps.mv(
-            det.cam.acquire_time, count_time,
-            det.cam.acquire_period, count_time,
-        )
-        # yield from save_images(det, save_img, num_pts)
-
-        # Correct settings after save_images (setup_eiger_int_series resets:
-        # trigger_mode="Internal Series", num_triggers=1, manual_trigger="Disable",
-        # hdf1.num_capture=1)
-        yield from bps.mv(
-            det.cam.trigger_mode, "Internal Series",
-            det.cam.manual_trigger, "Enable",
-            det.cam.num_images, 1,
-            det.cam.num_triggers, num_pts,
-            det.hdf1.num_capture, num_pts,
-        )
-
-        # Set stage_sigs for pre-armed software-trigger mode
-        cam_keys = ("trigger_mode", "manual_trigger", "num_triggers", "wait_for_plugins")
-        saved = {k: det.cam.stage_sigs[k] for k in cam_keys if k in det.cam.stage_sigs}
-        det.cam.stage_sigs["trigger_mode"] = "Internal Series"
-        det.cam.stage_sigs["manual_trigger"] = "Enable"
-        det.cam.stage_sigs["num_triggers"] = num_pts
-        det.cam.stage_sigs["wait_for_plugins"] = "No"
-
-        start_pos = motor.position
-        positions = np.linspace(start_pos + rel_begin, start_pos + rel_end, num_pts)
-        pos_cache = {motor: None}
-
-        def step(detectors, step, pos_cache):
-            """Move motor, fire software trigger, wait for frame, read motor."""
-            yield from bps.move_per_step(step, pos_cache)
-            det.cam.special_trigger_button.put(1, wait=False)
-            yield from bps.create("primary")
-            yield from bps.read(motor)
-            yield from bps.read(det.stats1)
-            yield from bps.read(det.stats2)
-            yield from bps.read(det.stats3)
-            yield from bps.save()
-
-        def inner():
-            # Start pre-armed acquisition (accepts num_pts software triggers)
-            det.cam.acquire.put(1)
-            try:
-                for pos in positions:
-                    yield from step([det], {motor: pos}, pos_cache)
-            finally:
-                # Wait for HDF to flush all frames before stage_wrapper unstages
-                t0 = time.time()
-                timeout = num_pts * count_time * 3 + 10
-                while det.hdf1.num_captured.get() < num_pts:
-                    yield from bps.sleep(0.05)
-                    if time.time() - t0 > timeout:
-                        print("WARNING: HDF write timeout — not all frames saved.")
-                        break
-                det.cam.acquire.put(0)
-                yield from bps.mv(motor, start_pos)  # return to start position
-
-        try:
-            yield from bpp.stage_wrapper(
-                bpp.run_wrapper(inner(), md=md),
-                [det, motor],
-            )
-        finally:
-            # Restore cam stage_sigs
-            for k in cam_keys:
-                if k in saved:
-                    det.cam.stage_sigs[k] = saved[k]
-                else:
-                    det.cam.stage_sigs.pop(k, None)
-            # Return detector to normal state: Internal Enable, manual trigger off
-            det.cam.trigger_mode.put("Internal Enable")
-            det.cam.manual_trigger.put("Disable")
-            print('# images captured: ', det.hdf1.num_captured.get())
 
 def dscan(motor, rel_begin, rel_end, num_pts, count_time,
                det=eiger4M, att_ratio=1e6, save_img=1):
     """
     Pre-armed software-trigger scan for fast acquisitions.
 
-    For Eiger4M: Arms detector for all N frames upfront, then sends a software
-    trigger at each point via det.cam.special_trigger_button.
-
-    For TetrAMM: No pre-arming (continuous mode). Steps through positions and
-    reads the current value at each point. HDF capture is armed/stopped manually.
-
-    For Lambda2M: under construction 
-
     args:
         motor: ophyd positioner
         rel_begin, rel_end: relative start/end (motor units)
@@ -453,7 +152,6 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
         count_time: detector acquisition time per point (s)
         det: detector (eiger4M, lambda2M, or tetramm1)
         att_ratio: attenuation ratio
-        save_img: 1 save, 0 don't save
     """
     pre_align()
     att(att_ratio)
@@ -465,14 +163,13 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
     
     folder_prefix = gen_folder_prefix() if save_img == 1 else ""
     md = {"Image file": folder_prefix, "detectors": [det.name], "motors": [motor.name], "plan_name": "dscan", "num_points": num_pts}
+    
     yield from save_images(det, save_img, num_pts, folder_prefix=folder_prefix)
 
     if is_tetramm:
-        # yield from save_images(det, save_img, num_pts)
-        if save_img == 1:
-            det.hdf1.enable.put(1)
-            det.hdf1.capture.put(1)
-            print(f"TetrAMM HDF capture armed: {det.hdf1.file_name.get()}")
+        det.hdf1.enable.put(1)
+        det.hdf1.capture.put(1)
+        print(f"TetrAMM HDF capture armed: {det.hdf1.file_name.get()}")
 
         start_pos = motor.position
         positions = np.linspace(start_pos + rel_begin, start_pos + rel_end, num_pts)
@@ -494,12 +191,9 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
         finally:
             if save_img == 1:
                 det.hdf1.capture.put(0)
-                print('# images captured: ', det.cam.num_images.get())
         return
 
     if is_lambda:
-        
-        # yield from save_images(det, save_img, num_pts)
 
         yield from bps.mv(
             det.cam.operating_mode, 3, # 24-bit dual threshold mode
@@ -508,21 +202,23 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
             det.cam.acquire_period, count_time,
             det.cam.num_images, num_pts,
             det.hdf1.num_capture, num_pts,
-            softglue.num_triggers, 1,
+            softglue.num_triggers, 1,  # one pulse per "1!"; else stale value from run_measurement
             softglue.acq_time, count_time,
             softglue.acq_period, count_time,
         )
 
+        # yield from save_images(det, save_img, num_pts)
+        # print(det.cam.num_triggers.get())
+
         start_pos = motor.position
         positions = np.linspace(start_pos + rel_begin, start_pos + rel_end, num_pts)
         pos_cache = {motor: None}
-        
-        shutteron()
-        showbeam()
 
-        def step_lambda(step, pos_cache):
+        def step_lambda(detectors, step, pos_cache, frame_num):
             yield from bps.move_per_step(step, pos_cache)
             softglue.start_pulses.put("1!")
+            while det.hdf1.num_captured.get() < frame_num:
+                yield from bps.sleep(0.005)
             yield from bps.create("primary")
             yield from bps.read(motor)
             yield from bps.read(det.stats1)
@@ -531,14 +227,14 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
             yield from bps.save()
 
         def inner_lambda():
-        # Start pre-armed acquisition (accepts num_pts softglue triggers)
             det.cam.acquire.put(1)
             det.hdf1.capture.put(1)
+            shutteron()
+            showbeam()
             try:
-                for pos in positions:
-                    yield from step_lambda({motor: pos}, pos_cache)
-
-            finally:                
+                for ii, pos in enumerate(positions):
+                    yield from step_lambda([det], {motor: pos}, pos_cache, ii + 1)
+            finally:
                 softglue.stop_pulses.put("1!")
                 det.cam.acquire.put(0)
                 det.hdf1.capture.put(0)
@@ -547,7 +243,8 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
 
         try:
             yield from bpp.stage_wrapper(
-                bpp.run_wrapper(inner_lambda(), md=md), [motor],
+                bpp.run_wrapper(inner_lambda(), md=md),
+                [motor], 
             )
 
         finally:
@@ -556,17 +253,16 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
             softglue_8id_acq.preset.put(50)
             blockbeam()
             shutteroff()
-            print('# images captured: ', det.cam.num_images.get())
+            print('# images captured: ', det.hdf1.num_captured.get())
         return
-
+    
     # eiger4M
     if is_eiger:
         # Set timing first (save_images reads acquire_time for setup_eiger_int_series)
         yield from bps.mv(
             det.cam.acquire_time, count_time,
-            det.cam.acquire_period, count_time,
+            # det.cam.acquire_period, count_time,
         )
-        # yield from save_images(det, save_img, num_pts)
 
         # Correct settings after save_images (setup_eiger_int_series resets:
         # trigger_mode="Internal Series", num_triggers=1, manual_trigger="Disable",
@@ -578,7 +274,6 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
             det.cam.num_triggers, num_pts,
             det.hdf1.num_capture, num_pts,
         )
-
         # Set stage_sigs for pre-armed software-trigger mode
         cam_keys = ("trigger_mode", "manual_trigger", "num_triggers", "wait_for_plugins")
         saved = {k: det.cam.stage_sigs[k] for k in cam_keys if k in det.cam.stage_sigs}
@@ -590,11 +285,11 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
         start_pos = motor.position
         positions = np.linspace(start_pos + rel_begin, start_pos + rel_end, num_pts)
         pos_cache = {motor: None}
-
         def step(detectors, step, pos_cache):
             """Move motor, fire software trigger, wait for frame, read motor."""
             yield from bps.move_per_step(step, pos_cache)
             det.cam.special_trigger_button.put(1, wait=False)
+            yield from bps.sleep(count_time)
             yield from bps.create("primary")
             yield from bps.read(motor)
             yield from bps.read(det.stats1)
@@ -603,15 +298,15 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
             yield from bps.save()
 
         def inner():
-            # Start pre-armed acquisition (accepts num_pts software triggers)
-            det.cam.acquire.put(1)
+            '''Start pre-armed acquisition (accepts num_pts software triggers'''
+            yield from bps.abs_set(det.cam.acquire, 1, wait=False)
+            showbeam()
             try:
                 for pos in positions:
                     yield from step([det], {motor: pos}, pos_cache)
             finally:
-                # Wait for HDF to flush all frames before stage_wrapper unstages
                 t0 = time.time()
-                timeout = num_pts * count_time * 3 + 10
+                timeout = num_pts * count_time + 10
                 while det.hdf1.num_captured.get() < num_pts:
                     yield from bps.sleep(0.05)
                     if time.time() - t0 > timeout:
@@ -619,7 +314,6 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
                         break
                 det.cam.acquire.put(0)
                 yield from bps.mv(motor, start_pos)  # return to start position
-
         try:
             yield from bpp.stage_wrapper(
                 bpp.run_wrapper(inner(), md=md),
@@ -635,6 +329,7 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
             # Return detector to normal state: Internal Enable, manual trigger off
             det.cam.trigger_mode.put("Internal Enable")
             det.cam.manual_trigger.put("Disable")
+            blockbeam()
             print('# images captured: ', det.hdf1.num_captured.get())
 
 
@@ -712,7 +407,6 @@ def d2scan(
         return
 
     if is_lambda:
-        # yield from save_images(det, save_img, num_pts)
         yield from bps.mv(
             det.cam.operating_mode, 3,
             det.cam.trigger_mode, "External_ImagePer",
@@ -728,6 +422,8 @@ def d2scan(
         def step_lambda(step_dict, pc):
             yield from bps.move_per_step(step_dict, pc)
             softglue.start_pulses.put("1!")
+            while det.hdf1.num_captured.get() < frame_num:
+                yield from bps.sleep(0.005)
             yield from bps.create("primary")
             yield from bps.read(motor1)
             yield from bps.read(motor2)
@@ -761,7 +457,7 @@ def d2scan(
             softglue_8id_acq.preset.put(50)
             blockbeam()
             shutteroff()
-            print('# images captured: ', det.cam.num_images.get())
+            print('# images captured: ', det.hdf1.num_captured.get())
         return
 
     # eiger4M
@@ -948,7 +644,7 @@ def ascan(
             softglue_8id_acq.preset.put(50)
             blockbeam()
             shutteroff()
-            print('# images captured: ', det.cam.num_images.get())
+            print('# images captured: ', det.hdf1.num_captured.get())
         return
 
     # eiger4M
@@ -1140,7 +836,7 @@ def a2scan(
             softglue_8id_acq.preset.put(50)
             blockbeam()
             shutteroff()
-            print('# images captured: ', det.cam.num_images.get())
+            print('# images captured: ', det.hdf1.num_captured.get())
         return
 
     # eiger4M
@@ -1333,3 +1029,330 @@ def rheo_set_x_lup(
 
 
 
+def auto_att(
+    det,
+    pilot_exptime: float = 0.05,
+    rate_limit: float = 1e5,
+    filter_factor: float = 5.0,
+    retry_max: int = 10,
+    grace_factor: float = 0.25,
+):
+    """Find the optimal attenuation using short pilot exposures.
+
+    Args:
+        det:            eiger4M or lambda2M
+        pilot_exptime:  duration of each test frame (s)
+        rate_limit:     max acceptable count rate (max pixel cts/s)
+        filter_factor:  transmission multiplier per step, must be > 1
+        retry_max:      max iterations before giving up
+        grace_factor:   lower rate bound = rate_limit * grace_factor
+
+    Example:
+
+        auto_attenuate(eiger4M, pilot_exptime=0.05, rate_limit=4e5)
+  """
+    
+    is_eiger = ("eiger" in det.name.lower()) or ("eiger" in det.prefix.lower())
+    low_rate = rate_limit * grace_factor
+
+    orig_acq_time = det.cam.acquire_time.get()
+    orig_acq_period = det.cam.acquire_period.get()
+
+    det.cam.acquire_time.put(pilot_exptime)
+    det.cam.acquire_period.put(pilot_exptime)
+
+    if is_eiger:
+        det.cam.trigger_mode.put("Internal Series")
+        det.cam.num_images.put(1)
+        det.cam.num_triggers.put(1)
+        det.cam.manual_trigger.put("Disable")
+    else:
+        # lambda2M
+        det.cam.trigger_mode.put("Internal")
+        det.cam.num_images.put(1)
+
+    det.stats1.enable.put(1)
+    det.stats1.compute_statistics.put(1)
+
+    # Start from maximum attenuation (minimum transmission) for safety
+    filter_beam.transmission.move(1e-10)
+    time.sleep(0.5)
+
+    showbeam()
+    try:
+        for attempt in range(retry_max):
+            det.cam.acquire.put(1)
+            t0 = time.time()
+            timeout = pilot_exptime * 5 + 2
+            while det.cam.acquire.get() == 1:
+                time.sleep(0.02)
+                if time.time() - t0 > timeout:
+                    print("  WARNING: pilot frame timed out")
+                    break
+
+            max_cts = det.stats1.max_value.get()
+            rate = max_cts / pilot_exptime
+            current_trans = filter_beam.transmission.readback.get()
+
+            print(
+                f"Attempt {attempt + 1}: trans={current_trans:.4f}"
+                f"max_cts={max_cts:.0f}  rate={rate:.0f} cts/s"
+            )
+
+            if rate > rate_limit:
+                new_trans = current_trans / filter_factor
+                print(f"Rate too high. Reducing transmission to {new_trans:.6f}")
+                filter_beam.transmission.move(new_trans)
+
+            elif rate < low_rate:
+                if rate > 0:
+                    new_trans = current_trans * (0.75 * rate_limit / rate)
+                else:
+                    # rate=0: jump to a coarse fraction of max rather than tiny multiplier steps
+                    new_trans = min(current_trans * 1000, 0.01)
+                new_trans = min(new_trans, 1.0)
+                if new_trans >= current_trans * 0.999:
+                    if current_trans >= 0.999:
+                        print("WARNING: already at max transmission, beam too weak.")
+                        break
+                print(f"Rate too low. Raising transmission to {new_trans:.4f}")
+                filter_beam.transmission.move(new_trans)
+            else:
+                print(f"    Rate in [{low_rate:.0f}, {rate_limit:.0f}] cts/s -- converged.")
+                break
+        else:
+            print(f"WARNING: auto_attenuate did not converge in {retry_max} attempts")
+    finally:
+        blockbeam()
+        det.cam.acquire_time.put(orig_acq_time)
+        det.cam.acquire_period.put(orig_acq_period)
+
+    trans = filter_beam.transmission.readback.get()
+    atten = filter_beam.attenuation.readback.get()
+    print(f"  Final: transmission={trans:.4f}  attenuation={atten}")
+
+def dscan_test(motor, rel_begin, rel_end, num_pts, count_time,
+          det=eiger4M, att_ratio=1e6, save_img=1):
+    
+    pre_align()
+    att(att_ratio)
+    PIND_status(0)
+
+    is_tetramm = "tetramm" in det.name
+
+    if det == eiger4M or det == lambda2M:
+        yield from bps.mv(
+            det.cam.num_images, 1,
+            det.cam.acquire_time, count_time,
+            det.cam.acquire_period, count_time,
+        )
+    else:
+        print('tetramm1 or other detector with simple acquire trigger')
+    print(det.hdf1.num_capture.get(), ' checkpoint2')
+    yield from save_images(det, save_img, num_pts)
+
+    if is_tetramm and save_img == 1:
+        det.hdf1.enable.put(1)
+        det.hdf1.capture.put(1)
+        print(f"TetrAMM HDF capture armed: {det.hdf1.file_name.get()}")
+
+    det.hdf1.num_capture.put(num_pts)
+    showbeam()
+    yield from bp.rel_scan([det], motor, rel_begin, rel_end, num_pts)
+    blockbeam()
+
+    if is_tetramm and save_img == 1:
+        det.hdf1.capture.put(0)
+        print("TetrAMM HDF capture stopped.")
+
+def dscan_auto(motor, rel_begin, rel_end, num_pts, count_time,
+               det=eiger4M, att_ratio=1e6, save_img=1):
+    """
+    Pre-armed software-trigger scan for fast acquisitions.
+
+    args:
+        motor: ophyd positioner
+        rel_begin, rel_end: relative start/end (motor units)
+        num_pts: number of points
+        count_time: detector acquisition time per point (s)
+        det: detector (eiger4M, lambda2M, or tetramm1)
+        att_ratio: attenuation ratio
+        save_img: 1 save, 0 don't save
+    """
+    pre_align()
+    att(att_ratio)
+    PIND_status(0)
+
+    is_tetramm = "tetramm" in det.name.lower()
+    is_eiger = ("eiger" in det.name.lower()) or ("eiger" in det.prefix.lower())
+    is_lambda = ("lambda" in det.name.lower()) or ("lambda" in det.prefix.lower())
+    
+    folder_prefix = gen_folder_prefix() if save_img == 1 else ""
+    md = {"Image file": folder_prefix, "detectors": [det.name], "motors": [motor.name], "plan_name": "dscan", "num_points": num_pts}
+    yield from save_images(det, save_img, num_pts, folder_prefix=folder_prefix)
+
+    if is_tetramm:
+        det.hdf1.enable.put(1)
+        det.hdf1.capture.put(1)
+        print(f"TetrAMM HDF capture armed: {det.hdf1.file_name.get()}")
+        start_pos = motor.position
+        positions = np.linspace(start_pos + rel_begin, start_pos + rel_end, num_pts)
+        pos_cache = {motor: None}
+
+        def inner_tetramm():
+            try:
+                for pos in positions:
+                    yield from bps.move_per_step({motor: pos}, pos_cache)
+                    yield from bps.trigger_and_read([det, motor])
+            finally:
+                yield from bps.mv(motor, start_pos)
+
+        try:
+            yield from bpp.stage_wrapper(
+                bpp.run_wrapper(inner_tetramm(), md=md),
+                [det, motor],
+            )
+        finally:
+            det.hdf1.capture.put(0)
+        return
+
+    if is_lambda:
+        yield from bps.mv(
+            det.cam.operating_mode, 3, # 24-bit dual threshold mode
+            det.cam.trigger_mode, "External_ImagePer",
+            det.cam.acquire_time, count_time,
+            det.cam.acquire_period, count_time,
+            det.cam.num_images, num_pts,
+            det.hdf1.num_capture, num_pts,
+            softglue.num_triggers, 1,
+            softglue.acq_time, count_time,
+            softglue.acq_period, count_time,
+        )
+        start_pos = motor.position
+        positions = np.linspace(start_pos + rel_begin, start_pos + rel_end, num_pts)
+        pos_cache = {motor: None}
+        shutteron()
+        showbeam()
+
+        def step_lambda(step, pos_cache):
+            yield from bps.move_per_step(step, pos_cache)
+            softglue.start_pulses.put("1!")
+            yield from bps.create("primary")
+            yield from bps.read(motor)
+            yield from bps.read(det.stats1)
+            yield from bps.read(det.stats2)
+            yield from bps.read(det.stats3)
+            yield from bps.save()
+    
+        def inner_lambda():
+                # Phase 1: determine attenuation at every position (uses cache if available)
+                att_map = run_att_pilot_scan(det, motor, positions, count_time, rate_limit)
+                yield from bps.mv(motor, start_pos)
+
+                # Phase 2: actual acquisition, pre-armed
+                det.cam.acquire.put(1)
+                det.hdf1.capture.put(1)
+                showbeam()
+                try:
+                    for pos in positions:
+                        yield from bps.mv(filter_beam.transmission, att_map[pos_key(pos)])
+                        yield from step_lambda({motor: pos}, pos_cache)
+                finally:
+                    det.cam.acquire.put(0)
+                    det.hdf1.capture.put(0)
+                    softglue.stop_pulses.put("1!")
+                    blockbeam()
+                    yield from bps.mv(motor, start_pos)
+
+        try:
+            yield from bpp.stage_wrapper(
+                bpp.run_wrapper(inner_lambda(), md=md), [motor],
+            )
+        
+        finally:
+            det.cam.operating_mode.put(3)
+            det.cam.trigger_mode.put(0)
+            softglue_8id_acq.preset.put(50)
+            blockbeam()
+            shutteroff()
+            print('# images captured: ', det.cam.num_images.get())
+        
+        return
+
+    # eiger4M
+    if is_eiger:
+        # Set timing first (save_images reads acquire_time for setup_eiger_int_series)
+        yield from bps.mv(
+            det.cam.acquire_time, count_time,
+            det.cam.acquire_period, count_time,
+        )
+        # yield from save_images(det, save_img, num_pts)
+
+        # Correct settings after save_images (setup_eiger_int_series resets:
+        # trigger_mode="Internal Series", num_triggers=1, manual_trigger="Disable",
+        # hdf1.num_capture=1)
+        yield from bps.mv(
+            det.cam.trigger_mode, "Internal Series",
+            det.cam.manual_trigger, "Enable",
+            det.cam.num_images, 1,
+            det.cam.num_triggers, num_pts,
+            det.hdf1.num_capture, num_pts,
+        )
+
+        # Set stage_sigs for pre-armed software-trigger mode
+        cam_keys = ("trigger_mode", "manual_trigger", "num_triggers", "wait_for_plugins")
+        saved = {k: det.cam.stage_sigs[k] for k in cam_keys if k in det.cam.stage_sigs}
+        det.cam.stage_sigs["trigger_mode"] = "Internal Series"
+        det.cam.stage_sigs["manual_trigger"] = "Enable"
+        det.cam.stage_sigs["num_triggers"] = num_pts
+        det.cam.stage_sigs["wait_for_plugins"] = "No"
+
+        start_pos = motor.position
+        positions = np.linspace(start_pos + rel_begin, start_pos + rel_end, num_pts)
+        pos_cache = {motor: None}
+
+        def step(detectors, step, pos_cache):
+            """Move motor, fire software trigger, wait for frame, read motor."""
+            yield from bps.move_per_step(step, pos_cache)
+            det.cam.special_trigger_button.put(1, wait=False)
+            yield from bps.create("primary")
+            yield from bps.read(motor)
+            yield from bps.read(det.stats1)
+            yield from bps.read(det.stats2)
+            yield from bps.read(det.stats3)
+            yield from bps.save()
+
+        def inner():
+            # Start pre-armed acquisition (accepts num_pts software triggers)
+            det.cam.acquire.put(1)
+            try:
+                for pos in positions:
+                    yield from step([det], {motor: pos}, pos_cache)
+            finally:
+                # Wait for HDF to flush all frames before stage_wrapper unstages
+                t0 = time.time()
+                timeout = num_pts * count_time * 3 + 10
+                while det.hdf1.num_captured.get() < num_pts:
+                    yield from bps.sleep(0.05)
+                    if time.time() - t0 > timeout:
+                        print("WARNING: HDF write timeout — not all frames saved.")
+                        break
+                det.cam.acquire.put(0)
+                yield from bps.mv(motor, start_pos)  # return to start position
+
+        try:
+            yield from bpp.stage_wrapper(
+                bpp.run_wrapper(inner(), md=md),
+                [det, motor],
+            )
+        finally:
+            # Restore cam stage_sigs
+            for k in cam_keys:
+                if k in saved:
+                    det.cam.stage_sigs[k] = saved[k]
+                else:
+                    det.cam.stage_sigs.pop(k, None)
+            # Return detector to normal state: Internal Enable, manual trigger off
+            det.cam.trigger_mode.put("Internal Enable")
+            det.cam.manual_trigger.put("Disable")
+            print('# images captured: ', det.hdf1.num_captured.get())

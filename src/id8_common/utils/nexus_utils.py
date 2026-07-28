@@ -173,20 +173,31 @@ def create_runtime_metadata_dict(
         "/entry/instrument/datamanagement/workflow_name": pv_registers.workflow_name.get(),
 
         # TODO: Change the detector direct beam position and detector position to real numbers
+
+        # Read detector name and use that name to decide what fields to use to populate the rest
+        "/entry/instrument/detector_1/detector_name": pv_registers.det_name.get(),
+
+        # Define all degrees of freedom of the detector
+        "/entry/instrument/detector_1/position_x": detector.x.position / 1000.0,
+        "/entry/instrument/detector_1/position_y": detector.y.position / 1000.0,
+        # "/entry/instrument/detector_1/horizontal_swing": flight_path_8idi.swing.position,
+        # "/entry/instrument/detector_1/vertical_swing": 0,
+
         "/entry/instrument/detector_1/beam_center_x": pv_registers.current_db_x0.get(),
         "/entry/instrument/detector_1/beam_center_y": pv_registers.current_db_y0.get(),
         "/entry/instrument/detector_1/beam_center_position_x": pv_registers.current_det_x0.get() / 1000.0,
         "/entry/instrument/detector_1/beam_center_position_y": pv_registers.current_det_y0.get() / 1000.0,
-        "/entry/instrument/detector_1/position_x": detector.x.position / 1000.0,
-        "/entry/instrument/detector_1/position_y": detector.y.position / 1000.0,
-        "/entry/instrument/detector_1/x_pixel_size": pv_registers.det_pixel_size.get(),
-        "/entry/instrument/detector_1/y_pixel_size": pv_registers.det_pixel_size.get(),
-        "/entry/instrument/detector_1/distance": flight_path_8idi.length.position / 1000.0,
-        "/entry/instrument/detector_1/flightpath_swing": flight_path_8idi.swing.position,
+
+        # These below are shared by all detectors 
         "/entry/instrument/detector_1/count_time": det.cam.acquire_time.get(),
         "/entry/instrument/detector_1/frame_time": det.cam.acquire_period.get(),
-        "/entry/instrument/detector_1/detector_name": pv_registers.det_name.get(),
         "/entry/instrument/detector_1/qmap_file": pv_registers.qmap_file.get(),
+        "/entry/instrument/detector_1/distance": flight_path_8idi.length.position / 1000.0,
+        "/entry/instrument/detector_1/x_pixel_size": pv_registers.det_pixel_size.get(),
+        "/entry/instrument/detector_1/y_pixel_size": pv_registers.det_pixel_size.get(),
+
+        "/entry/instrument/detector_1/flightpath_swing": flight_path_8idi.swing.position,
+        
         "/entry/sample/lakeshore1": lakeshore1.readback_ch1.get(),
         # "/entry/sample/keithley_chA_SrcLevelV": keithley_chA.SrcLevelV_AO.value,
         # "/entry/sample/keithley_chA_SrcLevelI": keithley_chA.SrcLevelI_AO.value,

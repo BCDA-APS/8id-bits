@@ -61,8 +61,7 @@ def save_images(det, save_img, num_pts, num_frames=1, file_path=None):
         raise ValueError("save_img must be 1 or 0 (to save or not to save)")
 
     if file_path is None:
-        file_path = "/gdata/dm/8ID/8IDE/2026-1/comm202602/data/bluesky/"
-        # file_path = "/home/beams/8IDIUSER/sdmarks/tetramm_testing"
+        file_path = "/gdata/dm/8ID/8IDE/2026-2/hung202606/data/bluesky/"
     is_eiger = ("eiger" in det.name.lower()) or ("eiger" in det.prefix.lower())
     is_tetramm = "tetramm" in det.name.lower()
 
@@ -128,6 +127,40 @@ def save_images(det, save_img, num_pts, num_frames=1, file_path=None):
                 if has(det.cam, "num_images"):
                     yield from bps.mv(det.cam.num_images, num_frames)
 
+def dscan_test(motor, rel_begin, rel_end, num_pts, count_time,
+          det=eiger4M, att_ratio=1e6, save_img=1):
+    
+    pre_align()
+    att(att_ratio)
+    PIND_status(0)
+
+    is_tetramm = "tetramm" in det.name
+
+    if det == eiger4M or det == lambda2M:
+        yield from bps.mv(
+            det.cam.num_images, 1,
+            det.cam.acquire_time, count_time,
+            det.cam.acquire_period, count_time,
+        )
+    else:
+        print('tetramm1 or other detector with simple acquire trigger')
+    print(det.hdf1.num_capture.get(), ' checkpoint2')
+    yield from save_images(det, save_img, num_pts)
+
+    if is_tetramm and save_img == 1:
+        det.hdf1.enable.put(1)
+        det.hdf1.capture.put(1)
+        print(f"TetrAMM HDF capture armed: {det.hdf1.file_name.get()}")
+
+    det.hdf1.num_capture.put(num_pts)
+    showbeam()
+    yield from bp.rel_scan([det], motor, rel_begin, rel_end, num_pts)
+    blockbeam()
+
+    if is_tetramm and save_img == 1:
+        det.hdf1.capture.put(0)
+        print("TetrAMM HDF capture stopped.")
+
 def dscan(motor, rel_begin, rel_end, num_pts, count_time,
                det=eiger4M, att_ratio=1e6, save_img=1):
     """
@@ -138,8 +171,6 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
 
     For TetrAMM: No pre-arming (continuous mode). Steps through positions and
     reads the current value at each point. HDF capture is armed/stopped manually.
-
-    For Lambda2M: under construction 
 
     args:
         motor: ophyd positioner
@@ -225,8 +256,11 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
             det.cam.acquire_period, count_time,
             det.cam.num_images, num_pts,
             det.hdf1.num_capture, num_pts,
+            softglue_8idi.num_triggers, 1,  # one pulse per "1!"; else stale value from run_measurement
+            softglue_8idi.acq_time, count_time,
+            softglue_8idi.acq_period, count_time,
         )
-        
+
         yield from save_images(det, save_img, num_pts)
         # print(det.cam.num_triggers.get())
 

@@ -272,6 +272,13 @@ def validate_timing(measurement):
             if acq_period < 0.1:
                 raise ValueError("Eiger External Enable requires acq_period >= 0.1 s.")
 
+        if detector == "lambda2M" and mode == "External":
+            if acq_time < 0.1:
+                raise ValueError("Lambda External requires acq_time >= 0.1 s.")
+
+            if acq_period < 0.1:
+                raise ValueError("Lambda External requires acq_period >= 0.1 s.")
+
     else:
         measurement["acq_period"] = acq_time
 
@@ -460,8 +467,8 @@ def run_measurement(measurement, sample_info):
     print("")
 
     select_device(measurement["detector"])
-    
-    det_acq_series(wait_time=wait_time)
+
+    det_acq_series(wait_time=wait_time, hooks=measurement.get("hooks"))
 
 
 def run_measurement_info(

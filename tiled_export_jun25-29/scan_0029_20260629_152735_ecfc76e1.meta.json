@@ -1,0 +1,89 @@
+{
+  "uid": "ecfc76e1-2c1b-4fc7-b961-4a3b5a376289",
+  "start": {
+    "pid": 1607767,
+    "uid": "ecfc76e1-2c1b-4fc7-b961-4a3b5a376289",
+    "time": 1782764855.3295355,
+    "motors": [
+      "huber_mu"
+    ],
+    "iconfig": {
+      "BEC": {
+        "PLOTS": false,
+        "TABLE": true,
+        "HEADING": true,
+        "BASELINE": true
+      },
+      "OPHYD": {
+        "TIMEOUTS": {
+          "PV_READ": 5,
+          "PV_WRITE": 5,
+          "PV_CONNECTION": 5
+        },
+        "CONTROL_LAYER": "PyEpics"
+      },
+      "RUN_ENGINE": {
+        "MD_PATH": ".re_md_dict.yml",
+        "DEFAULT_METADATA": {
+          "beamline_id": "8-ID-E",
+          "proposal_id": "commissioning 2026-2",
+          "instrument_name": "8-ID"
+        },
+        "USE_PROGRESS_BAR": false
+      },
+      "ICONFIG_PATH": "/home/beams10/8IDIUSER/bluesky/src/id8_common/configs/iconfig.yml",
+      "DM_SETUP_FILE": "/home/dm/etc/dm.setup.sh",
+      "BASELINE_LABEL": {
+        "ENABLE": true
+      },
+      "ICONFIG_VERSION": "2.0.1",
+      "INSTRUMENT_PATH": "/home/beams10/8IDIUSER/bluesky/src/id8_common/configs",
+      "SPEC_DATA_FILES": {
+        "ENABLE": true,
+        "FILE_EXTENSION": "dat"
+      },
+      "TILED_PATH_NAME": "/raw",
+      "INSTRUMENT_FOLDER": "configs",
+      "XMODE_DEBUG_LEVEL": "Plain",
+      "TILED_PROFILE_NAME": "8ide",
+      "ALLOW_AREA_DETECTOR_WARMUP": true
+    },
+    "scan_id": 29,
+    "login_id": "8idiuser@pearl.xray.aps.anl.gov",
+    "versions": {
+      "h5py": "3.15.1",
+      "epics": "3.5.8",
+      "numpy": "2.3.5",
+      "ophyd": "1.11.0",
+      "python": "3.11.14",
+      "apsbits": "2.0.1",
+      "bluesky": "1.14.6",
+      "apstools": "1.7.9",
+      "pysumreg": "1.0.7",
+      "databroker": "1.2.5",
+      "matplotlib": "3.10.7",
+      "pyRestTable": "2020.0.10"
+    },
+    "detectors": [
+      "lambda2M"
+    ],
+    "plan_name": "dscan",
+    "plan_type": "generator",
+    "Image file": "F1238_PCHC3p5kf4_MA_TBD_150C_curing_F_a1009255",
+    "num_points": 40,
+    "beamline_id": "8-ID-E",
+    "proposal_id": "commissioning 2026-2",
+    "conda_prefix": "/home/beams/8IDIUSER/.conda/envs/8id_bits",
+    "instrument_name": "8-ID"
+  },
+  "stop": {
+    "uid": "d8429a4e-7b3f-4562-8020-fb6c3fa6a94c",
+    "time": 1782764891.7422032,
+    "reason": "",
+    "run_start": "ecfc76e1-2c1b-4fc7-b961-4a3b5a376289",
+    "num_events": {
+      "primary": 40
+    },
+    "exit_status": "success"
+  }
+}

@@ -36,6 +36,7 @@ from tiled.client import from_profile
 # from apstools.devices import load_devices_from_yaml
 # from id8_common.utils.misc import ioc_alive
 from id8_common.utils.safe_devices import safe_make_devices
+from id8_common.utils.plot_mesh import plot_mesh
 
 # Configuration block
 # Get the path to the instrument package

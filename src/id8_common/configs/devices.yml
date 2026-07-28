@@ -136,16 +136,16 @@ id8_common.devices.qnw_device.QnwDevice:
   prefix: "8idiSoft:QNWenv_3:"
   readback_pv: null
 
-# id8_common.devices.qnw_vac_device.QnwDevice:
-# - name: qnw_vac1
-#   prefix: "8idiSoft:QNWvac_1:"
-#   readback_pv: null
-# - name: qnw_vac2
-#   prefix: "8idiSoft:QNWvac_2:"
-#   readback_pv: null
-# - name: qnw_vac3
-#   prefix: "8idiSoft:QNWvac_3:"
-#   readback_pv: null
+id8_common.devices.qnw_vac_device.QnwDevice:
+- name: qnw_vac1
+  prefix: "8idiSoft:QNWvac_1:"
+  readback_pv: null
+- name: qnw_vac2
+  prefix: "8idiSoft:QNWvac_2:"
+  readback_pv: null
+- name: qnw_vac3
+  prefix: "8idiSoft:QNWvac_3:"
+  readback_pv: null 
 
 id8_common.devices.registers_device.EpicsPvStorageRegisters:
 - name: pv_registers
@@ -214,7 +214,7 @@ id8_common.devices.softglue.SoftGlue:
   pv_clear3: "8idMZ1:SG:UpCntr-3_CLEAR_Signal"  # example PV for clearing a counter or similar action
 
 id8_common.devices.softglue.softglue_mz2:  
-- name: "softglue_8id_mz2"
+- name: softglue_8id_mz2
   prefix: ""
 
 id8_common.devices.softglue.softglue_acq8id:  
@@ -303,6 +303,7 @@ id8_common.devices.tetramm_picoammeter.MyTetrAMM:
 # - name: keysight
 #   prefix: "8idKeysight:KEY1:"
 
+
 id8_common.devices.idt_mono.BraggGap_Monochromator:
 - name: mono
   prefix: "8idaSoft:MN1:"
@@ -364,6 +365,11 @@ hklpy2.creator:
 id8_common.devices.pin_diode.PIND:
 - name: pd
   prefix: "8ideSoft:pdu1:"
+
+# id8_common.devices.keithley.Keithley2400:
+# - name: keithley2400
+#   prefix: "8idKeithley2400:K1:"
+
 
 # id8_common.devices.keithley.Keithley:
 # - name: keithley_chA
