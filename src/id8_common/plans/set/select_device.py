@@ -15,10 +15,23 @@ pv_registers = oregistry["pv_registers"]
 
 DEVICE_POSITION_PATH = Path(__file__).parent / "device_position.yaml"
 
+# rigaku3M_epics is the same physical detector as rigaku3M, run in a different
+# acquisition mode. It has no entry of its own in device_position.yaml; it shares
+# rigaku3M's motors/db_x/db_y/distance/registers via this alias.
+DETECTOR_ALIASES = {
+    "rigaku3M_epics": "rigaku3M",
+}
+
 
 def _load_config():
     with open(DEVICE_POSITION_PATH, "r") as f:
         return yaml.safe_load(f)
+
+
+def _detector_config(config: dict, det_name: str):
+    """Look up a detector's config block in device_position.yaml, resolving DETECTOR_ALIASES."""
+    key = DETECTOR_ALIASES.get(det_name, det_name)
+    return config["detectors"][key]
 
 
 def _resolve(dotted: str):
@@ -32,7 +45,16 @@ def _resolve(dotted: str):
 
 def _move_motors(motors_cfg: list, timeout: float = 300):
     for m in motors_cfg:
+        if m.get("device") is None or m.get("position") is None:
+            continue
         _resolve(m["device"]).move(m["position"], wait=True, timeout=timeout)
+
+
+def _find_motor(motors_cfg: list, name: str):
+    for m in motors_cfg:
+        if m["name"] == name:
+            return m
+    raise KeyError(f"No motor named '{name}' in device_position.yaml config.")
 
 
 def select_device(name: str):
@@ -51,9 +73,10 @@ def select_device(name: str):
               (e.g. ``"eiger4M"``, ``"microscope"``, ``"qnw"``).
     """
     config = _load_config()
+    resolved_name = DETECTOR_ALIASES.get(name, name)
 
-    if name in config["detectors"]:
-        cfg = config["detectors"][name]
+    if resolved_name in config["detectors"]:
+        cfg = _detector_config(config, name)
 
         # if pv_registers.det_name.get() == name:
         #     return
@@ -63,13 +86,13 @@ def select_device(name: str):
         for reg_path, value in cfg.get("registers", {}).items():
             _resolve(reg_path).put(value)
 
-        pv_registers.current_det_x0.put(motors_cfg[0]["position"])
-        pv_registers.current_det_y0.put(motors_cfg[1]["position"])
+        pv_registers.current_det_x0.put(_find_motor(motors_cfg, "horizontal")["position"])
+        pv_registers.current_det_y0.put(_find_motor(motors_cfg, "vertical")["position"])
         pv_registers.current_db_x0.put(cfg["db_x"])
         pv_registers.current_db_y0.put(cfg["db_y"])
 
         _move_motors(motors_cfg)
-        pv_registers.det_name.put(name)
+        pv_registers.det_name.put(name)  # keep the caller's name (e.g. "rigaku3M_epics")
 
     elif name in config["diagnostics"]:
         _move_motors(config["diagnostics"][name]["motors"])
@@ -92,6 +115,7 @@ def select_device(name: str):
     else:
         all_names = (
             list(config["detectors"])
+            + list(DETECTOR_ALIASES)
             + list(config["diagnostics"])
             + list(config["sample_envs"])
         )

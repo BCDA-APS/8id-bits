@@ -165,6 +165,13 @@ xpcs_schema = {
                     "description": "Swing angle of the flight path",
                     "data": 0,
                 },
+                "flightpath_swing_vertical": {
+                    "type": "NX_NUMBER",
+                    "units": "NX_ANGLE",
+                    "required": False,
+                    "description": "Vertical swing angle of the flight path",
+                    "data": 0,
+                },
                 "frame_time": {
                     "type": "NX_NUMBER",
                     "units": "NX_TIME",

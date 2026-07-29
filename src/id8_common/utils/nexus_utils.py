@@ -15,12 +15,15 @@ from typing import Union
 import h5py
 from apsbits.core.instrument_init import oregistry
 
+from id8_common.plans.set.select_device import DETECTOR_ALIASES
+from id8_common.plans.set.select_device import _load_config
+from id8_common.plans.set.select_device import _resolve
+
 from .default_metadata import default_metadata
 from .xpcs_schema import xpcs_schema
 
 # fofb = oregistry['fofb_s09']
 pv_registers = oregistry["pv_registers"]
-detector = oregistry["detector"]
 filter_8ide = oregistry["filter_8ide"]
 lakeshore1 = oregistry["lakeshore1"]
 mono = oregistry["mono"]
@@ -40,7 +43,6 @@ mono_slit = oregistry["mono_slit"]
 # keithley_chB = oregistry["keithley_chB"]
 # bk_pid = oregistry["bk_pid"]
 # keysight = oregistry["keysight"]
-flight_path_8idi = oregistry["flight_path_8idi"]
 rheometer = oregistry["rheometer"]
 sample = oregistry["sample"]
 qnw_env1 = oregistry["qnw_env1"]
@@ -48,11 +50,43 @@ qnw_env2 = oregistry["qnw_env2"]
 qnw_env3 = oregistry["qnw_env3"]
 
 def _get_ring_current():
-   
+
     aps_list = list(oregistry.findall(name="aps"))
     machine = aps_list[0]
 
     return float(machine.current.get())
+
+
+def _get_detector_config(det_name):
+    """Look up det_name's config block from device_position.yaml.
+
+    Resolves DETECTOR_ALIASES first (e.g. rigaku3M_epics -> rigaku3M, which share the
+    same physical detector and config). Then checks the select_device()-driven
+    `detectors` section, falling back to `detector_axes` (detectors with axis info but
+    no select_device() wiring, e.g. lambda2M).
+    """
+    config = _load_config()
+    key = DETECTOR_ALIASES.get(det_name, det_name)
+
+    if key in config.get("detectors", {}):
+        return config["detectors"][key]
+
+    if key in config.get("detector_axes", {}):
+        return config["detector_axes"][key]
+
+    raise KeyError(f"No configuration found for detector '{det_name}' in device_position.yaml.")
+
+
+def _get_motor_value(motors_cfg, name):
+    """Return the current value of a named axis: literal `position` if no device, else the resolved device's `.position`."""
+    for m in motors_cfg:
+        if m["name"] == name:
+            device_path = m.get("device")
+            if device_path is None:
+                return m.get("position", 0)
+            return _resolve(device_path).position
+
+    raise KeyError(f"No motor named '{name}' in device_position.yaml config.")
 
 default_units_keymap = {
     "NX_COUNT": "one",  # Used for frame_sum, frame_average, delay_difference
@@ -161,6 +195,16 @@ def create_runtime_metadata_dict(
     # Create a copy of the default metadata dictionary
     runtime_metadata = default_metadata.copy()
 
+    # Resolve the current detector's swing/translation axes and distance from device_position.yaml
+    det_name = pv_registers.det_name.get()
+    det_cfg = _get_detector_config(det_name)
+    motors_cfg = det_cfg["motors"]
+    horizontal = _get_motor_value(motors_cfg, "horizontal")
+    vertical = _get_motor_value(motors_cfg, "vertical")
+    swing_angle_horizontal = _get_motor_value(motors_cfg, "swing_angle_horizontal")
+    swing_angle_vertical = _get_motor_value(motors_cfg, "swing_angle_vertical")
+    sample_detector_distance = det_cfg["distance"]
+
     # Update the metadata with runtime values
     runtime_updates = {
         # Entry level metadata
@@ -178,10 +222,8 @@ def create_runtime_metadata_dict(
         "/entry/instrument/detector_1/detector_name": pv_registers.det_name.get(),
 
         # Define all degrees of freedom of the detector
-        "/entry/instrument/detector_1/position_x": detector.x.position / 1000.0,
-        "/entry/instrument/detector_1/position_y": detector.y.position / 1000.0,
-        # "/entry/instrument/detector_1/horizontal_swing": flight_path_8idi.swing.position,
-        # "/entry/instrument/detector_1/vertical_swing": 0,
+        "/entry/instrument/detector_1/position_x": horizontal / 1000.0,
+        "/entry/instrument/detector_1/position_y": vertical / 1000.0,
 
         "/entry/instrument/detector_1/beam_center_x": pv_registers.current_db_x0.get(),
         "/entry/instrument/detector_1/beam_center_y": pv_registers.current_db_y0.get(),
@@ -192,12 +234,13 @@ def create_runtime_metadata_dict(
         "/entry/instrument/detector_1/count_time": det.cam.acquire_time.get(),
         "/entry/instrument/detector_1/frame_time": det.cam.acquire_period.get(),
         "/entry/instrument/detector_1/qmap_file": pv_registers.qmap_file.get(),
-        "/entry/instrument/detector_1/distance": flight_path_8idi.length.position / 1000.0,
+        "/entry/instrument/detector_1/distance": sample_detector_distance,
         "/entry/instrument/detector_1/x_pixel_size": pv_registers.det_pixel_size.get(),
         "/entry/instrument/detector_1/y_pixel_size": pv_registers.det_pixel_size.get(),
 
-        "/entry/instrument/detector_1/flightpath_swing": flight_path_8idi.swing.position,
-        
+        "/entry/instrument/detector_1/flightpath_swing": swing_angle_horizontal,
+        "/entry/instrument/detector_1/flightpath_swing_vertical": swing_angle_vertical,
+
         "/entry/sample/lakeshore1": lakeshore1.readback_ch1.get(),
         # "/entry/sample/keithley_chA_SrcLevelV": keithley_chA.SrcLevelV_AO.value,
         # "/entry/sample/keithley_chA_SrcLevelI": keithley_chA.SrcLevelI_AO.value,

@@ -1,20 +1,40 @@
 # Stage positions for select_device().
 #
-# motors: list of {device, position} pairs — supports any number of axes.
-#   device follows the "registry_key.attribute" dotted notation.
+# motors: list of named axis entries — supports any number of axes.
+#   name: axis role (horizontal, vertical, swing_angle_horizontal, swing_angle_vertical, ...).
+#   device: dotted "registry_key.attribute" path, or null if the axis doesn't physically
+#     exist on this detector (its value is then the literal `position` below, e.g. 0).
+#   position: preset target select_device() moves the device to when this detector is
+#     selected. Omitted for axes that aren't moved on select (e.g. swing angles, which are
+#     set independently) — such entries are only used for reading the axis's current value
+#     (see id8_common/utils/nexus_utils.py).
 # registers (detectors only): dotted-path → value written via .put() before motion.
 # valve (sample_envs only): dotted path to a device whose .put(1/0) gates motion.
+# distance (detectors only): sample-to-detector distance, metres. Read by
+#   id8_common/utils/nexus_utils.py and written to /entry/instrument/detector_1/distance.
+#
+# rigaku3M_epics is not listed below: it's the same physical detector as rigaku3M in a
+# different acquisition mode, and shares its position/config via DETECTOR_ALIASES in
+# id8_common/plans/set/select_device.py.
 
 detectors:
 
   eiger4M:
     motors:
-      - device: detector.x
+      - name: horizontal
+        device: detector.x
         position: 256.0
-      - device: detector.y
+      - name: vertical
+        device: detector.y
         position: 77.0
+      - name: swing_angle_horizontal
+        device: flight_path_8idi.swing
+      - name: swing_angle_vertical
+        device: null
+        position: 0
     db_x: 716.0
     db_y: 815.0
+    distance: 11.5
     registers:
       softglue.enable_rigaku: '0'
       pv_registers.workflow_name: xpcs8-boost-corr
@@ -22,25 +42,20 @@ detectors:
 
   rigaku3M:
     motors:
-      - device: detector.x
+      - name: horizontal
+        device: detector.x
         position: -230.0
-      - device: detector.y
+      - name: vertical
+        device: detector.y
         position: 170.0
+      - name: swing_angle_horizontal
+        device: flight_path_8idi.swing
+      - name: swing_angle_vertical
+        device: null
+        position: 0
     db_x: 1643.0
     db_y: 846.5
-    registers:
-      softglue.enable_rigaku: '1'
-      pv_registers.workflow_name: xpcs8-boost-corr
-      pv_registers.det_pixel_size: 76.0e-6    # metres
-
-  rigaku3M_epics:
-    motors:
-      - device: detector.x
-        position: -230.0
-      - device: detector.y
-        position: 170.0
-    db_x: 1646.0
-    db_y: 846.5
+    distance: 11.5
     registers:
       softglue.enable_rigaku: '1'
       pv_registers.workflow_name: xpcs8-boost-corr
@@ -88,5 +103,26 @@ sample_envs:
       - device: granite.x
         position: 62.0
     valve: granite_8idi_valve.enable
+
+
+# Axis lookups for detectors not driven through select_device() (e.g. no db_x/db_y
+# calibration on file yet). Read by id8_common/utils/nexus_utils.py only — select_device()
+# never looks here, so these detectors are not selectable via select_device().
+
+detector_axes:
+
+  lambda2M:
+    motors:
+      - name: horizontal
+        device: null
+        position: 0
+      - name: vertical
+        device: null
+        position: 0
+      - name: swing_angle_horizontal
+        device: huber.nu
+      - name: swing_angle_vertical
+        device: huber.delta
+    distance: 2.2
 
 

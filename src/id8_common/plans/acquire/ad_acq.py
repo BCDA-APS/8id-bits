@@ -370,6 +370,7 @@ def setup_rigaku_zdt(acq_time, num_frames, file_header, file_name):
 
     rigaku3M.cam.num_images.put(num_frames)
     rigaku3M.cam.output_control.put("Sparsified")
+    rigaku3M.cam.image_mode.put("Zero-Deadtime")
     rigaku3M.cam.output_resolution.put("2 Bit")
 
     os.makedirs(full_path, mode=0o770, exist_ok=True)
@@ -397,6 +398,7 @@ def setup_rigaku_zdt4bit(acq_time, num_frames, file_header, file_name):
 
     rigaku3M.cam.num_images.put(num_frames)
     rigaku3M.cam.output_control.put("Sparsified")
+    rigaku3M.cam.image_mode.put("Zero-Deadtime")
     rigaku3M.cam.output_resolution.put("4 Bit")
 
     os.makedirs(full_path, mode=0o770, exist_ok=True)
@@ -424,6 +426,7 @@ def setup_rigaku_zdt8bit(acq_time, num_frames, file_header, file_name):
 
     rigaku3M.cam.num_images.put(num_frames)
     rigaku3M.cam.output_control.put("Sparsified")
+    rigaku3M.cam.image_mode.put("Zero-Deadtime")
     rigaku3M.cam.output_resolution.put("8 Bit")
 
     os.makedirs(full_path, mode=0o770, exist_ok=True)
@@ -441,16 +444,14 @@ def setup_rigaku_epics(acq_time, num_frames, file_header, file_name):
 
     rigaku3M.cam.trigger_mode.put('Start with Trigger')
 
-    file_path, full_path = get_rigaku_file_path(file_header, file_name)
+    _, full_path = get_rigaku_file_path(file_header, file_name)
 
     rigaku3M.cam.acquire_time.put(acq_time)
     rigaku3M.cam.acquire_period.put(acq_time)
 
-    rigaku3M.cam.fast_file_name.put(f"{file_name}.bin")
-    rigaku3M.cam.fast_file_path.put(file_path)
-
     rigaku3M.cam.num_images.put(num_frames)
     rigaku3M.cam.output_control.put("areaDetector")
+    rigaku3M.cam.image_mode.put("Standard")
     rigaku3M.cam.output_resolution.put("16 Bit")
 
     rigaku3M.hdf1.file_name.put(file_name)
@@ -711,6 +712,7 @@ ACQ_MODES = {
             "needs_acq_period": False,
             "required_devices": ["rigaku3M"],
             "hardware_device": "rigaku3M",
+            "min_acq_time": 0.01,
         },
     },
 }
