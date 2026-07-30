@@ -7,7 +7,16 @@ from apsbits.core.instrument_init import oregistry
 from id8_common.plans.acquire.ad_acq import ACQ_MODES
 from id8_common.plans.acquire.ad_acq import det_acq_series
 from id8_common.plans.set.shutter_att import att
+from id8_common.plans.set.select_device import AXIS_NAMES
+from id8_common.plans.set.select_device import DETECTOR_ALIASES
+from id8_common.plans.set.select_device import _detector_config
+from id8_common.plans.set.select_device import _find_motor
+from id8_common.plans.set.select_device import _load_config
+from id8_common.plans.set.select_device import move_detector_axes
 from id8_common.plans.set.select_device import select_device
+
+
+VALID_ANALYSIS_TYPES = ["Multitau", "Twotime", "Both"]
 
 
 pv_registers = oregistry["pv_registers"]
@@ -283,6 +292,35 @@ def validate_timing(measurement):
         measurement["acq_period"] = acq_time
 
 
+def validate_detector_position_overrides(measurement):
+    overrides = {axis: measurement[axis] for axis in AXIS_NAMES if axis in measurement}
+
+    if not overrides:
+        return
+
+    config = _load_config()
+    cfg = _detector_config(config, measurement["detector"])
+    motors_cfg = cfg["motors"]
+
+    for axis_name in overrides:
+        motor = _find_motor(motors_cfg, axis_name)
+
+        if motor.get("device") is None:
+            raise ValueError(
+                f"Protocol '{measurement.get('protocol_name', '')}': "
+                f"'{measurement['detector']}' has no '{axis_name}' axis to move."
+            )
+
+
+def validate_analysis_type(measurement):
+    analysis_type = measurement.get("analysis_type", "Multitau")
+
+    if analysis_type not in VALID_ANALYSIS_TYPES:
+        raise ValueError(
+            f"analysis_type must be one of {VALID_ANALYSIS_TYPES} (got '{analysis_type}')."
+        )
+
+
 def validate_counts(measurement):
     num_frames = int(measurement["num_frames"])
     num_repeats = int(measurement["num_repeats"])
@@ -360,6 +398,8 @@ def validate_measurement(measurement, sample):
             raise ValueError(f"Missing sample field: {field}")
 
     validate_detector_mode(measurement)
+    validate_detector_position_overrides(measurement)
+    validate_analysis_type(measurement)
     validate_required_devices_connected(measurement)
     validate_timing(measurement)
     validate_counts(measurement)
@@ -412,6 +452,7 @@ def write_measurement_registers(measurement):
 
     pv_registers.sample_move.put(measurement["sample_move"])
     pv_registers.qmap_file.put(measurement["qmap_file"])
+    pv_registers.analysis_type.put(measurement.get("analysis_type", "Multitau"))
 
 
 def reset_sample_position_register(measurement):
@@ -425,6 +466,45 @@ def reset_sample_position_register(measurement):
     sample_position_register = get_sample_position_register(sample_index)
 
     sample_position_register.put(-1)
+
+
+# =============================================================================
+# Detector placeholder hooks
+# =============================================================================
+# Called from run_measurement() right after select_device(). No-ops for eiger4M
+# and lambda2M; rigaku3M (and its rigaku3M_epics alias) moves huber.delta to 40.
+
+def placeholder_eiger4M():
+    pass
+
+
+def placeholder_lambda2M():
+    pass
+
+
+def placeholder_rigaku3M():
+    huber = oregistry["huber"]
+    huber.delta.move(40, wait=True)
+
+
+DETECTOR_PLACEHOLDERS = {
+    "eiger4M": placeholder_eiger4M,
+    "lambda2M": placeholder_lambda2M,
+    "rigaku3M": placeholder_rigaku3M,
+}
+
+# rigaku3M_epics is the same physical detector as rigaku3M (see DETECTOR_ALIASES
+# in select_device.py) so it gets the same placeholder hook.
+for _alias, _canonical in DETECTOR_ALIASES.items():
+    if _canonical in DETECTOR_PLACEHOLDERS:
+        DETECTOR_PLACEHOLDERS[_alias] = DETECTOR_PLACEHOLDERS[_canonical]
+
+
+def run_detector_placeholder(name: str):
+    """Run the placeholder hook for a detector (rigaku3M_epics shares rigaku3M's hook)."""
+    placeholder = DETECTOR_PLACEHOLDERS.get(name)
+    if placeholder is not None:
+        placeholder()
 
 
 # =============================================================================
@@ -445,6 +525,7 @@ def run_measurement(measurement, sample_info):
     att(att_level)
 
     wait_time = float(measurement.get("wait_time", 0))
+    position_overrides = {axis: measurement[axis] for axis in AXIS_NAMES if axis in measurement}
 
     print("")
     print("==============================================")
@@ -463,10 +544,17 @@ def run_measurement(measurement, sample_info):
     print(f"sample_move:    {pv_registers.sample_move.get()}")
     print(f"position_reset: {measurement.get('position_reset', 'No')}")
     print(f"qmap_file:      {pv_registers.qmap_file.get()}")
+    print(f"Analysis type:  {pv_registers.analysis_type.get()}")
+    if position_overrides:
+        print(f"Position override: {position_overrides}")
     print("==============================================")
     print("")
 
     select_device(measurement["detector"])
+    run_detector_placeholder(measurement["detector"])
+
+    if position_overrides:
+        move_detector_axes(measurement["detector"], position_overrides)
 
     det_acq_series(wait_time=wait_time, hooks=measurement.get("hooks"))
 
@@ -513,6 +601,8 @@ def dry_run_measurement_info():
 
         normalize_measurement(measurement)
         validate_detector_mode(measurement)
+        validate_detector_position_overrides(measurement)
+        validate_analysis_type(measurement)
         validate_timing(measurement)
         validate_counts(measurement)
 
@@ -522,6 +612,8 @@ def dry_run_measurement_info():
         wait_time = float(measurement.get("wait_time", 0))
         est_time = (acq_period * num_frames + wait_time) * num_repeats
         total_time += est_time
+
+        position_overrides = {axis: measurement[axis] for axis in AXIS_NAMES if axis in measurement}
 
         print("")
         print("==============================================")
@@ -540,6 +632,9 @@ def dry_run_measurement_info():
         print(f"sample_move:    {measurement['sample_move']}")
         print(f"position_reset: {measurement.get('position_reset', 'no')}")
         print(f"qmap_file:      {measurement['qmap_file']}")
+        print(f"Analysis type:  {measurement.get('analysis_type', 'Multitau')}")
+        if position_overrides:
+            print(f"Position override: {position_overrides}")
         print(f"Est. acq time:  {est_time:.1f} s")
         print("==============================================")
         print("")

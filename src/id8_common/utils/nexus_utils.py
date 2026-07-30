@@ -16,6 +16,7 @@ import h5py
 from apsbits.core.instrument_init import oregistry
 
 from id8_common.plans.set.select_device import DETECTOR_ALIASES
+from id8_common.plans.set.select_device import _find_motor
 from id8_common.plans.set.select_device import _load_config
 from id8_common.plans.set.select_device import _resolve
 
@@ -61,18 +62,13 @@ def _get_detector_config(det_name):
     """Look up det_name's config block from device_position.yaml.
 
     Resolves DETECTOR_ALIASES first (e.g. rigaku3M_epics -> rigaku3M, which share the
-    same physical detector and config). Then checks the select_device()-driven
-    `detectors` section, falling back to `detector_axes` (detectors with axis info but
-    no select_device() wiring, e.g. lambda2M).
+    same physical detector and config).
     """
     config = _load_config()
     key = DETECTOR_ALIASES.get(det_name, det_name)
 
     if key in config.get("detectors", {}):
         return config["detectors"][key]
-
-    if key in config.get("detector_axes", {}):
-        return config["detector_axes"][key]
 
     raise KeyError(f"No configuration found for detector '{det_name}' in device_position.yaml.")
 
@@ -205,6 +201,14 @@ def create_runtime_metadata_dict(
     swing_angle_vertical = _get_motor_value(motors_cfg, "swing_angle_vertical")
     sample_detector_distance = det_cfg["distance"]
 
+    # Beam-center metadata is read from device_position.yaml's presets, not from
+    # pv_registers, so it always matches the calibrated direct-beam values on file
+    # (even if this measurement moved off that preset via a position override).
+    # Detectors with no translation stage (e.g. lambda2M) have no `position` on their
+    # horizontal/vertical entries at all -- default to 0 (there is no motion to report).
+    beam_center_position_x = _find_motor(motors_cfg, "horizontal").get("position", 0)
+    beam_center_position_y = _find_motor(motors_cfg, "vertical").get("position", 0)
+
     # Update the metadata with runtime values
     runtime_updates = {
         # Entry level metadata
@@ -225,10 +229,10 @@ def create_runtime_metadata_dict(
         "/entry/instrument/detector_1/position_x": horizontal / 1000.0,
         "/entry/instrument/detector_1/position_y": vertical / 1000.0,
 
-        "/entry/instrument/detector_1/beam_center_x": pv_registers.current_db_x0.get(),
-        "/entry/instrument/detector_1/beam_center_y": pv_registers.current_db_y0.get(),
-        "/entry/instrument/detector_1/beam_center_position_x": pv_registers.current_det_x0.get() / 1000.0,
-        "/entry/instrument/detector_1/beam_center_position_y": pv_registers.current_det_y0.get() / 1000.0,
+        "/entry/instrument/detector_1/beam_center_x": det_cfg["db_x"],
+        "/entry/instrument/detector_1/beam_center_y": det_cfg["db_y"],
+        "/entry/instrument/detector_1/beam_center_position_x": beam_center_position_x / 1000.0,
+        "/entry/instrument/detector_1/beam_center_position_y": beam_center_position_y / 1000.0,
 
         # These below are shared by all detectors 
         "/entry/instrument/detector_1/count_time": det.cam.acquire_time.get(),

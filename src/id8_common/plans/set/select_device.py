@@ -22,6 +22,18 @@ DETECTOR_ALIASES = {
     "rigaku3M_epics": "rigaku3M",
 }
 
+# Named axis roles every detector's `motors` list may define. Used by
+# move_detector_axes() and by master_plan.py to recognize per-protocol position
+# overrides in measurement_info.yaml.
+AXIS_NAMES = ["horizontal", "vertical", "swing_angle_horizontal", "swing_angle_vertical"]
+
+# Axes select_device() itself is allowed to move. Swing angles are deliberately excluded:
+# the flight-path swing (eiger4M/rigaku3M) and huber diffractometer (lambda2M) are shared/
+# finicky motors, so select_device() never drives them, even when device_position.yaml
+# configures a device for them. Only move_detector_axes() (called from
+# master_plan.run_measurement() for explicit per-protocol overrides) may move swing axes.
+TRANSLATION_AXES = ["horizontal", "vertical"]
+
 
 def _load_config():
     with open(DEVICE_POSITION_PATH, "r") as f:
@@ -57,6 +69,35 @@ def _find_motor(motors_cfg: list, name: str):
     raise KeyError(f"No motor named '{name}' in device_position.yaml config.")
 
 
+def move_detector_axes(name: str, overrides: dict, timeout: float = 300):
+    """Move a subset of a detector's axes to explicit positions.
+
+    Applied on top of whatever select_device() already set, so callers only need to
+    pass the axes they want to override (e.g. {"swing_angle_horizontal": 5.0}).
+
+    Args:
+        name: Detector name as used by select_device() (resolves DETECTOR_ALIASES).
+        overrides: {axis_name: position} for any subset of AXIS_NAMES.
+
+    Raises:
+        ValueError: if an axis has no real device (e.g. lambda2M's horizontal/vertical
+            translation, which doesn't physically exist).
+    """
+    config = _load_config()
+    cfg = _detector_config(config, name)
+    motors_cfg = cfg["motors"]
+
+    for axis_name, position in overrides.items():
+        motor = _find_motor(motors_cfg, axis_name)
+
+        if motor.get("device") is None:
+            raise ValueError(
+                f"'{name}' has no '{axis_name}' axis to move (device is null in device_position.yaml)."
+            )
+
+        _resolve(motor["device"]).move(position, wait=True, timeout=timeout)
+
+
 def select_device(name: str):
     """Move a beamline device to a named pre-configured position.
 
@@ -64,7 +105,10 @@ def select_device(name: str):
     device_position.yaml in order. Section-specific behaviour:
 
     - detectors: writes registers, updates beam-centre and motor-position
-      registers in pv_registers, skips motion if already active.
+      registers in pv_registers, moves horizontal/vertical translation only
+      (TRANSLATION_AXES) — never touches swing_angle_horizontal/vertical, even
+      if device_position.yaml configures a device for them. Use
+      move_detector_axes() to move swing axes explicitly.
     - diagnostics: moves motors only.
     - sample_envs: opens a valve, moves motors, then closes the valve.
 
@@ -86,12 +130,13 @@ def select_device(name: str):
         for reg_path, value in cfg.get("registers", {}).items():
             _resolve(reg_path).put(value)
 
-        pv_registers.current_det_x0.put(_find_motor(motors_cfg, "horizontal")["position"])
-        pv_registers.current_det_y0.put(_find_motor(motors_cfg, "vertical")["position"])
+        pv_registers.current_det_x0.put(_find_motor(motors_cfg, "horizontal").get("position", 0))
+        pv_registers.current_det_y0.put(_find_motor(motors_cfg, "vertical").get("position", 0))
         pv_registers.current_db_x0.put(cfg["db_x"])
         pv_registers.current_db_y0.put(cfg["db_y"])
 
-        _move_motors(motors_cfg)
+        translation_motors = [m for m in motors_cfg if m.get("name") in TRANSLATION_AXES]
+        _move_motors(translation_motors)
         pv_registers.det_name.put(name)  # keep the caller's name (e.g. "rigaku3M_epics")
 
     elif name in config["diagnostics"]:
