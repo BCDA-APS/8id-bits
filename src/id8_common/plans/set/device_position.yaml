@@ -43,18 +43,18 @@ detectors:
   eiger4M:
     motors:
       - name: horizontal
-        device: detector.x
+        device: null
         position: 256.0
       - name: vertical
-        device: detector.y
+        device: null
         position: 77.0
       - name: swing_angle_horizontal
-        device: flight_path_8idi.swing
+        device: huber.nu
       - name: swing_angle_vertical
-        device: null
+        device: huber.delta
     db_x: 716.0
     db_y: 815.0
-    distance: 11.5
+    distance: 4.0
     registers:
       softglue.enable_rigaku: '0'
       pv_registers.workflow_name: xpcs8-boost-corr

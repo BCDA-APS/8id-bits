@@ -136,6 +136,10 @@ from .plans.acquire.ad_acq import *
 from .plans.acquire.tetramm_acq import *
 from .plans.acquire.master_plan import *
 
+# Parallel two-detector acquisition (Eiger + Rigaku in one beam window). Separate from the
+# serial path above and shares no state with it -- single-detector runs are unaffected.
+from .plans.acquire.dual_master_plan import *
+
 # import align plans
 from .plans.align.scan_8id import *
 

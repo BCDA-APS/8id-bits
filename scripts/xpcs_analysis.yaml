@@ -1,0 +1,59 @@
+# Configuration for run_xpcs_analysis.py
+#
+# Relative paths are resolved against the directory holding THIS file.
+
+# ---------------------------------------------------------------- what to run
+# Header index range.  Accepts "56", "53-57", "53-57,60,62-64", or a list.
+# A leading header letter is tolerated, so "A0053-A0057" works too.
+range: 53-57
+
+# Letter in front of the index in folder names (A0056_... -> "A").
+header: A
+
+# Where the dataset folders and qmap files live.
+# Omit to use the current directory, or ../data when run from analysis/.
+data_dir: ../data
+
+# Where results are written.  Omit for <data_dir>/../analysis/<type>.
+# output_dir: ../analysis/Both
+
+# Detectors to process.  eiger4M is run once per peak, rigaku3M once total.
+detectors:
+  - eiger4M
+  - rigaku3M
+
+# Restrict which peaks run.  Omit for all peaks of each detector (BCC + FCC).
+# peaks:
+#   - BCC
+
+# ------------------------------------------------------------------ boost_corr
+type: Both          # Multitau, Twotime or Both
+gpu_id: -2          # -1 CPU, -2 auto-schedule, >=0 a specific GPU
+overwrite: true     # false keeps old results and auto-numbers (_01, _02, ...)
+
+# Extra flags appended verbatim to every boost_corr command.
+extra_args: []
+# extra_args: ["-b", "100", "-v"]
+
+# Executable; an absolute path works if it is not on PATH.
+boost_corr: boost_corr_bin
+
+# ----------------------------------------------------------------------- qmaps
+# A per-dataset qmap named <detector>_qmap[_<peak>]_<header>_<repeat>.hdf in
+# data_dir always wins over the defaults below, e.g.
+#   eiger4m_qmap_BCC_A0057_r00001.hdf
+#   rigaku3m_qmap_A0057_r00001.hdf
+# Set ignore_dedicated: true to always use the defaults instead.
+ignore_dedicated: false
+
+# Default qmaps, used when no dedicated qmap exists for a dataset.
+# Bare names are looked up in data_dir; paths are used as given.
+qmaps:
+  rigaku3M: rigaku3m_qmap_default.hdf
+  eiger4M:
+    BCC: eiger4m_qmap_BCC_default.hdf
+    FCC: eiger4m_qmap_FCC_default.hdf
+
+# ----------------------------------------------------------------------- other
+# true prints the commands and exits without running anything.
+dry_run: false

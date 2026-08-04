@@ -471,11 +471,16 @@ def reset_sample_position_register(measurement):
 # =============================================================================
 # Detector placeholder hooks
 # =============================================================================
-# Called from run_measurement() right after select_device(). No-ops for eiger4M
-# and lambda2M; rigaku3M (and its rigaku3M_epics alias) moves huber.delta to 40.
+# Called from run_measurement() right after select_device(), for every detector.
+# eiger4M moves huber to delta 10 / nu 22.7; rigaku3M (and its rigaku3M_epics
+# alias) moves huber to delta 10 / nu 0; lambda2M is a no-op. Every detector
+# acquires at delta = 10 -- at delta = 0 the lambda2M sits in the beam.
 
 def placeholder_eiger4M():
     pass
+    # huber = oregistry["huber"]
+    # huber.delta.move(10, wait=True)
+    # huber.nu.move(22.7, wait=True)
 
 
 def placeholder_lambda2M():
@@ -483,8 +488,10 @@ def placeholder_lambda2M():
 
 
 def placeholder_rigaku3M():
+    pass
     huber = oregistry["huber"]
-    huber.delta.move(40, wait=True)
+    huber.delta.move(10, wait=True)
+    huber.nu.move(0, wait=True)
 
 
 DETECTOR_PLACEHOLDERS = {

@@ -1542,6 +1542,53 @@ def y_lup(
     blockbeam()
 
 
+def huber_x_lup(
+    rel_begin: float = -0.3,
+    rel_end: float = 0.3,
+    num_pts: int = 60,
+    att_ratio: int = 1,
+    det: Device = tetramm1,
+):
+    """Perform a relative scan along the sample X axis.
+
+    Args:
+        rel_begin: Start position relative to current position (mm)
+        rel_end: End position relative to current position (mm)
+        num_pts: Number of points in the scan
+        att_level: Attenuation level to use (0-15)
+        det: Detector to use for the scan
+    """
+    pre_align()
+    att(att_ratio)
+    showbeam()
+
+    yield from bp.rel_scan([det], huber.x, rel_begin, rel_end, num_pts)
+    blockbeam()
+
+
+def huber_y_lup(
+    rel_begin: float = -0.3,
+    rel_end: float = 0.3,
+    num_pts: int = 60,
+    att_ratio: int = 1,
+    det: Device = tetramm1,
+):
+    """Perform a relative scan along the sample Y axis.
+
+    Args:
+        rel_begin: Start position relative to current position (mm)
+        rel_end: End position relative to current position (mm)
+        num_pts: Number of points in the scan
+        att_level: Attenuation level to use (0-15)
+        det: Detector to use for the scan
+    """
+    pre_align()
+    att(att_ratio)
+
+    showbeam()
+    yield from bp.rel_scan([det], huber.y, rel_begin, rel_end, num_pts)
+    blockbeam()
+
 def rheo_x_lup(
     rel_begin: float = -3,
     rel_end: float = 3,
