@@ -1,0 +1,89 @@
+usage: boost_corr [-h] -r RAW_FILENAMES [RAW_FILENAMES ...] [-q QMAP_FILENAME]
+                  [-o OUTPUT_DIR] [-s SMOOTH] [-i GPU_ID] [-nf {0,1}]
+                  [-b BEGIN_FRAME] [-e END_FRAME] [-f STRIDE_FRAME]
+                  [-a AVG_FRAME] [-t TYPE] [-d DQ_SELECTION] [--version] [-v]
+                  [-G] [-n] [-np NUM_PARTIAL_G2]
+                  [--crop-ratio-threshold CROP_RATIO_THRESHOLD] [-p PREFIX]
+                  [-u SUFFIX] [--bin-time-s BIN_TIME_S]
+                  [--run-config-path RUN_CONFIG_PATH]
+                  [--max-memory MAX_MEMORY] [--num-segments NUM_SEGMENTS]
+                  [--meta-fname META_FNAME] [-w] [-c CONFIG_JSON]
+
+Compute Multi-tau/Twotime correlation for APS-8IDI XPCS datasets on GPU/CPU
+
+options:
+  -h, --help            show this help message and exit
+  -r RAW_FILENAMES [RAW_FILENAMES ...], --raw RAW_FILENAMES [RAW_FILENAMES ...]
+                        One or more filenames of the raw data files
+                        (imm/rigaku/hdf)
+  -q QMAP_FILENAME, --qmap QMAP_FILENAME
+                        Filename of the qmap file (h5/hdf)
+  -o OUTPUT_DIR, --output OUTPUT_DIR
+                        Output directory for result files. Directory will be
+                        created if it doesn't exist. [default:
+                        cluster_results]
+  -s SMOOTH, --smooth SMOOTH
+                        Smooth method for Twotime correlation. [default:
+                        sqmap]
+  -i GPU_ID, --gpu-id GPU_ID
+                        GPU selection: -1 for CPU, -2 for auto-scheduling, >=0
+                        for specific GPU. [default: -1]
+  -nf {0,1}, --normalize-frame {0,1}
+                        1 to enable, 0 to disable frame-based normalization.
+                        [default: True]
+  -b BEGIN_FRAME, --begin-frame BEGIN_FRAME
+                        Starting frame index (0-based) for correlation. Used
+                        to skip bad initial frames. If negative, it will use
+                        python slice stype to resolve the start frames.
+                        [default: 0]
+  -e END_FRAME, --end-frame END_FRAME
+                        Ending frame index (0-based, exclusive) for
+                        correlation. -1 uses all frames after begin_frame.
+                        [default: -1]
+  -f STRIDE_FRAME, --stride-frame STRIDE_FRAME
+                        Frame stride for processing. [default: 1]
+  -a AVG_FRAME, --avg-frame AVG_FRAME
+                        Number of frames to average before correlation.
+                        [default: 1]
+  -t TYPE, --type TYPE  Analysis type: "Multitau", "Twotime", or "Both".
+                        [default: Multitau]
+  -d DQ_SELECTION, --dq-selection DQ_SELECTION
+                        DQ list selection (e.g., "1,2,5-7" selects
+                        [1,2,5,6,7]). "all" uses "all dynamic qindex.
+                        [default: all]
+  --version             show program's version number and exit
+  -v, --verbose         Enable verbose output
+  -G, --save-G2         Save G2, IP, and IF to file
+  -n, --dry-run         Show arguments without executing
+  -np NUM_PARTIAL_G2, --num-partial-g2 NUM_PARTIAL_G2
+                        number of partial g2 to compute. if 0, no partial g2
+                        will be computed
+  --crop-ratio-threshold CROP_RATIO_THRESHOLD
+                        Threshold for the ratio of valid (unmasked) pixels in
+                        the detector. If the ratio of valid pixels falls below
+                        this threshold, the raw data will be cropped to only
+                        include valid pixels, reducing memory usage. Range:
+                        0.0-1.0. [default: 1.0]
+  -p PREFIX, --prefix PREFIX
+                        prefix to add to the result filename
+  -u SUFFIX, --suffix SUFFIX
+                        suffix to add to the result filename
+  --bin-time-s BIN_TIME_S
+                        time bin size in seconds for Timepix4 data. [default:
+                        1e-06]
+  --run-config-path RUN_CONFIG_PATH
+                        Path to the run configuration file for Timepix4 data.
+                        [default: None]
+  --max-memory MAX_MEMORY
+                        Max memory to use in GB. [default: 36.0]
+  --num-segments NUM_SEGMENTS
+                        Number of segments to divide the data into for
+                        independent processing. [default: 1]
+  --meta-fname META_FNAME
+                        Path to the metadata file; if not provided, the
+                        metadata file will be searched in the raw data
+                        directory
+  -w, --overwrite       Overwrite existing result files
+  -c CONFIG_JSON, --config CONFIG_JSON
+                        Configuration file path. Command line arguments
+                        override config file values

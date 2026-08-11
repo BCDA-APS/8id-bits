@@ -1,0 +1,94 @@
+/                        Group
+/entry                   Group
+/entry/data              Group
+/entry/data/data         Dataset {61, 1813, 1558}
+/entry/instrument        Group
+/entry/instrument/NDAttributes Group
+/entry/instrument/NDAttributes/APSU_RingCurrent_mA Dataset {61/Inf}
+/entry/instrument/NDAttributes/CRL_D_RBV Dataset {61/Inf}
+/entry/instrument/NDAttributes/CRL_E_RBV Dataset {61/Inf}
+/entry/instrument/NDAttributes/CRL_Type Dataset {61/Inf}
+/entry/instrument/NDAttributes/DAMM_x Dataset {61/Inf}
+/entry/instrument/NDAttributes/DAMM_y Dataset {61/Inf}
+/entry/instrument/NDAttributes/DHS1100_SetTemperature Dataset {61/Inf}
+/entry/instrument/NDAttributes/DHS1100_Temperature Dataset {61/Inf}
+/entry/instrument/NDAttributes/D_BPM_PosX Dataset {61/Inf}
+/entry/instrument/NDAttributes/D_BPM_PosY Dataset {61/Inf}
+/entry/instrument/NDAttributes/D_BPM_SumX Dataset {61/Inf}
+/entry/instrument/NDAttributes/D_BPM_SumY Dataset {61/Inf}
+/entry/instrument/NDAttributes/Diamond_Window_x Dataset {61/Inf}
+/entry/instrument/NDAttributes/Diamond_Window_y Dataset {61/Inf}
+/entry/instrument/NDAttributes/FOFB_S09_Hor Dataset {61/Inf}
+/entry/instrument/NDAttributes/FOFB_S09_Ver Dataset {61/Inf}
+/entry/instrument/NDAttributes/Huber_chi Dataset {61/Inf}
+/entry/instrument/NDAttributes/Huber_del Dataset {61/Inf}
+/entry/instrument/NDAttributes/Huber_eta Dataset {61/Inf}
+/entry/instrument/NDAttributes/Huber_mu Dataset {61/Inf}
+/entry/instrument/NDAttributes/Huber_nu Dataset {61/Inf}
+/entry/instrument/NDAttributes/Huber_phi Dataset {61/Inf}
+/entry/instrument/NDAttributes/Huber_x Dataset {61/Inf}
+/entry/instrument/NDAttributes/Huber_y Dataset {61/Inf}
+/entry/instrument/NDAttributes/Huber_z Dataset {61/Inf}
+/entry/instrument/NDAttributes/LDDP_x Dataset {61/Inf}
+/entry/instrument/NDAttributes/LDDP_y Dataset {61/Inf}
+/entry/instrument/NDAttributes/LDDP_yaw Dataset {61/Inf}
+/entry/instrument/NDAttributes/Lakeshore1_InputA Dataset {61/Inf}
+/entry/instrument/NDAttributes/Lakeshore1_InputB Dataset {61/Inf}
+/entry/instrument/NDAttributes/Lakeshore1_InputC Dataset {61/Inf}
+/entry/instrument/NDAttributes/Lakeshore1_InputD Dataset {61/Inf}
+/entry/instrument/NDAttributes/Lakeshore1_OutputA Dataset {61/Inf}
+/entry/instrument/NDAttributes/Lakeshore1_OutputB Dataset {61/Inf}
+/entry/instrument/NDAttributes/Lakeshore1_OutputC Dataset {61/Inf}
+/entry/instrument/NDAttributes/Lakeshore1_OutputD Dataset {61/Inf}
+/entry/instrument/NDAttributes/Lakeshore2_InputA Dataset {61/Inf}
+/entry/instrument/NDAttributes/Lakeshore2_InputB Dataset {61/Inf}
+/entry/instrument/NDAttributes/Lakeshore2_InputC Dataset {61/Inf}
+/entry/instrument/NDAttributes/Lakeshore2_InputD Dataset {61/Inf}
+/entry/instrument/NDAttributes/Lakeshore2_OutputA Dataset {61/Inf}
+/entry/instrument/NDAttributes/Lakeshore2_OutputB Dataset {61/Inf}
+/entry/instrument/NDAttributes/Lakeshore2_OutputC Dataset {61/Inf}
+/entry/instrument/NDAttributes/Lakeshore2_OutputD Dataset {61/Inf}
+/entry/instrument/NDAttributes/MR1_PZT Dataset {61/Inf}
+/entry/instrument/NDAttributes/MR1_Pitch Dataset {61/Inf}
+/entry/instrument/NDAttributes/MR1_x Dataset {61/Inf}
+/entry/instrument/NDAttributes/MR1_y Dataset {61/Inf}
+/entry/instrument/NDAttributes/MR2_PZT Dataset {61/Inf}
+/entry/instrument/NDAttributes/MR2_Pitch Dataset {61/Inf}
+/entry/instrument/NDAttributes/MR2_x Dataset {61/Inf}
+/entry/instrument/NDAttributes/MR2_y Dataset {61/Inf}
+/entry/instrument/NDAttributes/Mono_Bragg Dataset {61/Inf}
+/entry/instrument/NDAttributes/Mono_Crystal_h Dataset {61/Inf}
+/entry/instrument/NDAttributes/Mono_Crystal_k Dataset {61/Inf}
+/entry/instrument/NDAttributes/Mono_Crystal_l Dataset {61/Inf}
+/entry/instrument/NDAttributes/Mono_Energy_keV Dataset {61/Inf}
+/entry/instrument/NDAttributes/Mono_Filter_12bitIndex Dataset {61/Inf}
+/entry/instrument/NDAttributes/Mono_Filter_Atten Dataset {61/Inf}
+/entry/instrument/NDAttributes/Mono_Filter_PosX Dataset {61/Inf}
+/entry/instrument/NDAttributes/Mono_Filter_SortedIndex Dataset {61/Inf}
+/entry/instrument/NDAttributes/Mono_Gap Dataset {61/Inf}
+/entry/instrument/NDAttributes/Mono_Pitch_Coarse Dataset {61/Inf}
+/entry/instrument/NDAttributes/Mono_Pitch_PZT Dataset {61/Inf}
+/entry/instrument/NDAttributes/Mono_Roll_Coarse Dataset {61/Inf}
+/entry/instrument/NDAttributes/Mono_Roll_PZT Dataset {61/Inf}
+/entry/instrument/NDAttributes/Mono_Wavelength_Angstrom Dataset {61/Inf}
+/entry/instrument/NDAttributes/Mono_x Dataset {61/Inf}
+/entry/instrument/NDAttributes/Mono_y Dataset {61/Inf}
+/entry/instrument/NDAttributes/NDArrayEpicsTSSec Dataset {61/Inf}
+/entry/instrument/NDAttributes/NDArrayEpicsTSnSec Dataset {61/Inf}
+/entry/instrument/NDAttributes/NDArrayTimeStamp Dataset {61/Inf}
+/entry/instrument/NDAttributes/NDArrayUniqueId Dataset {61/Inf}
+/entry/instrument/NDAttributes/biologic_current Dataset {61/Inf}
+/entry/instrument/NDAttributes/biologic_voltage Dataset {61/Inf}
+/entry/instrument/NDAttributes/keithley_current Dataset {61/Inf}
+/entry/instrument/NDAttributes/keithley_voltage Dataset {61/Inf}
+/entry/instrument/NDAttributes/keysight_ampl Dataset {61/Inf}
+/entry/instrument/NDAttributes/keysight_freq Dataset {61/Inf}
+/entry/instrument/NDAttributes/keysight_function Dataset {61/Inf}
+/entry/instrument/NDAttributes/keysight_numpulses Dataset {61/Inf}
+/entry/instrument/NDAttributes/keysight_offset Dataset {61/Inf}
+/entry/instrument/NDAttributes/keysight_pulsewidth Dataset {61/Inf}
+/entry/instrument/detector Group
+/entry/instrument/detector/NDAttributes Group
+/entry/instrument/detector/data Dataset, same as /entry/data/data
+/entry/instrument/performance Group
+/entry/instrument/performance/timestamp Dataset {61/Inf, 5/Inf}
