@@ -35,9 +35,9 @@
 # Beryl:
 # 8idEiger4m.pl
 
-id8_common.devices.fofb.FOFB:
-  - name: fofb_s09
-    prefix: S09-FOFB
+# id8_common.devices.fofb.FOFB:
+#   - name: fofb_s09
+#     prefix: S09-FOFB
 
 apsbits.utils.sim_creator.predefined_device:
   - creator: ophyd.sim.motor
