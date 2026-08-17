@@ -143,6 +143,9 @@ from .plans.acquire.dual_master_plan import *
 # import align plans
 from .plans.align.scan_8id import *
 
+# QZ added on 08/14:
+from .plans.align.ophyd_scan import dscan_ophyd
+
 # import set plans
 from .plans.set.select_sample import select_sample
 from .plans.set.select_device import *

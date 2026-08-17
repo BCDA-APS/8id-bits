@@ -30,7 +30,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavToolbar
 from matplotlib.figure import Figure
 
-from PyQt5 import QtCore, QtWidgets
+from PyQt5 import QtCore, QtGui, QtWidgets
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from specfile import SpecDataFile, scan_stats  # noqa: E402
@@ -41,6 +41,43 @@ MARKERS = ["o", "s", "d", "^", "v", "<", ">"]
 FACES = ["m", "b", "k", "r", "c", "g"]
 
 PLOT_STYLES = ["linear", "logx", "logy", "logxy"]
+
+
+def _icon(kind, on=False):
+    """Draw the toolbar icons, mirroring the MATLAB specr play/eraser buttons.
+
+    Painted rather than loaded from files so the package stays self-contained
+    and the icons render identically on any workstation (the MATLAB original
+    keeps these in a binary icons.mat).
+    """
+    pm = QtGui.QPixmap(22, 22)
+    pm.fill(QtCore.Qt.transparent)
+    p = QtGui.QPainter(pm)
+    p.setRenderHint(QtGui.QPainter.Antialiasing, True)
+    p.setPen(QtCore.Qt.NoPen)
+
+    if kind == "live":
+        if on:  # running -> offer "pause"
+            p.setBrush(QtGui.QColor("#c0392b"))
+            p.drawRect(6, 4, 4, 14)
+            p.drawRect(12, 4, 4, 14)
+        else:  # stopped -> offer "play"
+            p.setBrush(QtGui.QColor("#27ae60"))
+            p.drawPolygon(QtGui.QPolygon([
+                QtCore.QPoint(6, 4), QtCore.QPoint(18, 11), QtCore.QPoint(6, 18)]))
+    else:  # eraser
+        body = QtGui.QColor("#e67e22") if on else QtGui.QColor("#9aa4ad")
+        p.save()
+        p.translate(11, 11)
+        p.rotate(-35)
+        p.translate(-11, -11)
+        p.setBrush(body)
+        p.drawRoundedRect(QtCore.QRectF(4.5, 5.5, 13, 11), 2, 2)
+        p.setBrush(QtGui.QColor("#f4f6f7") if on else QtGui.QColor("#dfe4e8"))
+        p.drawRect(QtCore.QRect(5, 12, 12, 4))
+        p.restore()
+    p.end()
+    return QtGui.QIcon(pm)
 
 
 class Settings:
@@ -218,6 +255,8 @@ class SpecrWindow(QtWidgets.QMainWindow):
         self.canvas.mpl_connect("motion_notify_event", self._on_mouse_move)
 
         self._build_menus()
+        self._build_toolbar()
+        self._sync_mode()
 
     def _build_menus(self):
         filemenu = self.menuBar().addMenu("&File")
@@ -263,10 +302,11 @@ class SpecrWindow(QtWidgets.QMainWindow):
         self.legend_action.setChecked(self.settings.show_legend)
         self.legend_action.triggered.connect(self.replot)
         view.addSeparator()
-        self.erase_action = view.addAction("Erase mode (monitor shows newest only)")
+        self.erase_action = view.addAction("&Erase mode")
         self.erase_action.setCheckable(True)
         self.erase_action.setChecked(self.settings.erase_mode)
-        self.monitor_action = view.addAction("Scan &Monitor")
+        self.erase_action.toggled.connect(self._on_erase_toggled)
+        self.monitor_action = view.addAction("Live mode (Scan &Monitor)")
         self.monitor_action.setCheckable(True)
         self.monitor_action.setShortcut("Ctrl+M")
         self.monitor_action.toggled.connect(self.toggle_monitor)
@@ -281,6 +321,64 @@ class SpecrWindow(QtWidgets.QMainWindow):
                 "Python/Qt rewrite of the MATLAB 'specr' by Zhang Jiang.",
             )
         )
+
+    def _build_toolbar(self):
+        """Play / eraser toggles, as on the MATLAB specr toolbar.
+
+        The same QActions back the View menu, so menu and toolbar can never
+        disagree about the current mode.
+        """
+        bar = self.addToolBar("Mode")
+        bar.setIconSize(QtCore.QSize(22, 22))
+        bar.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
+        bar.setMovable(False)
+
+        spacer = QtWidgets.QWidget()
+        spacer.setSizePolicy(QtWidgets.QSizePolicy.Expanding,
+                             QtWidgets.QSizePolicy.Preferred)
+        bar.addWidget(spacer)          # push the toggles to the right, as in MATLAB
+
+        self.mode_label = QtWidgets.QLabel()
+        self.mode_label.setStyleSheet("QLabel { padding-right: 10px; }")
+        bar.addWidget(self.mode_label)
+        bar.addAction(self.erase_action)
+        bar.addAction(self.monitor_action)
+
+    def _on_erase_toggled(self, on):
+        self.settings.erase_mode = on
+        self._sync_mode()
+        if on and len(self.selection) > 1:
+            self.selection = self.selection[-1:]   # collapse to the newest
+            self.replot()
+
+    def _sync_mode(self):
+        """Keep icons, tooltips and the mode caption in step with the toggles."""
+        live = self.monitor_action.isChecked()
+        erase = self.erase_action.isChecked()
+
+        self.monitor_action.setIcon(_icon("live", live))
+        self.monitor_action.setText("Live" if live else "Display")
+        self.monitor_action.setToolTip(
+            "Live mode: following the file as scans are written — click to stop "
+            "and browse (Ctrl+M)" if live else
+            "Display mode: browse and overlay finished scans — click to follow "
+            "the file live (Ctrl+M)")
+
+        self.erase_action.setIcon(_icon("erase", erase))
+        self.erase_action.setText("Erase")
+        self.erase_action.setToolTip(
+            "Erase on: only the newest scan is shown" if erase else
+            "Erase off: completed scans stay on the plot and accumulate")
+
+        if live and erase:
+            caption = "live · current scan only"
+        elif live:
+            caption = "live · accumulating"
+        elif erase:
+            caption = "display · single scan"
+        else:
+            caption = "display · overlay"
+        self.mode_label.setText(caption)
 
     # -- file handling -----------------------------------------------------
 
@@ -332,7 +430,15 @@ class SpecrWindow(QtWidgets.QMainWindow):
                 "Multi-selections have to be scans of the same type.",
             )
             return
-        self.selection = chosen
+        # Erase off means "keep what is already plotted" -- union with the
+        # current selection instead of replacing it.
+        if self.erase_action.isChecked():
+            self.selection = chosen
+        else:
+            keep = [i for i in self.selection
+                    if i < len(self.specfile)
+                    and self.specfile[i].labels == self.specfile[chosen[0]].labels]
+            self.selection = sorted(set(keep) | set(chosen))
         self._sync_columns(force=True)
         self.replot()
 
@@ -342,7 +448,12 @@ class SpecrWindow(QtWidgets.QMainWindow):
         self.specfile.refresh()
         i = self.selection[-1] if delta > 0 else self.selection[0]
         i = max(0, min(len(self.specfile) - 1, i + delta))
-        self.selection = [i]
+        if self.erase_action.isChecked() or i in self.selection:
+            self.selection = [i]
+        elif self.specfile[i].labels == self.specfile[self.selection[-1]].labels:
+            self.selection = sorted(set(self.selection) | {i})
+        else:
+            self.selection = [i]
         self._sync_columns(force=True)
         self.replot()
 
@@ -473,14 +584,21 @@ class SpecrWindow(QtWidgets.QMainWindow):
         if on and not self.specfile:
             self.monitor_action.setChecked(False)
             return
-        for widget in (self.select_btn, self.replot_btn):
-            widget.setEnabled(not on)
+        # Scan selection is a display-mode action: while following the file the
+        # monitor owns which scan is shown (as in the MATLAB GUI).
+        self.select_btn.setEnabled(not on)
+        self._sync_mode()
         if on:
+            self.specfile.refresh()
+            if self.erase_action.isChecked() and len(self.specfile):
+                self.selection = [len(self.specfile) - 1]
+                self._sync_columns()
+                self.replot()
             self.timer.start(int(self.settings.monitor_period * 1000))
-            self.status.showMessage("Monitoring...")
+            self.status.showMessage("Live — following the file.")
         else:
             self.timer.stop()
-            self.status.showMessage("Monitor stopped.")
+            self.status.showMessage("Display mode — monitor stopped.")
 
     def _on_monitor_tick(self):
         if not self.specfile:

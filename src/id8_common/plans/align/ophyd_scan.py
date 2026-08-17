@@ -209,6 +209,59 @@ class SpecFile:
         )
 
 
+class ScanResult(tuple):
+    """``(positions, columns)`` with a one-line repr.
+
+    Returned instead of a bare tuple so that an interactive ``dscan_ophyd(...)``
+    call does not dump every position and counter value as the cell's ``Out[N]``
+    echo -- the per-point table has already shown them. Unpacking still works::
+
+        positions, columns = dscan_ophyd(...)
+    """
+
+    def __new__(cls, positions, columns, scan_num=None, motor_name="motor"):
+        self = super().__new__(cls, (positions, columns))
+        self.positions = positions
+        self.columns = columns
+        self.scan_num = scan_num
+        self.motor_name = motor_name
+        return self
+
+    def __repr__(self):
+        n = len(self.positions)
+        if n:
+            span = f"{self.positions[0]:.5g} -> {self.positions[-1]:.5g}"
+        else:
+            span = "no points"
+        peaks = ", ".join(
+            f"{lab.split('_', 1)[-1]} max={max(v):g}" if v else f"{lab} empty"
+            for lab, v in self.columns.items()
+        )
+        return (f"<ScanResult #S {self.scan_num}: {n} pts, "
+                f"{self.motor_name} {span} | {peaks}>")
+
+
+def _table_header(motor_name, labels):
+    """Column header for the per-point live table."""
+    cols = [("#", 4), (motor_name, max(len(motor_name), 13)), ("time[s]", 8)]
+    cols += [(lab, max(len(lab), 12)) for lab in labels]
+    head = "  ".join(name.rjust(width) for name, width in cols)
+    return head + "\n" + "  ".join("-" * width for _, width in cols)
+
+
+def _table_row(index, motor_name, position, elapsed, labels, values):
+    cells = [str(index).rjust(4),
+             f"{position:.6f}".rjust(max(len(motor_name), 13)),
+             f"{elapsed:.1f}".rjust(8)]
+    for lab, val in zip(labels, values):
+        try:
+            text = f"{float(val):g}"
+        except (TypeError, ValueError):
+            text = str(val)
+        cells.append(text.rjust(max(len(lab), 12)))
+    return "  ".join(cells)
+
+
 def _numbered_lines(tag, items, per_line=8):
     """SPEC wraps #O/#o/#P at 8 entries per line: ``#O0 a  b``, ``#O1 c  d``."""
     items = list(items)
@@ -389,6 +442,7 @@ def dscan_ophyd(
     spec_path=None,
     set_attenuation=True,
     beam_control=True,
+    verbose=True,
 ):
     """
     Relative single-motor scan, Ophyd only, with live SPEC output.
@@ -416,9 +470,13 @@ def dscan_ophyd(
         beam_control: if False, skip ``pre_align``/``PIND_status`` and the
             shutter open/close. Use for a dry run that touches only the scanned
             motor and the detector.
+        verbose: print a table row per point as the scan runs -- motor readback,
+            elapsed time, and every counter -- instead of only seeing the values
+            at the end. Set False for a quiet scan.
 
     returns:
-        (positions, {label: [values]}) for the points actually measured.
+        ``ScanResult``, which unpacks as ``(positions, {label: [values]})`` but
+        prints as a one-line summary rather than dumping every value.
     """
     if det is None:
         det = eiger4M
@@ -492,6 +550,10 @@ def dscan_ophyd(
     measured, columns = [], {lab: [] for lab, _ in sigs}
     status = "success"
 
+    sig_labels = [lab for lab, _ in sigs]
+    if verbose:
+        print(_table_header(motor.name, sig_labels), flush=True)
+
     def record(setpoint):
         """Read the signals for one point and append a SPEC row.
 
@@ -505,6 +567,9 @@ def dscan_ophyd(
         measured.append(actual)
         for (lab, _), v in zip(sigs, values):
             columns[lab].append(v)
+        if verbose:
+            print(_table_row(len(measured), motor.name, actual, elapsed,
+                             sig_labels, values), flush=True)
 
     try:
         if kind == "eiger":
@@ -593,4 +658,5 @@ def dscan_ophyd(
             print(f"# images captured: {det.hdf1.num_captured.get()}")
         print(f"SPEC scan {scan_num} finished ({status}), {len(measured)} points.")
 
-    return np.array(measured), columns
+    return ScanResult(np.array(measured), columns,
+                      scan_num=scan_num, motor_name=motor.name)
