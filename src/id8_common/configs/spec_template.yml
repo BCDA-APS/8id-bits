@@ -1,0 +1,124 @@
+# =============================================================================
+# SPEC file template for the Ophyd scans in plans/align/ophyd_scan.py
+# =============================================================================
+#
+# Edit this file to change what goes into the .spec file. No Python changes are
+# needed -- add or delete a line here and the next scan picks it up.
+#
+# To try something without disturbing the beamline default, copy this file and
+# point at the copy, either per call or for the whole session:
+#
+#     dscan_ophyd(..., spec_template="~/my_template.yml")
+#     export ID8_SPEC_TEMPLATE=~/my_template.yml
+#
+# ---------------------------------------------------------------------------
+# Where values come from ("source:")
+#
+#   motor              scanned motor readback (.position)
+#   motor_setpoint     where the motor was told to go for this point
+#   epoch              whole seconds since the scan started
+#   epoch_float        the same, with fractions
+#   det.<path>         attribute path on the detector passed to THIS scan, so
+#                      one template serves eiger4M and lambda2M alike
+#                      (e.g. det.stats1.total, det.roi1)
+#   <device>.<path>    any device in the oregistry
+#                      (e.g. tetramm1.current1.mean_value)
+#
+# Text substitutions usable in any label or value:
+#   {motor} {det} {scan_type} {num_points} {count_time} {image_file}
+#
+# Add "optional: true" to an entry that may be missing on some stations -- it is
+# then skipped with a warning instead of stopping the scan.
+# =============================================================================
+
+version: 1
+
+# ---------------------------------------------------------------------------
+# Context snapshot: written once per scan as the #O (names) / #P (positions)
+# lines. These are the positions of everything NOT being scanned, recorded so
+# you can reconstruct the geometry later.
+#
+# Dotted paths are resolved from the oregistry; anything missing is skipped with
+# a warning. The motor being scanned is added automatically if not listed here.
+#
+# Changing this list is safe mid-experiment: the writer notices and starts a new
+# #F block so names and positions stay matched.
+# ---------------------------------------------------------------------------
+positioners:
+  - huber.nu
+  - huber.delta
+  - huber.mu
+  - huber.eta
+  - huber.chi
+  - huber.phi
+  - huber.x
+  - huber.y
+  - huber.z
+  - sample.x
+  - sample.y
+  - sample.z
+  - rheometer.x
+  - rheometer.y
+  - rheometer.z
+
+# ---------------------------------------------------------------------------
+# Scan header. Each entry becomes one "#MD key = value" line.
+# Values are free text -- they are never parsed as numbers, so strings are fine.
+# ---------------------------------------------------------------------------
+metadata:
+  - key: beamline_id
+    value: "8-ID-E"
+  - key: scan_type
+    value: "{scan_type}"
+  - key: detectors
+    value: "{det}"
+  - key: motors
+    value: "{motor}"
+  - key: num_points
+    value: "{num_points}"
+  - key: count_time
+    value: "{count_time}"
+  - key: image_file
+    value: "{image_file}"
+    skip_if_empty: true          # omitted entirely when images are not saved
+  # Detector ROI, as "min_x=730 min_y=983 size_x=100 size_y=10".
+  # format: roi_xy reads .min_xyz and .size and keeps only the X/Y parts.
+  - key: roi1
+    source: det.roi1
+    format: roi_xy
+    optional: true
+
+# ---------------------------------------------------------------------------
+# Free-text comments, written as "#C <timestamp>.  <text>".
+# Avoid the word exit_status -- readers treat any #C containing it as the scan's
+# exit state.
+# ---------------------------------------------------------------------------
+comments:
+  - "plan_type = function"
+
+# ---------------------------------------------------------------------------
+# Data columns -- ORDER MATTERS.
+#
+# The specr_py viewer defaults the X axis to the FIRST column and the Y axis to
+# the LAST one. So keep the scanned motor first and your primary counter last,
+# or the default plot will not be the one you want.
+# ---------------------------------------------------------------------------
+columns:
+  - label: "{motor}"
+    source: motor
+  - label: "{motor}_setpoint"
+    source: motor_setpoint
+
+  # X-ray flux, for normalising against beam decay.
+  - label: tetramm1_current1
+    source: tetramm1.current1.mean_value
+    optional: true
+
+  - label: "{det}_stats2_total"
+    source: det.stats2.total
+  - label: "{det}_stats3_total"
+    source: det.stats3.total
+
+  # LAST = the viewer's default Y axis. Keep the primary counter here.
+  - label: "{det}_stats1_total"
+    source: det.stats1.total
