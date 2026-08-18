@@ -1,9 +1,14 @@
 # =============================================================================
 # SPEC file template for the Ophyd scans in plans/align/ophyd_scan.py
+#
+#   /home/beams/8IDIUSER/bluesky/src/id8_common/configs/spec_template.yml
 # =============================================================================
 #
 # Edit this file to change what goes into the .spec file. No Python changes are
 # needed -- add or delete a line here and the next scan picks it up.
+#
+# Full reference:
+#   /home/beams/8IDIUSER/bluesky/src/id8_common/plans/align/OPHYD_SCAN.md
 #
 # To try something without disturbing the beamline default, copy this file and
 # point at the copy, either per call or for the whole session:
@@ -20,15 +25,41 @@
 #   epoch_float        the same, with fractions
 #   det.<path>         attribute path on the detector passed to THIS scan, so
 #                      one template serves eiger4M and lambda2M alike
-#                      (e.g. det.stats1.total, det.roi1)
+#                      (e.g. det.stats1.total, det.roi1.size.x)
 #   <device>.<path>    any device in the oregistry
 #                      (e.g. tetramm1.current1.mean_value)
 #
-# Text substitutions usable in any label or value:
-#   {motor} {det} {scan_type} {num_points} {count_time} {image_file}
+# A source must name a signal that returns a SINGLE value. A bare device path
+# such as "huber.eta" returns a namedtuple of all its components, which cannot
+# be written -- use "huber.eta.user_readback". Same idea for the ROIs below:
+# name the individual PV (det.roi1.size.x), never the parent (det.roi1).
 #
-# Add "optional: true" to an entry that may be missing on some stations -- it is
-# then skipped with a warning instead of stopping the scan.
+# ---------------------------------------------------------------------------
+# Text substitutions usable in any label or value
+#
+#   {motor}        name of the scanned motor, e.g. "huber_delta"
+#   {det}          name of the detector, e.g. "lambda2M"
+#   {scan_type}    the scan function, e.g. "dscan_ophyd"
+#   {num_points}   points in the scan  \  as passed to
+#   {count_time}   exposure per point  /  dscan_ophyd()
+#   {image_file}   name of the detector HDF5 file for this scan
+#
+# {image_file} is NOT an argument you pass. dscan_ophyd() builds it by calling
+# gen_folder_prefix() (plans/acquire/ad_acq.py), which assembles
+#
+#     <header><measurement_num:04d>_<sample_name>_a<attenuation:04d>.h5
+#
+# from pv_registers.header, pv_registers.measurement_num,
+# pv_registers.sample_name and the live filter_8ide attenuation -- e.g.
+# "A0186_HEA-15GPa-3x3Grid_a0010.h5". measurement_num increments once per scan,
+# and only when save_img=1. With save_img=0 there is no image file and
+# {image_file} is empty, which is what skip_if_empty below is for.
+#
+# ---------------------------------------------------------------------------
+# Per-entry flags
+#
+#   optional: true         device missing -> skip with a warning, do not fail
+#   skip_if_empty: true    (metadata only) omit the line when the value is blank
 # =============================================================================
 
 version: 1
@@ -41,52 +72,52 @@ version: 1
 # Dotted paths are resolved from the oregistry; anything missing is skipped with
 # a warning. The motor being scanned is added automatically if not listed here.
 #
+# Note that huber and psic drive the SAME physical motors (both on
+# 8ideSoft:CR8-E1:), so listing both records every angle twice. huber is the
+# superset -- psic has no x/y/z.
+#
 # Changing this list is safe mid-experiment: the writer notices and starts a new
 # #F block so names and positions stay matched.
 # ---------------------------------------------------------------------------
 positioners:
-  - huber.nu
-  - huber.delta
-  - huber.mu
-  - huber.eta
-  - huber.chi
-  - huber.phi
-  - huber.x
-  - huber.y
-  - huber.z
-  - sample.x
-  - sample.y
-  - sample.z
-  - rheometer.x
-  - rheometer.y
-  - rheometer.z
+  [huber.nu, huber.delta, huber.mu, huber.eta, huber.chi, huber.phi,
+   huber.x, huber.y, huber.z,
+   sample.x, sample.y, sample.z,
+   rheometer.x, rheometer.y, rheometer.z]
 
 # ---------------------------------------------------------------------------
 # Scan header. Each entry becomes one "#MD key = value" line.
 # Values are free text -- they are never parsed as numbers, so strings are fine.
 # ---------------------------------------------------------------------------
 metadata:
-  - key: beamline_id
-    value: "8-ID-E"
-  - key: scan_type
-    value: "{scan_type}"
-  - key: detectors
-    value: "{det}"
-  - key: motors
-    value: "{motor}"
-  - key: num_points
-    value: "{num_points}"
-  - key: count_time
-    value: "{count_time}"
-  - key: image_file
-    value: "{image_file}"
-    skip_if_empty: true          # omitted entirely when images are not saved
-  # Detector ROI, as "min_x=730 min_y=983 size_x=100 size_y=10".
-  # format: roi_xy reads .min_xyz and .size and keeps only the X/Y parts.
-  - key: roi1
-    source: det.roi1
-    format: roi_xy
-    optional: true
+  - {key: beamline_id, value: "8-ID-E"}
+  - {key: scan_type,   value: "{scan_type}"}
+  - {key: detectors,   value: "{det}"}
+  - {key: motors,      value: "{motor}"}
+  - {key: num_points,  value: "{num_points}"}
+  - {key: count_time,  value: "{count_time}"}
+  - {key: image_file,  value: "{image_file}", skip_if_empty: true}
+
+  # Detector ROIs, one PV per line. roi1 is the one the stats plugins follow.
+  - {key: roi1_min_x, source: det.roi1.min_xyz.min_x, optional: true}
+  - {key: roi1_min_y, source: det.roi1.min_xyz.min_y, optional: true}
+  - {key: roi1_size_x, source: det.roi1.size.x, optional: true}
+  - {key: roi1_size_y, source: det.roi1.size.y, optional: true}
+
+  - {key: roi2_min_x, source: det.roi2.min_xyz.min_x, optional: true}
+  - {key: roi2_min_y, source: det.roi2.min_xyz.min_y, optional: true}
+  - {key: roi2_size_x, source: det.roi2.size.x, optional: true}
+  - {key: roi2_size_y, source: det.roi2.size.y, optional: true}
+
+  - {key: roi3_min_x, source: det.roi3.min_xyz.min_x, optional: true}
+  - {key: roi3_min_y, source: det.roi3.min_xyz.min_y, optional: true}
+  - {key: roi3_size_x, source: det.roi3.size.x, optional: true}
+  - {key: roi3_size_y, source: det.roi3.size.y, optional: true}
+
+  - {key: roi4_min_x, source: det.roi4.min_xyz.min_x, optional: true}
+  - {key: roi4_min_y, source: det.roi4.min_xyz.min_y, optional: true}
+  - {key: roi4_size_x, source: det.roi4.size.x, optional: true}
+  - {key: roi4_size_y, source: det.roi4.size.y, optional: true}
 
 # ---------------------------------------------------------------------------
 # Free-text comments, written as "#C <timestamp>.  <text>".
@@ -104,21 +135,20 @@ comments:
 # or the default plot will not be the one you want.
 # ---------------------------------------------------------------------------
 columns:
-  - label: "{motor}"
-    source: motor
-  - label: "{motor}_setpoint"
-    source: motor_setpoint
+  - {label: "{motor}", source: motor}
+  - {label: "{motor}_setpoint", source: motor_setpoint}
+
+  # Elapsed time. Uncomment either or both to record it as a column.
+  # epoch = whole seconds, epoch_float = fractional. Both count from the start
+  # of the scan, not from the epoch, despite the SPEC-conventional name.
+  # - {label: Epoch, source: epoch}
+  # - {label: Epoch_float, source: epoch_float}
 
   # X-ray flux, for normalising against beam decay.
-  - label: tetramm1_current1
-    source: tetramm1.current1.mean_value
-    optional: true
+  - {label: tetramm1_current1, source: tetramm1.current1.mean_value, optional: true}
 
-  - label: "{det}_stats2_total"
-    source: det.stats2.total
-  - label: "{det}_stats3_total"
-    source: det.stats3.total
+  - {label: "{det}_stats2_total", source: det.stats2.total}
+  - {label: "{det}_stats3_total", source: det.stats3.total}
 
   # LAST = the viewer's default Y axis. Keep the primary counter here.
-  - label: "{det}_stats1_total"
-    source: det.stats1.total
+  - {label: "{det}_stats1_total", source: det.stats1.total}

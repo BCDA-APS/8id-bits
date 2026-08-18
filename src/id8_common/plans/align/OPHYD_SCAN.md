@@ -10,7 +10,7 @@ How to run `dscan_ophyd()`, and how to control exactly what ends up in the
 | `ophyd_scan.py` | the scans themselves (`dscan_ophyd`), detector plumbing, interrupt-safe teardown | yes |
 | `ophyd_spec_config.py` | reads the YAML template and resolves it against the live `oregistry` | yes |
 | `ophyd_spec_writer.py` | formats and appends SPEC lines; `SpecFile` | **no** — stdlib only |
-| `../../configs/spec_template.yml` | **the file you edit** to change the SPEC layout | — |
+| `/home/beams/8IDIUSER/bluesky/src/id8_common/configs/spec_template.yml` | **the file you edit** to change the SPEC layout | — |
 
 `ophyd_spec_writer.py` is deliberately free of ophyd/apsbits/bluesky imports so it
 can be exercised offline and reused by any future scan.
@@ -125,7 +125,7 @@ SPEC scan 187 finished (aborted), 12 points.
 Everything the file contains is declared in:
 
 ```
-src/id8_common/configs/spec_template.yml
+/home/beams/8IDIUSER/bluesky/src/id8_common/configs/spec_template.yml
 ```
 
 Edit it and the next scan picks it up. No Python change, no session restart.
@@ -140,8 +140,8 @@ Edit it and the next scan picks it up. No Python change, no session restart.
 #S 186  dscan_ophyd(huber_delta, -0.5, 0.5, 41, 1.0, det=lambda2M)
 #D Mon Aug 17 23:05:12 2026                           <- automatic
 #C ... plan_type = function                           <- comments:
-#MD beamline_id = 8-ID-E                              <- metadata:
-#MD roi1 = min_x=730 min_y=983 size_x=100 size_y=10   <- metadata: (from a device)
+#MD beamline_id = 8-ID-E                              <- metadata:  (fixed text)
+#MD roi1_min_x = 730                                  <- metadata:  (read from a PV)
 #P0 -0.00049  30.0004  -0.00039  ...                  <- positioners:  (values)
 #N 6                                                  <- automatic (len of columns)
 #L huber_delta  huber_delta_setpoint  ...             <- columns:
@@ -157,19 +157,46 @@ Edit it and the next scan picks it up. No Python change, no session restart.
 | `motor_setpoint` | where the motor was told to go |
 | `epoch` | whole seconds since the scan started |
 | `epoch_float` | the same, with fractions |
-| `det.<path>` | attribute path on the detector **passed to this scan** — so one template serves eiger4M and lambda2M (`det.stats1.total`, `det.roi1`) |
+| `det.<path>` | attribute path on the detector **passed to this scan** — so one template serves eiger4M and lambda2M (`det.stats1.total`, `det.roi1.size.x`) |
 | `<device>.<path>` | any device in the `oregistry` (`tetramm1.current1.mean_value`) |
 
-Text substitutions usable in any `label:` or `value:`  —
-`{motor}` `{det}` `{scan_type}` `{num_points}` `{count_time}` `{image_file}`.
+Every source must name a signal that returns a **single value** — see
+[the gotcha below](#gotcha-bare-device-paths-are-not-scalars).
 
-Per-entry flags:
+### Text substitutions
+
+Usable in any `label:` or `value:`:
+
+| token | value |
+|---|---|
+| `{motor}` | name of the scanned motor, e.g. `huber_delta` |
+| `{det}` | name of the detector, e.g. `lambda2M` |
+| `{scan_type}` | the scan function, e.g. `dscan_ophyd` |
+| `{num_points}`, `{count_time}` | exactly as passed to `dscan_ophyd()` |
+| `{image_file}` | name of the detector HDF5 file — **not** an argument, see below |
+
+`{image_file}` is **not** something you pass in. `dscan_ophyd()` builds it by
+calling `gen_folder_prefix()` (`plans/acquire/ad_acq.py`), which assembles
+
+```
+<header><measurement_num:04d>_<sample_name>_a<attenuation:04d>.h5
+```
+
+from `pv_registers.header`, `pv_registers.measurement_num`,
+`pv_registers.sample_name`, and the live `filter_8ide` attenuation — giving e.g.
+`A0186_HEA-15GPa-3x3Grid_a0010.h5`. This is also where the SPEC scan number comes
+from, which is why `#S 186` always matches `A0186_*.h5`.
+
+`measurement_num` increments **once per scan, and only when `save_img=1`**. With
+`save_img=0` there is no image file, `{image_file}` is empty, and the
+`skip_if_empty: true` flag on that entry drops the `#MD` line entirely.
+
+### Per-entry flags
 
 | flag | effect |
 |---|---|
 | `optional: true` | device missing → skip with a warning instead of failing the scan |
-| `skip_if_empty: true` | omit the line entirely when the value is blank |
-| `format: roi_xy` | read an ROI plugin's `.min_xyz`/`.size` and keep only X/Y |
+| `skip_if_empty: true` | (metadata only) omit the line entirely when the value is blank |
 
 ### Worked edits
 
@@ -183,15 +210,28 @@ columns:
   - {label: "{det}_stats1_total", source: det.stats1.total}   # keep last
 ```
 
-**Drop a column.** Delete its entry. Removing `epoch`/`epoch_float` is fine —
-nothing depends on them.
+**Add a time column.** Elapsed time is not recorded by default. Two sources are
+available, both counting from the start of the scan (despite the
+SPEC-conventional `Epoch` name) — they are present but commented out in the
+template:
+
+```yaml
+columns:
+  - {label: "{motor}", source: motor}
+  - {label: Epoch, source: epoch}              # whole seconds
+  - {label: Epoch_float, source: epoch_float}  # fractional seconds
+  - {label: "{det}_stats1_total", source: det.stats1.total}   # keep last
+```
+
+**Drop a column.** Delete its entry. Nothing depends on any particular column
+except the ordering rule below.
 
 **Add a header line from a device:**
 
 ```yaml
 metadata:
   - {key: sample_temperature, source: lakeshore1.readback_ch1, optional: true}
-  - {key: roi2, source: det.roi2, format: roi_xy, optional: true}
+  - {key: roi2_size_x, source: det.roi2.size.x, optional: true}
 ```
 
 **Add a fixed or substituted header line:**
@@ -223,16 +263,31 @@ missing device in an `optional:` entry is skipped with a warning.
 
 ### Gotcha: bare device paths are not scalars
 
-Every data cell must parse as a float. `Device.get()` returns a *namedtuple* of all
-its components, so a bare motor path does not work as a column:
+**Always name the individual PV, never a parent device.** `Device.get()` returns a
+*namedtuple* of every component, which is not a value anyone wants in a column or
+a header:
 
 ```yaml
 - {label: eta, source: huber.eta}                  # WRONG -> warns, writes 0
 - {label: eta, source: huber.eta.user_readback}    # right -> the .RBV float
 ```
 
-The writer prints `WARNING: SPEC column 'eta' is not a scalar (...)` once per
-label if this happens, so it is visible rather than silent.
+The same applies to the ROIs. `det.roi1` is a plugin, not a value; its geometry
+lives in four separate PVs, which is how the template records them:
+
+| template `source:` | equivalent in the session |
+|---|---|
+| `det.roi1.min_xyz.min_x` | `lambda2M.roi1.min_xyz.min_x.get()` |
+| `det.roi1.min_xyz.min_y` | `lambda2M.roi1.min_xyz.min_y.get()` |
+| `det.roi1.size.x` | `lambda2M.roi1.size.x.get()` |
+| `det.roi1.size.y` | `lambda2M.roi1.size.y.get()` |
+
+One PV per line is more verbose than packing them into a single string, but each
+line is independently readable, greppable and removable — and it needs no special
+formatting rules in the code.
+
+For a column, the writer prints `WARNING: SPEC column 'eta' is not a scalar (...)`
+once per label if you get this wrong, so it is visible rather than silent.
 
 ### The `#O`/`#P` snapshot
 
@@ -268,7 +323,12 @@ export ID8_SPEC_TEMPLATE=~/my_template.yml            # whole session
 ```
 
 Resolution order: the `spec_template=` argument, then `$ID8_SPEC_TEMPLATE`, then
-the packaged `configs/spec_template.yml`.
+the default at
+`/home/beams/8IDIUSER/bluesky/src/id8_common/configs/spec_template.yml`.
+
+(In code that default is derived from the module location rather than hard-coded,
+so a different checkout still finds its own template. The scan prints the
+resolved absolute path if you ever need to confirm which one was used.)
 
 ### Effect on the viewer
 

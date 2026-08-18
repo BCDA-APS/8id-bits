@@ -87,24 +87,6 @@ def _resolve_object(dotted, motor, det):
     return obj
 
 
-def _roi_xy(obj):
-    """``"min_x=730 min_y=983 size_x=100 size_y=10"`` from an ROI plugin.
-
-    Only the X/Y parts: the Z entries of ``min_xyz``/``size`` are not meaningful
-    for these 2D detectors.
-    """
-    minimum = obj.min_xyz.get()
-    size = obj.size.get()
-    return (
-        f"min_x={minimum.min_x} min_y={minimum.min_y} "
-        f"size_x={size.x} size_y={size.y}"
-    )
-
-
-#: ``format:`` values usable on a metadata entry.
-_FORMATTERS = {"roi_xy": _roi_xy}
-
-
 def _substitute(text, context):
     """Apply ``{motor}``/``{det}``/... substitutions with a helpful error."""
     try:
@@ -272,17 +254,10 @@ def _render_metadata(config, motor, det, context):
         optional = bool(entry.get("optional"))
         try:
             if "source" in entry:
-                obj = _resolve_object(entry["source"], motor, det)
-                formatter = entry.get("format")
-                if formatter:
-                    if formatter not in _FORMATTERS:
-                        raise KeyError(
-                            f"unknown format {formatter!r}; known: "
-                            f"{', '.join(sorted(_FORMATTERS))}"
-                        )
-                    value = _FORMATTERS[formatter](obj)
-                else:
-                    value = obj.get()
+                # Name the individual PV, not a parent device: a bare device's
+                # .get() returns a namedtuple of every component, which is not
+                # a value anyone wants in a header line.
+                value = _resolve_object(entry["source"], motor, det).get()
             else:
                 value = _substitute(entry.get("value", ""), context)
         except Exception as exc:
