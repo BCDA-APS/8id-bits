@@ -852,3 +852,41 @@
 30.9999965688 31.000329664 -0.40012672502 0 0 0
 #C Tue Aug 18 16:13:37 2026.  num_events_primary = 21
 #C Tue Aug 18 16:13:37 2026.  exit_status = success
+
+#S 192  dscan_ophyd(huber_delta, -1, 1, 5, 1.0, det=lambda2M)
+#D Tue Aug 18 16:44:57 2026
+#C Tue Aug 18 16:44:57 2026.  plan_type = function
+#MD beamline_id = 8-ID-E
+#MD scan_type = dscan_ophyd
+#MD detectors = lambda2M
+#MD motors = huber_delta
+#MD num_points = 5
+#MD count_time = 1.0
+#MD image_file = A0192_Test_a0001.h5
+#MD roi1_min_x = 730
+#MD roi1_min_y = 983
+#MD roi1_size_x = 100
+#MD roi1_size_y = 10
+#MD roi2_min_x = 775
+#MD roi2_min_y = 900
+#MD roi2_size_x = 10
+#MD roi2_size_y = 100
+#MD roi3_min_x = 100
+#MD roi3_min_y = 973
+#MD roi3_size_x = 26
+#MD roi3_size_y = 20
+#MD roi4_min_x = 1
+#MD roi4_min_y = 475
+#MD roi4_size_x = 25
+#MD roi4_size_y = 25
+#P0 -0.000481518499981  30.0005331072  -0.000383616851991  -0.0002764744  90.0000209586  0.000325563  -0.12762  21.19451
+#P1 -4.74092  173.651286011  24.9957144165  3.39093841553  0  0  0
+#N 6
+#L huber_delta  huber_delta_setpoint  tetramm1_current1  lambda2M_stats2_total  lambda2M_stats3_total  lambda2M_stats1_total
+29.0004614352 29.000530988 -0.40012672502 0 0 0
+29.5003496336 29.500530988 -0.40012672502 0 0 0
+30.0004299728 30.000530988 -0.40012672502 0 0 0
+30.500845852 30.500530988 -0.40012672502 0 0 0
+31.0001321976 31.000530988 -0.40012672502 0 0 0
+#C Tue Aug 18 16:45:15 2026.  num_events_primary = 5
+#C Tue Aug 18 16:45:15 2026.  exit_status = success

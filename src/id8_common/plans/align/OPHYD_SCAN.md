@@ -134,20 +134,26 @@ Edit it and the next scan picks it up. No Python change, no session restart.
 
 ```
 #F /home/beams/8IDIUSER/bluesky/pope202607.spec       <- automatic
-#O0 huber_nu  huber_delta  huber_mu  ...              <- positioners:  (names)
-                                                         (#o repeats it)
+#O0 huber_nu  huber_delta  ... huber_y                <- positioners:  NAMES, first 8
+#O1 huber_z  sample_x  ... rheometer_z                <- positioners:  NAMES, next 7
+#o0 / #o1                                             <- same, mnemonics (a copy)
 
 #S 186  dscan_ophyd(huber_delta, -0.5, 0.5, 41, 1.0, det=lambda2M)
 #D Mon Aug 17 23:05:12 2026                           <- automatic
 #C ... plan_type = function                           <- comments:
 #MD beamline_id = 8-ID-E                              <- metadata:  (fixed text)
-#MD roi1_min_x = 730                                  <- metadata:  (read from a PV)
-#P0 -0.00049  30.0004  -0.00039  ...                  <- positioners:  (values)
+#MD roi1 = min_x=730 min_y=983 size_x=100 size_y=10   <- metadata:  (sources: several PVs)
+#P0 -0.00049  30.0004  ... 21.1945                    <- positioners:  VALUES, first 8
+#P1 -4.7409  173.654  ... 0                           <- positioners:  VALUES, next 7
 #N 6                                                  <- automatic (len of columns)
 #L huber_delta  huber_delta_setpoint  ...             <- columns:
 29.500655 29.5 -0.400127 0 0 0                        <- columns:, one row per point
 #C ... exit_status = success                          <- automatic
 ```
+
+The trailing digit on `#O`/`#o`/`#P` is **only line wrapping** — SPEC puts 8
+entries per line, so 15 positioners give `#O0`+`#O1` and `#P0`+`#P1`. Both come
+from the single `positioners:` list; see [below](#the-op-snapshot).
 
 ### Where values come from — `source:`
 
@@ -198,6 +204,32 @@ from, which is why `#S 186` always matches `A0186_*.h5`.
 | `optional: true` | device missing → skip with a warning instead of failing the scan |
 | `skip_if_empty: true` | (metadata only) omit the line entirely when the value is blank |
 
+### Several PVs on one header line: `sources:`
+
+A header entry can read more than one PV and join them into a single `#MD` line.
+Write `sources:` (plural) as a mapping and the names are kept:
+
+```yaml
+- {key: roi1, optional: true, sources: {min_x: det.roi1.min_xyz.min_x, min_y: det.roi1.min_xyz.min_y, size_x: det.roi1.size.x, size_y: det.roi1.size.y}}
+```
+```
+#MD roi1 = min_x=730 min_y=983 size_x=100 size_y=10
+```
+
+Write it as a plain list instead to get bare values in order:
+
+```yaml
+- {key: roi1, sources: [det.roi1.min_xyz.min_x, det.roi1.size.x]}   ->  "730 100"
+```
+
+Nothing in the code knows what an ROI is — the template names the PVs, so the
+same mechanism works for any group of related readings. Readers split a `#MD`
+line only on the **first** `=`, so the `name=value` pairs survive intact.
+
+`sources:` is **metadata only**. A data cell must be a single number, so a
+`sources:` on a column is a hard error — a joined value would contain spaces and
+shift every column after it.
+
 ### Worked edits
 
 **Add a counter column.** Insert before the last entry — the last column is the
@@ -226,12 +258,13 @@ columns:
 **Drop a column.** Delete its entry. Nothing depends on any particular column
 except the ordering rule below.
 
-**Add a header line from a device:**
+**Add a header line from a device** — one PV with `source:`, or several joined
+onto one line with `sources:` (see [below](#several-pvs-on-one-header-line-sources)):
 
 ```yaml
 metadata:
   - {key: sample_temperature, source: lakeshore1.readback_ch1, optional: true}
-  - {key: roi2_size_x, source: det.roi2.size.x, optional: true}
+  - {key: slit4, optional: true, sources: {h: sl4.h.size.readback, v: sl4.v.size.readback}}
 ```
 
 **Add a fixed or substituted header line:**
@@ -282,18 +315,59 @@ lives in four separate PVs, which is how the template records them:
 | `det.roi1.size.x` | `lambda2M.roi1.size.x.get()` |
 | `det.roi1.size.y` | `lambda2M.roi1.size.y.get()` |
 
-One PV per line is more verbose than packing them into a single string, but each
-line is independently readable, greppable and removable — and it needs no special
-formatting rules in the code.
+The template names each PV explicitly — there is no ROI-aware code — while
+`sources:` keeps the four of them on one `#MD` line.
 
 For a column, the writer prints `WARNING: SPEC column 'eta' is not a scalar (...)`
 once per label if you get this wrong, so it is visible rather than silent.
 
 ### The `#O`/`#P` snapshot
 
-`positioners:` lists what is recorded as the per-scan context — `#O` for names,
-`#P` for positions. The scanned motor is appended automatically if not listed, and
-anything unavailable is skipped with a warning.
+**The `positioners:` list is the sole source of every `#O`, `#o` and `#P` line.**
+It records where everything *not* being scanned was sitting, so the geometry can
+be reconstructed later.
+
+| line | contains | written |
+|---|---|---|
+| `#O0`, `#O1`, … | motor **names** | once per **file**, in the `#F` header |
+| `#o0`, `#o1`, … | mnemonics — a copy of the names | once per **file** |
+| `#P0`, `#P1`, … | their **positions** | once per **scan**, in the `#S` block |
+
+The trailing digit is nothing but line wrapping: SPEC allows 8 entries per line,
+so the 15 default positioners produce `#O0` (first 8) and `#O1` (remaining 7),
+and the matching `#P0`/`#P1`. Ordering follows the `positioners:` list exactly, so
+the Nth name across the `#O` lines pairs with the Nth value across the `#P` lines:
+
+```
+#O0 huber_nu  huber_delta  huber_mu  huber_eta  huber_chi  huber_phi  huber_x  huber_y
+#O1 huber_z  sample_x  sample_y  sample_z  rheometer_x  rheometer_y  rheometer_z
+#P0 -0.00049  30.0004  -0.00039  -0.00027  90.00002  0.00033  -0.12761  21.1945
+#P1 -4.7409  173.654  24.9957  3.38223  0  0  0
+```
+
+Add a 17th positioner and you get a `#P2`; trim the list to 8 and `#O1`/`#P1`
+disappear. Anything unavailable is skipped with a warning. `specr_py` reads these
+back under **Show Motor Positions**.
+
+#### This list does *not* restrict what you can scan
+
+`positioners:` only controls the **context snapshot**. You can scan **any**
+positioner in the session, listed or not:
+
+```python
+dscan_ophyd(mono.bragg, -0.01, 0.01, 21, 1.0, det=lambda2M)   # not in the list
+```
+
+The scanned motor is **appended automatically** to `#O`/`#P` when it is absent, so
+it is always recorded. Nothing else is needed to support a new motor — no code
+change, no template change.
+
+One side effect is worth knowing. Appending changes the length of the positioner
+list, so **alternating between a listed and an unlisted scanned motor starts a new
+`#F` block on every switch** (the writer will not let new `#P` values pair with
+stale `#O` names). Three such scans give three `#F` blocks. Everything still
+parses and plots — but if you scan a motor regularly, add it to `positioners:` so
+the list stays fixed and the file stays tidy.
 
 Note that **`huber` and `psic` drive the same physical motors** (both on
 `8ideSoft:CR8-E1:`; `huber.delta` and `psic.delta` are the same PV `m5`). Listing

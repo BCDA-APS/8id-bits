@@ -243,6 +243,33 @@ def _render_positioners(config, motor, det):
     return names, positions
 
 
+def _join_sources(spec, motor, det):
+    """Read several PVs and join them into one header value.
+
+    A mapping keeps the names, which is usually what you want in a header::
+
+        {min_x: det.roi1.min_xyz.min_x, size_x: det.roi1.size.x}
+        -> "min_x=730 size_x=100"
+
+    A list gives bare values in order::
+
+        [det.roi1.min_xyz.min_x, det.roi1.size.x]  ->  "730 100"
+
+    Readers treat a ``#MD`` value as free text and split only on the *first*
+    ``=``, so the ``name=value`` pairs survive intact.
+    """
+    if isinstance(spec, dict):
+        return " ".join(
+            f"{name}={_resolve_object(path, motor, det).get()}"
+            for name, path in spec.items()
+        )
+    if isinstance(spec, (list, tuple)):
+        return " ".join(
+            str(_resolve_object(path, motor, det).get()) for path in spec
+        )
+    raise TypeError(f"'sources' must be a mapping or a list, got {type(spec).__name__}")
+
+
 def _render_metadata(config, motor, det, context):
     """``#MD key = value`` entries."""
     metadata = {}
@@ -253,7 +280,11 @@ def _render_metadata(config, motor, det, context):
         key = _substitute(entry["key"], context)
         optional = bool(entry.get("optional"))
         try:
-            if "source" in entry:
+            if "sources" in entry:
+                # Several PVs collapsed onto one #MD line. Stays generic -- the
+                # template names the PVs, so nothing here knows what an ROI is.
+                value = _join_sources(entry["sources"], motor, det)
+            elif "source" in entry:
                 # Name the individual PV, not a parent device: a bare device's
                 # .get() returns a namedtuple of every component, which is not
                 # a value anyone wants in a header line.
@@ -276,6 +307,13 @@ def _render_columns(config, motor, det, context):
     """Data columns, in template order."""
     columns = []
     for entry in config.get("columns", []) or []:
+        if isinstance(entry, dict) and "sources" in entry:
+            # Would emit a cell containing spaces and shift every later column.
+            raise ValueError(
+                f"SPEC column {entry.get('label', entry['sources'])!r} uses "
+                "'sources'; that is for metadata only, because a data cell must "
+                "be a single number. Use one 'source' per column instead."
+            )
         if not isinstance(entry, dict) or "source" not in entry:
             print(f"WARNING: skipping malformed SPEC column entry {entry!r}.")
             continue

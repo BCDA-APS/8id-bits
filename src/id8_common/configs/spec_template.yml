@@ -60,24 +60,53 @@
 #
 #   optional: true         device missing -> skip with a warning, do not fail
 #   skip_if_empty: true    (metadata only) omit the line when the value is blank
+#
+# Use "sources" (plural) instead of "source" to put several PVs on ONE header
+# line -- see the ROI entries below. Metadata only: a data column must stay a
+# single number, so columns always use "source".
 # =============================================================================
 
 version: 1
 
 # ---------------------------------------------------------------------------
-# Context snapshot: written once per scan as the #O (names) / #P (positions)
-# lines. These are the positions of everything NOT being scanned, recorded so
-# you can reconstruct the geometry later.
+# Context snapshot -- THIS LIST IS WHERE #O AND #P COME FROM.
+#
+# It records the positions of everything NOT being scanned, so you can
+# reconstruct the geometry later. The list below produces two kinds of line:
+#
+#   #O0/#O1...  the motor NAMES     -- written once per FILE, in the #F header
+#   #P0/#P1...  their POSITIONS     -- written once per SCAN, in the #S block
+#
+# The trailing digit is only line wrapping: SPEC puts 8 entries per line, so the
+# 15 positioners below become #O0 (first 8) + #O1 (remaining 7), and likewise
+# #P0 + #P1. Order is exactly the order of this list, so the Nth name across the
+# #O lines pairs with the Nth value across the #P lines:
+#
+#   #O0 huber_nu  huber_delta  huber_mu  huber_eta  huber_chi  huber_phi  huber_x  huber_y
+#   #O1 huber_z  sample_x  sample_y  sample_z  rheometer_x  rheometer_y  rheometer_z
+#   #P0 -0.00049  30.0004  -0.00039  -0.00027  90.00002  0.00033  -0.12761  21.1945
+#   #P1 -4.7409  173.654  24.9957  3.38223  0  0  0
 #
 # Dotted paths are resolved from the oregistry; anything missing is skipped with
-# a warning. The motor being scanned is added automatically if not listed here.
+# a warning.
+#
+# THIS LIST DOES NOT LIMIT WHAT YOU CAN SCAN. It is only the context snapshot --
+# dscan_ophyd() accepts any positioner in the session, listed here or not, and
+# the scanned motor is appended to #O/#P automatically when it is absent. No code
+# or template change is needed to scan a new motor.
+#
+# The one side effect: appending changes the length of the list, so alternating
+# between a listed and an unlisted scanned motor starts a new #F block on every
+# switch (see below). If you scan a motor regularly, add it here so the list
+# stays fixed and the file stays tidy.
 #
 # Note that huber and psic drive the SAME physical motors (both on
 # 8ideSoft:CR8-E1:), so listing both records every angle twice. huber is the
 # superset -- psic has no x/y/z.
 #
-# Changing this list is safe mid-experiment: the writer notices and starts a new
-# #F block so names and positions stay matched.
+# Changing this list is safe mid-experiment. Because #O is written once per file
+# but #P once per scan, a changed list would otherwise pair new positions with
+# stale names; the writer detects that and starts a new #F block instead.
 # ---------------------------------------------------------------------------
 positioners:
   [huber.nu, huber.delta, huber.mu, huber.eta, huber.chi, huber.phi,
@@ -98,26 +127,18 @@ metadata:
   - {key: count_time,  value: "{count_time}"}
   - {key: image_file,  value: "{image_file}", skip_if_empty: true}
 
-  # Detector ROIs, one PV per line. roi1 is the one the stats plugins follow.
-  - {key: roi1_min_x, source: det.roi1.min_xyz.min_x, optional: true}
-  - {key: roi1_min_y, source: det.roi1.min_xyz.min_y, optional: true}
-  - {key: roi1_size_x, source: det.roi1.size.x, optional: true}
-  - {key: roi1_size_y, source: det.roi1.size.y, optional: true}
-
-  - {key: roi2_min_x, source: det.roi2.min_xyz.min_x, optional: true}
-  - {key: roi2_min_y, source: det.roi2.min_xyz.min_y, optional: true}
-  - {key: roi2_size_x, source: det.roi2.size.x, optional: true}
-  - {key: roi2_size_y, source: det.roi2.size.y, optional: true}
-
-  - {key: roi3_min_x, source: det.roi3.min_xyz.min_x, optional: true}
-  - {key: roi3_min_y, source: det.roi3.min_xyz.min_y, optional: true}
-  - {key: roi3_size_x, source: det.roi3.size.x, optional: true}
-  - {key: roi3_size_y, source: det.roi3.size.y, optional: true}
-
-  - {key: roi4_min_x, source: det.roi4.min_xyz.min_x, optional: true}
-  - {key: roi4_min_y, source: det.roi4.min_xyz.min_y, optional: true}
-  - {key: roi4_size_x, source: det.roi4.size.x, optional: true}
-  - {key: roi4_size_y, source: det.roi4.size.y, optional: true}
+  # Detector ROIs, one #MD line per ROI. roi1 is the one the stats plugins
+  # follow. "sources" (plural) reads several PVs and joins them into one value:
+  #
+  #     #MD roi1 = min_x=730 min_y=983 size_x=100 size_y=10
+  #
+  # Written as a mapping, the names are kept. Write it as a plain list instead
+  # to get bare values in order ("730 983 100 10"). Only x/y are recorded --
+  # the ROI plugin's z entries are not meaningful for these 2D detectors.
+  - {key: roi1, optional: true, sources: {min_x: det.roi1.min_xyz.min_x, min_y: det.roi1.min_xyz.min_y, size_x: det.roi1.size.x, size_y: det.roi1.size.y}}
+  - {key: roi2, optional: true, sources: {min_x: det.roi2.min_xyz.min_x, min_y: det.roi2.min_xyz.min_y, size_x: det.roi2.size.x, size_y: det.roi2.size.y}}
+  - {key: roi3, optional: true, sources: {min_x: det.roi3.min_xyz.min_x, min_y: det.roi3.min_xyz.min_y, size_x: det.roi3.size.x, size_y: det.roi3.size.y}}
+  - {key: roi4, optional: true, sources: {min_x: det.roi4.min_xyz.min_x, min_y: det.roi4.min_xyz.min_y, size_x: det.roi4.size.x, size_y: det.roi4.size.y}}
 
 # ---------------------------------------------------------------------------
 # Free-text comments, written as "#C <timestamp>.  <text>".
