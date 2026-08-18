@@ -489,9 +489,9 @@ def placeholder_lambda2M():
 
 def placeholder_rigaku3M():
     pass
-    huber = oregistry["huber"]
-    huber.delta.move(10, wait=True)
-    huber.nu.move(0, wait=True)
+    # huber = oregistry["huber"]
+    # huber.delta.move(10, wait=True)
+    # huber.nu.move(0, wait=True)
 
 
 DETECTOR_PLACEHOLDERS = {
