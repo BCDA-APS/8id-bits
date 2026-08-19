@@ -34,7 +34,7 @@ Watch it live from a workstation with the `specr_py` viewer:
 
 ```bash
 conda activate specr_py
-python ~/Documents/specr_py/specr.py ~/bluesky/<experiment>.spec --watch
+python ~/Documents/specr_py/specr.py /gdata/dm/8ID/8IDE/2026-2/pope202607/data/bluesky/<spec_file_name>.spec --watch
 ```
 
 This document is the reference for the **scan and the file format**. For the
@@ -48,7 +48,7 @@ scripts — see `~/Documents/specr_py/README.md` and its `OPHYD_SCAN_GUIDE.md`
 
 ```python
 dscan_ophyd(motor, rel_begin, rel_end, num_pts, count_time,
-            det=None, att_ratio=1e6, save_img=1, spec_path=None,
+            det=None, comment="", att_ratio=1e6, save_img=1, spec_path=None,
             spec_template=None, set_attenuation=True, beam_control=True,
             verbose=True)
 ```
@@ -60,6 +60,7 @@ dscan_ophyd(motor, rel_begin, rel_end, num_pts, count_time,
 | `num_pts` | number of points, inclusive of both ends |
 | `count_time` | detector exposure per point, seconds |
 | `det` | `eiger4M` (default) or `lambda2M` |
+| `comment` | free-text note, written as the first `#MD` line — see [below](#annotating-a-scan) |
 | `att_ratio` | attenuation ratio, same meaning as in `dscan()` |
 | `save_img` | `1` writes images and burns a measurement number; `0` scans without saving |
 | `spec_path` | override the SPEC file location |
@@ -87,6 +88,46 @@ print("peak at", pos[np.argmax(cols["lambda2M_stats1_total"])])
 ```
 
 `positions` is the array of **measured** readbacks, not the commanded ones.
+
+### Annotating a scan
+
+Pass `comment=` to record why you ran a scan. It is written as the **first**
+`#MD` line of the scan block, so you can `Ctrl+F` the `.spec` file for a keyword
+and land straight on the scan you want:
+
+```python
+dscan_ophyd(huber.delta, -0.5, 0.5, 41, 1.0, det=lambda2M,
+            comment="3x3 grid spot 5, after realigning KB")
+```
+
+```
+#S 196  dscan_ophyd(huber_delta, -0.5, 0.5, 41, 1.0, det=lambda2M)
+#D Tue Aug 18 17:31:23 2026
+#C ... plan_type = function
+#MD comment = 3x3 grid spot 5, after realigning KB      <- first, easy to find
+#MD beamline_id = 8-ID-E
+...
+```
+
+Letters, digits, spaces and punctuation are all fine, including `=`, `#`, quotes
+and non-ASCII — a reader splits a `#MD` line on the *first* `=` only, so the rest
+of your text survives untouched. Newlines and tabs are flattened to single
+spaces, because a line break mid-record would end the `#MD` line early and leave
+the remainder looking like a data row. Leave `comment` empty (the default) and no
+`#MD comment` line is written at all.
+
+It is an ordinary template entry — the first one in `metadata:`:
+
+```yaml
+- {key: comment, value: "{comment}", skip_if_empty: true}
+```
+
+so you can move it, rename the key, or delete it like anything else. If you
+delete it but still pass `comment=`, the note is written first anyway rather than
+being silently dropped.
+
+> Not to be confused with the template's `comments:` list, which writes
+> timestamped `#C` lines and is the same for every scan. `comment=` is per-scan.
 
 ### What it does to the hardware
 
@@ -133,7 +174,7 @@ Edit it and the next scan picks it up. No Python change, no session restart.
 ### Anatomy: template key → SPEC output
 
 ```
-#F /home/beams/8IDIUSER/bluesky/pope202607.spec       <- automatic
+#F /gdata/.../data/bluesky/pope202607.spec            <- automatic
 #O0 huber_nu  huber_delta  ... huber_y                <- positioners:  NAMES, first 8
 #O1 huber_z  sample_x  ... rheometer_z                <- positioners:  NAMES, next 7
 #o0 / #o1                                             <- same, mnemonics (a copy)
@@ -141,6 +182,7 @@ Edit it and the next scan picks it up. No Python change, no session restart.
 #S 186  dscan_ophyd(huber_delta, -0.5, 0.5, 41, 1.0, det=lambda2M)
 #D Mon Aug 17 23:05:12 2026                           <- automatic
 #C ... plan_type = function                           <- comments:
+#MD comment = 3x3 grid spot 5                         <- metadata:  first entry, from comment=
 #MD beamline_id = 8-ID-E                              <- metadata:  (fixed text)
 #MD roi1 = min_x=730 min_y=983 size_x=100 size_y=10   <- metadata:  (sources: several PVs)
 #P0 -0.00049  30.0004  ... 21.1945                    <- positioners:  VALUES, first 8
@@ -180,6 +222,7 @@ Usable in any `label:` or `value:`:
 | `{scan_type}` | the scan function, e.g. `dscan_ophyd` |
 | `{num_points}`, `{count_time}` | exactly as passed to `dscan_ophyd()` |
 | `{image_file}` | name of the detector HDF5 file — **not** an argument, see below |
+| `{comment}` | the scan's `comment=` text (used by the first `metadata:` entry) |
 
 `{image_file}` is **not** something you pass in. `dscan_ophyd()` builds it by
 calling `gen_folder_prefix()` (`plans/acquire/ad_acq.py`), which assembles
@@ -417,15 +460,39 @@ the same type"*. That is expected, not a bug.
 
 | | path |
 |---|---|
-| SPEC file | `~/bluesky/<experiment_name>.spec` |
+| SPEC file | `<mount_point><cycle>/<experiment>/data/bluesky/<spec_file_name>.spec` |
 | Detector images | `<mount_point><cycle>/<experiment>/data/bluesky/*.h5` |
 
-The SPEC file deliberately does **not** live next to the images: `/gdata` is
-mounted on the acquisition host but not on the analysis workstations, whereas
-`~/bluesky` is shared by both, so the viewer can run anywhere. Change `SPEC_DIR` at
-the top of `ophyd_scan.py` to move it.
+The SPEC file sits in the **same directory as the images**, e.g.
+`/gdata/dm/8ID/8IDE/2026-2/pope202607/data/bluesky/pope202607.spec`. Every part of
+the path comes from `pv_registers`, so it follows the run cycle automatically.
 
-Both paths come from `pv_registers`, so they follow the run cycle automatically.
+### Switching SPEC files on demand
+
+The file name comes from **`pv_registers.spec_file_name`**, so you change it at
+any time without touching code:
+
+```python
+pv_registers.spec_file_name.put("alignment_run3")
+```
+
+The next scan writes to `alignment_run3.spec` in the same directory. `.spec` is
+appended when the register does not already end in it (the viewer's file dialog
+filters on that extension). If the register is empty the scan falls back to
+`experiment_name` and says so.
+
+**New files are detected automatically.** If the target file does not exist, the
+scan writes the full `#F`/`#E`/`#D`/`#C`/`#O`/`#o` header block before the first
+`#S`; if it already exists, the scan just appends and no second header is written.
+Switching back to an earlier file appends to it as normal. The directory is
+created if it is not there yet.
+
+> **The viewer must be able to see `/gdata`.** This directory is on GPFS, which is
+> not mounted on every analysis workstation — an earlier version of this module
+> deliberately put the SPEC file in `~/bluesky` for exactly that reason. Run
+> `specr_py` on a host that mounts `/gdata`, or pass `spec_path=` to write a copy
+> somewhere shared.
+
 The SPEC scan number comes from the image prefix, so `#S 186` lines up with
 `A0186_*.h5`. `gen_folder_prefix()` increments `pv_registers.measurement_num` once
 per scan, and only when `save_img=1`.

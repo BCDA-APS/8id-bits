@@ -66,18 +66,29 @@ lambda2M = oregistry["lambda2M"]
 # =============================================================================
 
 
-#: Where the SPEC files are written. This is deliberately NOT the GPFS data
-#: directory: /gdata is mounted on the acquisition host (amber) but not on the
-#: analysis workstations (e.g. kouga), whereas ~/bluesky is shared by both. The
-#: detector .h5 files still go to GPFS -- only the small text file lives here,
-#: so the live viewer can be run from anywhere.
-SPEC_DIR = os.path.expanduser("~/bluesky")
-
-
 def default_spec_path():
-    """``~/bluesky/{experiment_name}.spec``."""
-    exp = pv_registers.experiment_name.get().strip()
-    return os.path.join(SPEC_DIR, f"{exp}.spec")
+    """``<mount><cycle>/<experiment>/data/bluesky/<spec_file_name>.spec``.
+
+    The SPEC file sits in the same directory as the detector ``.h5`` files, and
+    its name comes from ``pv_registers.spec_file_name``. Writing that PV is how
+    you switch SPEC files on demand -- the next scan appends to the named file,
+    or creates it (``#F`` header block and all) if it does not exist yet.
+
+    ``.spec`` is appended when the register does not already end in it, because
+    the viewer's file dialog filters on that extension.
+
+    Note this directory is on GPFS, which is not mounted on every analysis
+    workstation. Run the live viewer somewhere that can see ``/gdata``, or pass
+    ``spec_path=`` to put a copy somewhere shared.
+    """
+    name = pv_registers.spec_file_name.get().strip()
+    if not name:
+        # Blank register would otherwise yield a file called ".spec".
+        name = pv_registers.experiment_name.get().strip()
+        print(f"WARNING: pv_registers.spec_file_name is empty; using {name!r}.")
+    if not name.lower().endswith(".spec"):
+        name += ".spec"
+    return os.path.join(image_file_path(), name)
 
 
 def image_file_path():
@@ -294,6 +305,7 @@ def dscan_ophyd(
     num_pts,
     count_time,
     det=None,
+    comment="",
     att_ratio=1e6,
     save_img=1,
     spec_path=None,
@@ -320,6 +332,16 @@ def dscan_ophyd(
         num_pts: number of points
         count_time: detector acquisition time per point (s)
         det: eiger4M (default) or lambda2M
+        comment: free-text note describing this scan -- letters, digits, spaces
+            and punctuation are all fine. Written as the **first** ``#MD`` line
+            of the scan block so you can Ctrl+F the ``.spec`` file for a keyword
+            and land on the scan you want::
+
+                dscan_ophyd(huber.delta, -0.5, 0.5, 41, 1.0, det=lambda2M,
+                            comment="3x3 grid spot 5, after realigning KB")
+
+            Any newlines are flattened to spaces so the file structure cannot
+            break. Leave it empty and no ``#MD comment`` line is written.
         att_ratio: attenuation ratio, applied only if ``set_attenuation``
         save_img: 1 to write detector images, 0 to scan without saving
         spec_path: override the SPEC file location
@@ -375,6 +397,7 @@ def dscan_ophyd(
         num_points=num_pts,
         count_time=count_time,
         image_file=f"{folder_prefix}.h5" if folder_prefix else "",
+        comment=comment,
         template=spec_template,
     )
     spec = SpecFile(spec_path or default_spec_path())

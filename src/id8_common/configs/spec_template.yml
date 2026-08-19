@@ -43,6 +43,12 @@
 #   {num_points}   points in the scan  \  as passed to
 #   {count_time}   exposure per point  /  dscan_ophyd()
 #   {image_file}   name of the detector HDF5 file for this scan
+#   {comment}      the scan's free-text note
+#
+# {comment} comes from dscan_ophyd(..., comment="..."). It is the first entry in
+# the metadata list below, so it lands on the first #MD line of the scan -- move
+# that entry if you want it elsewhere. Newlines in it are flattened to spaces so
+# a note can never break the file structure.
 #
 # {image_file} is NOT an argument you pass. dscan_ophyd() builds it by calling
 # gen_folder_prefix() (plans/acquire/ad_acq.py), which assembles
@@ -119,6 +125,13 @@ positioners:
 # Values are free text -- they are never parsed as numbers, so strings are fine.
 # ---------------------------------------------------------------------------
 metadata:
+  # Free-text note from dscan_ophyd(..., comment="..."). Kept FIRST so it is the
+  # first thing you see and the first thing Ctrl+F lands on. skip_if_empty means
+  # scans run without a comment get no line at all. Move it or delete it like any
+  # other entry -- if you delete it but still pass comment=, the note is written
+  # first anyway rather than being silently dropped.
+  - {key: comment, value: "{comment}", skip_if_empty: true}
+
   - {key: beamline_id, value: "8-ID-E"}
   - {key: scan_type,   value: "{scan_type}"}
   - {key: detectors,   value: "{det}"}
@@ -173,3 +186,4 @@ columns:
 
   # LAST = the viewer's default Y axis. Keep the primary counter here.
   - {label: "{det}_stats1_total", source: det.stats1.total}
+  - {label: "{det}_stats4_total", source: det.stats4.total}

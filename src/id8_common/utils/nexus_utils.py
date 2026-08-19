@@ -29,8 +29,8 @@ filter_8ide = oregistry["filter_8ide"]
 lakeshore1 = oregistry["lakeshore1"]
 mono = oregistry["mono"]
 tetramm1 = oregistry["tetramm1"]
-undulator_upstream = oregistry["undulator_upstream"]
-undulator_downstream = oregistry["undulator_downstream"]
+# undulator_upstream = oregistry["undulator_upstream"]
+# undulator_downstream = oregistry["undulator_downstream"]
 huber = oregistry["huber"]
 sl4 = oregistry["sl4"]
 # xbpm1 = oregistry["xbpm1"]
@@ -299,12 +299,12 @@ def create_runtime_metadata_dict(
         #     + xbpm1.current4.mean_value.get() / xbpm1.current_scales.ch4.get()
         # ), 
         "/entry/instrument/incident_beam/ring_current": _get_ring_current(),
-        "/entry/instrument/undulator_1/gap": undulator_upstream.gap.position,
-        "/entry/instrument/undulator_1/energy": undulator_upstream.energy.position,
-        "/entry/instrument/undulator_1/taper": undulator_upstream.gap_taper.position,
-        "/entry/instrument/undulator_2/gap": undulator_downstream.gap.position,
-        "/entry/instrument/undulator_2/energy": undulator_downstream.energy.position,
-        "/entry/instrument/undulator_2/taper": undulator_downstream.gap_taper.position,
+        # "/entry/instrument/undulator_1/gap": undulator_upstream.gap.position,
+        # "/entry/instrument/undulator_1/energy": undulator_upstream.energy.position,
+        # "/entry/instrument/undulator_1/taper": undulator_upstream.gap_taper.position,
+        # "/entry/instrument/undulator_2/gap": undulator_downstream.gap.position,
+        # "/entry/instrument/undulator_2/energy": undulator_downstream.energy.position,
+        # "/entry/instrument/undulator_2/taper": undulator_downstream.gap_taper.position,
         "/entry/instrument/attenuator_1/attenuator_transmission": (filter_8ide.transmission.readback.get()),
         "/entry/instrument/attenuator_1/attenuator_index": (filter_8ide.index.readback.get()),
         "/entry/instrument/attenuator_2/attenuator_transmission": (0),

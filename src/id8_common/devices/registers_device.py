@@ -23,6 +23,7 @@ class EpicsPvStorageRegisters(Device):
 
     workflow_name = Component(EpicsSignal, "StrReg6", string=True)
     use_subfolder = Component(EpicsSignal, "StrReg7", string=True)
+    spec_file_name = Component(EpicsSignal, "StrReg8", string=True)
 
     header = Component(EpicsSignal, "StrReg11", string=True)
     sample_name = Component(EpicsSignal, "StrReg12", string=True)

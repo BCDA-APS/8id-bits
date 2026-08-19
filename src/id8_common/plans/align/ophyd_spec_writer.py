@@ -76,6 +76,19 @@ def _now():
     return datetime.datetime.now().strftime(SPEC_TIME_FORMAT)
 
 
+def _one_line(text):
+    """Flatten text so it cannot break the one-record-per-line structure.
+
+    Free-text header values (a user's scan comment, most obviously) may contain
+    anything. A newline in the middle of a ``#MD`` line would end that record
+    early and leave the remainder looking like a data row -- which a reader would
+    either reject or, worse, silently append to the scan. Collapsing all
+    whitespace runs to single spaces removes that class of corruption; tabs and
+    carriage returns go the same way.
+    """
+    return " ".join(str(text).split())
+
+
 def _numbered_lines(tag, items, per_line=8):
     """SPEC wraps #O/#o/#P at 8 entries per line: ``#O0 a  b``, ``#O1 c  d``."""
     items = list(items)
@@ -264,12 +277,14 @@ class SpecFile:
         stamp = _now()
         lines = [
             "",  # blank line before #S is required
-            f"#S {int(scan_num)}  {command}",
+            f"#S {int(scan_num)}  {_one_line(command)}",
             f"#D {stamp}",
         ]
-        lines += [f"#C {stamp}.  {c}" for c in comments]
+        lines += [f"#C {stamp}.  {_one_line(c)}" for c in comments]
+        # Metadata order is the caller's; the scan comment is put first so it is
+        # the first thing you see (and the first thing Ctrl+F lands on).
         for key, value in (metadata or {}).items():
-            lines.append(f"#MD {key} = {value}")
+            lines.append(f"#MD {_one_line(key)} = {_one_line(value)}")
         lines += _numbered_lines("#P", [_fmt(v) for v in motor_positions]) or ["#P0 "]
         lines += [
             "#N " + str(len(self.labels)),

@@ -176,13 +176,16 @@ class RenderedSpec:
 
 
 def render(motor, det=None, scan_type="", num_points=0, count_time=0.0,
-           image_file="", template=None, extra=None):
+           image_file="", comment="", template=None, extra=None):
     """Resolve a template against the current hardware.
 
     args:
         motor: the scanned positioner
         det: detector for ``det.*`` sources, or None
         scan_type, num_points, count_time, image_file: substitution values
+        comment: free-text note for this scan. Written as the FIRST ``#MD``
+            line so it is easy to spot and easy to Ctrl+F for. Also available
+            to the template as ``{comment}``.
         template: path override; otherwise ``$ID8_SPEC_TEMPLATE`` or the default
         extra: additional substitutions (a future d2scan passes ``motor2`` here)
 
@@ -202,11 +205,23 @@ def render(motor, det=None, scan_type="", num_points=0, count_time=0.0,
         "num_points": num_points,
         "count_time": count_time,
         "image_file": image_file,
+        "comment": "" if comment is None else str(comment),
     }
     context.update(extra or {})
 
     positioner_names, positioner_positions = _render_positioners(config, motor, det)
+
+    # The scan comment is an ordinary template entry (shipped first in the
+    # default template), so it can be moved, renamed or removed like any other.
+    # The fallback below only fires when the template did not write the note
+    # anywhere -- a note the user bothered to type should never vanish silently.
+    # Testing the rendered values rather than the key name matters: a template
+    # that renames the key to 'note' has still recorded it, and prepending a
+    # second copy under 'comment' would duplicate it.
     metadata = _render_metadata(config, motor, det, context)
+    comment_text = context["comment"].strip()
+    if comment_text and comment_text not in metadata.values():
+        metadata = {"comment": comment_text, **metadata}
     comments = [_substitute(c, context) for c in config.get("comments", []) or []]
     columns = _render_columns(config, motor, det, context)
 
