@@ -113,8 +113,6 @@ def _read_position(obj):
 class _Column:
     """One data column: either a computed special or a signal to read."""
 
-    __slots__ = ("label", "special", "signal")
-
     def __init__(self, label, special=None, signal=None):
         self.label = label
         self.special = special
@@ -144,22 +142,22 @@ class RenderedSpec:
         self.positioner_positions = positioner_positions
         self.source = source
 
-    @property
-    def labels(self):
-        return [c.label for c in self._columns]
+        # The column list never changes after this point, so everything derived
+        # from it is worked out once here and kept as a plain attribute.
 
-    @property
-    def counter_indices(self):
-        """Indices of columns read from hardware, i.e. not motor/setpoint/epoch.
+        #: Every column name, in order -- this becomes the #L line.
+        self.labels = [column.label for column in columns]
 
-        The live table already shows position and elapsed time in their own
-        columns, so it prints only these.
-        """
-        return [i for i, c in enumerate(self._columns) if c.special is None]
+        #: Positions of the columns that are read from hardware, i.e. not the
+        #: motor / setpoint / epoch ones. The live table shows position and
+        #: elapsed time in their own columns, so it prints only these.
+        self.counter_indices = []
+        for index, column in enumerate(columns):
+            if column.special is None:
+                self.counter_indices.append(index)
 
-    @property
-    def counter_labels(self):
-        return [self._columns[i].label for i in self.counter_indices]
+        #: Names of those same columns.
+        self.counter_labels = [columns[i].label for i in self.counter_indices]
 
     def read(self, position, setpoint, elapsed):
         """Values for one scan point, in column order."""

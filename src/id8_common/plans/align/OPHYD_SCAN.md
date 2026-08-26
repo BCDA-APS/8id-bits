@@ -7,13 +7,23 @@ How to run `dscan_ophyd()`, and how to control exactly what ends up in the
 
 | file | what it is | imports hardware? |
 |---|---|---|
-| `ophyd_scan.py` | the scans themselves (`dscan_ophyd`), detector plumbing, interrupt-safe teardown | yes |
+| `ophyd_scan.py` | **the scan itself** (`dscan_ophyd`) and the detector plumbing it drives | yes |
+| `ophyd_scan_paths.py` | where the files go — reads `pv_registers` and builds the paths | yes |
+| `ophyd_scan_utils.py` | Ctrl+C-safe cleanup, the `ScanResult` object, the live table | **no** — plain Python |
 | `ophyd_spec_config.py` | reads the YAML template and resolves it against the live `oregistry` | yes |
 | `ophyd_spec_writer.py` | formats and appends SPEC lines; `SpecFile` | **no** — stdlib only |
 | `/home/beams/8IDIUSER/bluesky/src/id8_common/configs/spec_template.yml` | **the file you edit** to change the SPEC layout | — |
 
-`ophyd_spec_writer.py` is deliberately free of ophyd/apsbits/bluesky imports so it
-can be exercised offline and reused by any future scan.
+The split keeps `ophyd_scan.py` down to the two things that are actually about
+hardware: driving the detector, and the scan loop. Everything else — filenames,
+SPEC formatting, interrupt handling, the printed table — lives in its own file
+and is reused by any scan added later.
+
+`ophyd_scan_utils.py` and `ophyd_spec_writer.py` import no ophyd, apsbits or
+EPICS at all, so they can be read and tested without a beamline.
+
+All of it is written with basic Python on purpose: plain functions and simple
+classes, no decorators, no context managers, no lambdas.
 
 **No Bluesky anywhere.** No RunEngine, no plans, no generators, no documents —
 just `.put()` / `.get()` / `.move()`. Nothing lands in databroker or Tiled. If you
@@ -521,9 +531,10 @@ spec.start_scan(scan_num, command, rendered.labels,
 spec.add_point(rendered.read(motor.position, setpoint, elapsed))
 ```
 
-Also reusable from `ophyd_scan.py`: `protect_cleanup()` and `safe_step()` for
-interrupt-safe teardown, and `detector_kind()`, `arm_hdf()`, `disarm_hdf()`,
-`wait_for_frames()` for the detector.
+Also reusable: `disable_ctrl_c()` / `restore_ctrl_c()` and `safe_call()` from
+`ophyd_scan_utils.py` for interrupt-safe teardown, `default_spec_path()` from
+`ophyd_scan_paths.py`, and `detector_kind()`, `arm_hdf()`, `disarm_hdf()`,
+`wait_for_frames()` from `ophyd_scan.py` for the detector.
 
 `extra=` supplies **substitutions** (label text), not new column sources. To record
 a second motor's readback today, use a dotted path — `huber.eta.user_readback`. To

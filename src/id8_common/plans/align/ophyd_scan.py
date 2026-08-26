@@ -32,10 +32,7 @@ Import order note: like ``scan_8id.py``, this module resolves devices from the
 has run in ``startup.py``.
 """
 
-import contextlib
 import os
-import signal
-import threading
 import time
 
 import numpy as np
@@ -45,6 +42,12 @@ from apsbits.core.instrument_init import oregistry
 # neither shutter_att.py nor ad_acq.py imports bluesky, so this chain stays clean.
 from id8_common.plans.acquire.ad_acq import gen_folder_prefix
 from id8_common.plans.align import ophyd_spec_config
+from id8_common.plans.align.ophyd_scan_utils import ScanResult
+from id8_common.plans.align.ophyd_scan_utils import disable_ctrl_c
+from id8_common.plans.align.ophyd_scan_utils import restore_ctrl_c
+from id8_common.plans.align.ophyd_scan_utils import safe_call
+from id8_common.plans.align.ophyd_scan_utils import table_header
+from id8_common.plans.align.ophyd_scan_utils import table_row
 from id8_common.plans.align.ophyd_spec_writer import SpecFile
 from id8_common.plans.set.shutter_att import PIND_status
 from id8_common.plans.set.shutter_att import att
@@ -62,8 +65,24 @@ lambda2M = oregistry["lambda2M"]
 
 
 # =============================================================================
-# Paths, scan numbering, detector plumbing
+# Where the files go
 # =============================================================================
+#
+# Every path is built from pv_registers, so the files follow the run cycle
+# without anything being hard-coded.
+
+
+def image_file_path():
+    """Directory the detector HDF5 files go to.
+
+    Matches ``save_images()`` in scan_8id.py, which builds
+    ``/gdata/dm/8ID/8IDE/<cycle>/<experiment>/data/bluesky`` -- reconstructed
+    here from the registers rather than hard-coding the cycle.
+    """
+    mount = pv_registers.mount_point.get().strip()
+    cycle = pv_registers.cycle_name.get().strip()
+    experiment = pv_registers.experiment_name.get().strip()
+    return f"{mount}{cycle}/{experiment}/data/bluesky"
 
 
 def default_spec_path():
@@ -83,25 +102,12 @@ def default_spec_path():
     """
     name = pv_registers.spec_file_name.get().strip()
     if not name:
-        # Blank register would otherwise yield a file called ".spec".
+        # A blank register would otherwise give a file called ".spec".
         name = pv_registers.experiment_name.get().strip()
         print(f"WARNING: pv_registers.spec_file_name is empty; using {name!r}.")
     if not name.lower().endswith(".spec"):
-        name += ".spec"
+        name = name + ".spec"
     return os.path.join(image_file_path(), name)
-
-
-def image_file_path():
-    """Directory the detector HDF5 files go to.
-
-    Matches ``save_images()`` in scan_8id.py, which builds
-    ``/gdata/dm/8ID/8IDE/<cycle>/<experiment>/data/bluesky`` -- reconstructed
-    here from the registers rather than hard-coding the cycle.
-    """
-    mount = pv_registers.mount_point.get().strip()
-    cycle = pv_registers.cycle_name.get().strip()
-    exp = pv_registers.experiment_name.get().strip()
-    return f"{mount}{cycle}/{exp}/data/bluesky"
 
 
 def scan_number_from_prefix(folder_prefix, fallback=0):
@@ -112,9 +118,15 @@ def scan_number_from_prefix(folder_prefix, fallback=0):
     ``gen_folder_prefix()`` increments it as a side effect.
     """
     try:
-        return int("".join(c for c in folder_prefix.split("_")[0] if c.isdigit()))
+        digits = "".join(c for c in folder_prefix.split("_")[0] if c.isdigit())
+        return int(digits)
     except (ValueError, IndexError):
         return fallback
+
+
+# =============================================================================
+# Detector plumbing
+# =============================================================================
 
 
 def detector_kind(det):
@@ -161,6 +173,11 @@ def arm_hdf(det, file_path, file_name, num_capture, kind):
         det.hdf1.capture.put(1)  # must be last
 
 
+def report_frames_captured(det):
+    """Print how many frames the HDF plugin actually wrote."""
+    print(f"# images captured: {det.hdf1.num_captured.get()}")
+
+
 def disarm_hdf(det):
     """Stop capture so the IOC closes the file."""
     try:
@@ -181,116 +198,6 @@ def wait_for_frames(det, n_expected, timeout):
             )
             return False
     return True
-
-
-# =============================================================================
-# Interrupt-safe teardown
-# =============================================================================
-
-
-@contextlib.contextmanager
-def protect_cleanup():
-    """Defer Ctrl+C for the duration of the block.
-
-    Teardown must not be abandoned halfway: leaving the detector acquiring or
-    the motor parked mid-scan is worse than waiting a few seconds. So SIGINT is
-    swallowed (with a note to the user) while cleanup runs, and the previous
-    handler is restored on the way out.
-
-    ``signal.signal`` only works on the main thread, so this is a no-op
-    anywhere else, and a failure to install degrades to ordinary behaviour
-    rather than breaking the scan.
-    """
-    previous = None
-    installed = False
-
-    if threading.current_thread() is threading.main_thread():
-        def _defer(signum, frame):
-            print("    (cleanup in progress -- interrupt ignored)", flush=True)
-
-        try:
-            previous = signal.signal(signal.SIGINT, _defer)
-            installed = True
-        except (ValueError, OSError):
-            pass
-    try:
-        yield
-    finally:
-        if installed:
-            try:
-                signal.signal(signal.SIGINT, previous)
-            except (ValueError, OSError):
-                pass
-
-
-def safe_step(action, description):
-    """Run one teardown step; report failures instead of skipping the rest.
-
-    A dead IOC partway through cleanup must not stop us from parking the motor
-    or closing the SPEC block.
-    """
-    try:
-        action()
-    except (Exception, KeyboardInterrupt) as exc:
-        print(f"WARNING: cleanup step '{description}' failed: {exc}")
-
-
-# =============================================================================
-# Results and live table
-# =============================================================================
-
-
-class ScanResult(tuple):
-    """``(positions, columns)`` with a one-line repr.
-
-    Returned instead of a bare tuple so that an interactive ``dscan_ophyd(...)``
-    call does not dump every position and counter value as the cell's ``Out[N]``
-    echo -- the per-point table has already shown them. Unpacking still works::
-
-        positions, columns = dscan_ophyd(...)
-    """
-
-    def __new__(cls, positions, columns, scan_num=None, motor_name="motor"):
-        self = super().__new__(cls, (positions, columns))
-        self.positions = positions
-        self.columns = columns
-        self.scan_num = scan_num
-        self.motor_name = motor_name
-        return self
-
-    def __repr__(self):
-        n = len(self.positions)
-        if n:
-            span = f"{self.positions[0]:.5g} -> {self.positions[-1]:.5g}"
-        else:
-            span = "no points"
-        peaks = ", ".join(
-            f"{lab.split('_', 1)[-1]} max={max(v):g}" if v else f"{lab} empty"
-            for lab, v in self.columns.items()
-        )
-        return (f"<ScanResult #S {self.scan_num}: {n} pts, "
-                f"{self.motor_name} {span} | {peaks}>")
-
-
-def _table_header(motor_name, labels):
-    """Column header for the per-point live table."""
-    cols = [("#", 4), (motor_name, max(len(motor_name), 13)), ("time[s]", 8)]
-    cols += [(lab, max(len(lab), 12)) for lab in labels]
-    head = "  ".join(name.rjust(width) for name, width in cols)
-    return head + "\n" + "  ".join("-" * width for _, width in cols)
-
-
-def _table_row(index, motor_name, position, elapsed, labels, values):
-    cells = [str(index).rjust(4),
-             f"{position:.6f}".rjust(max(len(motor_name), 13)),
-             f"{elapsed:.1f}".rjust(8)]
-    for lab, val in zip(labels, values, strict=False):
-        try:
-            text = f"{float(val):g}"
-        except (TypeError, ValueError):
-            text = str(val)
-        cells.append(text.rjust(max(len(lab), 12)))
-    return "  ".join(cells)
 
 
 # =============================================================================
@@ -433,7 +340,7 @@ def dscan_ophyd(
     aborted = False
 
     if verbose:
-        print(_table_header(motor.name, counter_labels), flush=True)
+        print(table_header(motor.name, counter_labels), flush=True)
 
     def record(setpoint):
         """Read every template column for one point and append a SPEC row.
@@ -451,7 +358,7 @@ def dscan_ophyd(
         for lab, value in zip(counter_labels, counters, strict=False):
             columns[lab].append(value)
         if verbose:
-            print(_table_row(len(measured), motor.name, actual, elapsed,
+            print(table_row(len(measured), motor.name, actual, elapsed,
                              counter_labels, counters), flush=True)
 
     try:
@@ -511,57 +418,56 @@ def dscan_ophyd(
         raise
     finally:
         # One shared teardown for both detector branches, so they cannot drift.
-        with protect_cleanup():
+        # Ctrl+C is switched off for the duration so cleanup always finishes;
+        # the inner try/finally guarantees it gets switched back on.
+        saved_ctrl_c = disable_ctrl_c()
+        try:
             if aborted:
                 # Stop motion first: this also clears the interrupted MoveStatus
                 # that would otherwise make the return move complain that
                 # another set() is still in progress.
-                safe_step(motor.stop, f"stop {motor.name}")
+                safe_call(f"stop {motor.name}", motor.stop)
                 time.sleep(0.2)  # let the motor record settle before re-commanding
 
             # Only wait for frames on a normal finish. On an abort the remaining
             # frames are never coming, and waiting would stall teardown for up to
             # num_pts * count_time + 10 s with the detector still live.
             if save_img == 1 and not aborted:
-                safe_step(
-                    lambda: wait_for_frames(det, num_pts, num_pts * count_time + 10),
-                    "wait for frames",
-                )
+                safe_call("wait for frames", wait_for_frames,
+                          det, num_pts, num_pts * count_time + 10)
 
             if kind == "lambda":
-                safe_step(lambda: softglue.stop_pulses.put("1!"), "stop softglue pulses")
-            safe_step(lambda: det.cam.acquire.put(0), "stop detector acquisition")
+                safe_call("stop softglue pulses", softglue.stop_pulses.put, "1!")
+            safe_call("stop detector acquisition", det.cam.acquire.put, 0)
             if save_img == 1:
-                safe_step(lambda: disarm_hdf(det), "close the HDF file")
+                safe_call("close the HDF file", disarm_hdf, det)
             if beam_control:
-                safe_step(blockbeam, "block the beam")
+                safe_call("block the beam", blockbeam)
 
             if kind == "eiger":
-                safe_step(lambda: det.cam.trigger_mode.put("Internal Enable"),
-                          "restore trigger mode")
-                safe_step(lambda: det.cam.manual_trigger.put("Disable"),
-                          "restore manual trigger")
+                safe_call("restore trigger mode",
+                          det.cam.trigger_mode.put, "Internal Enable")
+                safe_call("restore manual trigger",
+                          det.cam.manual_trigger.put, "Disable")
             else:
-                safe_step(lambda: det.cam.operating_mode.put(3), "restore operating mode")
-                safe_step(lambda: det.cam.trigger_mode.put(0), "restore trigger mode")
-                safe_step(lambda: softglue_8id_acq.preset.put(50),
-                          "restore softglue preset")
+                safe_call("restore operating mode", det.cam.operating_mode.put, 3)
+                safe_call("restore trigger mode", det.cam.trigger_mode.put, 0)
+                safe_call("restore softglue preset", softglue_8id_acq.preset.put, 50)
                 if beam_control:
-                    safe_step(shutteroff, "switch the shutter off")
+                    safe_call("switch the shutter off", shutteroff)
 
             if aborted:
                 print(f"    returning {motor.name} to {start_pos:.5g} ...", flush=True)
-            safe_step(lambda: motor.move(start_pos, wait=True),
-                      f"return {motor.name} to {start_pos:.5g}")
+            safe_call(f"return {motor.name} to {start_pos:.5g}",
+                      motor.move, start_pos, wait=True)
 
-            safe_step(lambda: spec.end_scan(status), "close the SPEC scan block")
+            safe_call("close the SPEC scan block", spec.end_scan, status)
 
             if save_img == 1:
-                safe_step(
-                    lambda: print(f"# images captured: {det.hdf1.num_captured.get()}"),
-                    "read the captured-frame count",
-                )
+                safe_call("read the captured-frame count", report_frames_captured, det)
             print(f"SPEC scan {scan_num} finished ({status}), {len(measured)} points.")
+        finally:
+            restore_ctrl_c(saved_ctrl_c)
 
     return ScanResult(np.array(measured), columns,
                       scan_num=scan_num, motor_name=motor.name)

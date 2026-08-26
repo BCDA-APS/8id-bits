@@ -341,8 +341,41 @@ def move_leg_motors(leg):
         motor.move(float(position), wait=True)
 
 
+def write_leg_metadata(leg):
+    """Write one leg's NeXus metadata, then clear the path so it is written only once.
+
+    Self-contained on purpose -- it does its own register swap, so cleanup_dual() can call it
+    without the caller having set anything up first. The swap and the per-leg overrides are
+    both required: without them the file is stamped with whatever detector
+    pv_registers.det_name happens to name, which in a dual run is the other leg half the time.
+    That is also why cleanup cannot write these files through cleanup_acquisition's
+    metadata_fname argument, which knows nothing about legs.
+
+    Does nothing once the metadata is on disk, so an abort later in the same repeat cannot
+    overwrite a complete file.
+    """
+    metadata_fname = leg.get("metadata_fname")
+
+    if not metadata_fname or leg.get("det") is None:
+        return
+
+    print(f"{timestamp()}, Writing metadata, {leg['file_name']}")
+
+    with swapped_registers(leg):
+        create_nexus_format_metadata(
+            metadata_fname,
+            det=leg["det"],
+            additional_metadata=metadata_overrides(leg),
+        )
+
+    leg["metadata_fname"] = None
+
+
 def cleanup_dual(legs):
-    """Close the shutter and stop every leg. Safe to call from a partially-started state."""
+    """Close the shutter, stop every leg, write metadata for whatever was in flight.
+
+    Safe to call from a partially-started state.
+    """
     try:
         blockbeam()
     except Exception as exc:
@@ -350,6 +383,14 @@ def cleanup_dual(legs):
 
     for leg in legs:
         cleanup_acquisition(leg.get("det"), leg.get("mode_info"))
+
+    # Only after every leg is stopped, so no HDF file is still open while it is read. One
+    # leg's metadata failing must not cost the other leg its own.
+    for leg in legs:
+        try:
+            write_leg_metadata(leg)
+        except Exception as exc:
+            print(f"Could not write metadata for leg {leg.get('label')}: {exc}")
 
 
 # =============================================================================
@@ -508,15 +549,9 @@ def dual_acq_series(leg_specs, num_repeats=1, wait_time=0.0, cam_timeout=None):
 
             # Both files are closed, so metadata and DM can run one leg at a time.
             for leg in legs:
-                print(f"{timestamp()}, Writing metadata, {leg['file_name']}")
+                write_leg_metadata(leg)
 
                 with swapped_registers(leg):
-                    create_nexus_format_metadata(
-                        leg["metadata_fname"],
-                        det=leg["det"],
-                        additional_metadata=metadata_overrides(leg),
-                    )
-
                     print(f"{timestamp()}, Submitting to DM, {leg['file_name']}")
                     dm_run_job(workflow_proc_api, dmuser, leg["file_name"])
 

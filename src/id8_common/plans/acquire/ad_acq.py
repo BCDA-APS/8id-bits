@@ -722,8 +722,22 @@ ACQ_MODES = {
 # Cleanup helper
 # =============================================================================
 
-def cleanup_acquisition(det=None, mode_info=None):
-    """Stop softglue (if used by this mode) and abort detector acquisition."""
+def cleanup_acquisition(det=None, mode_info=None, metadata_fname=None):
+    """
+    Close the shutter, stop softglue and the detector, write metadata.
+
+    metadata_fname:
+        NeXus metadata path of the measurement that was still in flight. The partial
+        dataset left behind by the abort keeps its metadata this way. Pass None (the
+        default) once the metadata has already been written, so an abort later in the
+        same repeat does not overwrite a complete file.
+    """
+    # First, and in its own try, so no later failure can leave the beam on the sample.
+    try:
+        blockbeam()
+    except Exception as e:
+        print(f"Could not block beam during cleanup: {e}")
+
     if mode_info is not None and "softglue" in mode_info.get("required_devices", []):
         try:
             softglue = get_connected_device("softglue")
@@ -741,6 +755,14 @@ def cleanup_acquisition(det=None, mode_info=None):
                 det.hdf1.capture.put(0)
             except Exception:
                 pass
+
+    # Last, so the detector is stopped and the data file is closed before it is read.
+    if metadata_fname is not None and det is not None:
+        try:
+            print(f"Writing metadata for interrupted measurement: {metadata_fname}")
+            create_nexus_format_metadata(metadata_fname, det=det)
+        except Exception as e:
+            print(f"Could not write metadata {metadata_fname}: {e}")
 
 
 # =============================================================================
@@ -800,6 +822,7 @@ def det_acq_series(wait_time=0, hooks=None):
 
     det = None
     mode_info = None
+    metadata_fname = None
     try:
         active_hooks = load_hooks(hooks)
 
@@ -862,13 +885,17 @@ def det_acq_series(wait_time=0, hooks=None):
             print(f"{time_now}, Writing metadata, {file_name}")
             create_nexus_format_metadata(metadata_fname, det=det)
 
+            # Complete, so an abort during DM submission must not rewrite it.
+            metadata_fname = None
+
             print(f"{time_now}, Submitting to DM, {file_name}")
             dm_run_job(workflowProcApi, dmuser, file_name)
 
     except KeyboardInterrupt:
-        cleanup_acquisition(det, mode_info)
+        cleanup_acquisition(det, mode_info, metadata_fname)
         raise RuntimeError("\n Bluesky plan stopped by user (Ctrl+C).")
     except Exception as e:
+        cleanup_acquisition(det, mode_info, metadata_fname)
         print(f"Error occurred during measurement: {e}")
     finally:
         pass
