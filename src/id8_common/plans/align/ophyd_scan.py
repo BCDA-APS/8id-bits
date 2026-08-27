@@ -1,54 +1,60 @@
 """
-Ophyd-only scanning with live SPEC-format output for the 8-ID beamlines.
+Ophyd-only scanning with live CSV output for the 8-ID beamlines.
 
-**No Bluesky.** This module contains no RunEngine, no plans, no generators, no
-``plan_stubs``, and emits no documents. Everything is plain Python driving Ophyd
-signals with ``.put()`` / ``.get()`` / ``.move()``.
+This is ``save_images()`` and ``dscan()`` from ``scan_8id.py`` (Sam's code) with
+Bluesky taken out. It is kept deliberately close to the original -- same
+function shape, same three detector branches, same nested ``step_*``/``inner_*``
+helpers, same ``try: ... finally:`` bodies, same variable names -- so anyone who
+knows ``scan_8id.py`` can read, edit and maintain this file.
 
-The scan writes one row to a SPEC-format ``.spec`` file per point, closing the
-file after every row, so an external plotting tool can poll the file while the
-scan runs. Because the file is append-only and never held open, a reader can
-never collide with the writer -- which is the whole reason for doing it this way
-rather than reading the detector ``.h5`` mid-scan.
+The translation rule was mechanical:
 
-**What goes into the file is not hard-coded here.** The header lines, the
-``#O``/``#P`` positioner snapshot and the data columns all come from
-``configs/spec_template.yml``; edit that file to add a column or drop a header
-entry, no Python change needed. Resolution lives in :mod:`ophyd_spec_config`, and
-the writing itself in :mod:`ophyd_spec_writer` (which imports no hardware at all).
+===============================================  ==============================
+scan_8id.py                                      here
+===============================================  ==============================
+``yield from bps.mv(sig, x)``                    ``sig.put(x)``
+``yield from bps.mv(sig1, a, sig2, b)``          one ``.put()`` per line
+``yield from bps.move_per_step({m: p}, cache)``  ``m.move(p, wait=True)``
+``yield from bps.sleep(t)``                      ``time.sleep(t)``
+``create / read / read / ... / save``            ``scan.add_point(pos)``
+``bpp.run_wrapper(..., md=md)``                  ``scan_csv.open_scan(...)``
+``bpp.stage_wrapper(...)``                       gone -- nothing stages
+===============================================  ==============================
+
+Anything else that differs from ``scan_8id.py`` is a bug that was fatal here,
+and every one of them is marked with a ``# CHANGED:`` comment saying why. There
+are five. Nothing else was "improved", tidied or restructured.
+
+Each scan writes ONE .csv, named after that scan's .h5::
+
+    .../data/bluesky/A0201_Test_a0010.h5     images
+    .../data/bluesky/A0201_Test_a0010.csv    motor positions and counters
+
+The .csv is closed after every point, so a viewer can poll it while the scan
+runs. Both names go to ``pv_registers.scan_h5_file`` / ``scan_csv_file`` so a
+GUI can find the live scan.
+
+What goes into the .csv is not hard-coded here -- the header lines and the data
+columns come from ``configs/scan_csv_template.yml``; see :mod:`scan_csv`.
 
 usage (call it directly -- do NOT wrap it in ``RE()``)::
 
-    from id8_common.plans.align.ophyd_scan import dscan_ophyd
     dscan_ophyd(huber.delta, -0.5, 0.5, 41, 1.0, det=lambda2M)
+    dscan_ophyd(sample.x, -0.1, 0.1, 21, 0.5, det=lambda2M, comment="spot 5")
 
-Any positioner works -- ``huber.delta``, ``sample.x``, ``rheometer.y`` -- as long
-as it has ``.name`` / ``.position`` / ``.move()``.
+Any positioner works -- ``huber.delta``, ``sample.x``, ``rheometer.y`` -- as
+long as it has ``.name`` / ``.position`` / ``.move()``.
 
-The companion live viewer is ``specr_py`` (``~/Documents/specr_py``).
-
-Import order note: like ``scan_8id.py``, this module resolves devices from the
-``oregistry`` at import time, so it must be imported after ``make_devices()``
-has run in ``startup.py``.
+Like ``scan_8id.py``, this module resolves devices from the ``oregistry`` at
+import time, so it must be imported after ``make_devices()`` in ``startup.py``.
 """
 
-import os
 import time
 
 import numpy as np
 from apsbits.core.instrument_init import oregistry
-
-# Everything imported below is a plain function (not a Bluesky plan) -- verified:
-# neither shutter_att.py nor ad_acq.py imports bluesky, so this chain stays clean.
 from id8_common.plans.acquire.ad_acq import gen_folder_prefix
-from id8_common.plans.align import ophyd_spec_config
-from id8_common.plans.align.ophyd_scan_utils import ScanResult
-from id8_common.plans.align.ophyd_scan_utils import disable_ctrl_c
-from id8_common.plans.align.ophyd_scan_utils import restore_ctrl_c
-from id8_common.plans.align.ophyd_scan_utils import safe_call
-from id8_common.plans.align.ophyd_scan_utils import table_header
-from id8_common.plans.align.ophyd_scan_utils import table_row
-from id8_common.plans.align.ophyd_spec_writer import SpecFile
+from id8_common.plans.align import scan_csv
 from id8_common.plans.set.shutter_att import PIND_status
 from id8_common.plans.set.shutter_att import att
 from id8_common.plans.set.shutter_att import blockbeam
@@ -64,20 +70,13 @@ eiger4M = oregistry["eiger4M"]
 lambda2M = oregistry["lambda2M"]
 
 
-# =============================================================================
-# Where the files go
-# =============================================================================
-#
-# Every path is built from pv_registers, so the files follow the run cycle
-# without anything being hard-coded.
+def data_folder():
+    """``/gdata/dm/8ID/8IDE/<cycle>/<experiment>/data/bluesky``.
 
-
-def image_file_path():
-    """Directory the detector HDF5 files go to.
-
-    Matches ``save_images()`` in scan_8id.py, which builds
-    ``/gdata/dm/8ID/8IDE/<cycle>/<experiment>/data/bluesky`` -- reconstructed
-    here from the registers rather than hard-coding the cycle.
+    scan_8id.py builds this same string with the run cycle written out in full
+    ("2026-2"); here it comes from ``pv_registers.cycle_name`` so the .csv and
+    the .h5 cannot end up in different folders after a cycle rolls over. Today
+    the two produce exactly the same path.
     """
     mount = pv_registers.mount_point.get().strip()
     cycle = pv_registers.cycle_name.get().strip()
@@ -85,389 +84,317 @@ def image_file_path():
     return f"{mount}{cycle}/{experiment}/data/bluesky"
 
 
-def default_spec_path():
-    """``<mount><cycle>/<experiment>/data/bluesky/<spec_file_name>.spec``.
-
-    The SPEC file sits in the same directory as the detector ``.h5`` files, and
-    its name comes from ``pv_registers.spec_file_name``. Writing that PV is how
-    you switch SPEC files on demand -- the next scan appends to the named file,
-    or creates it (``#F`` header block and all) if it does not exist yet.
-
-    ``.spec`` is appended when the register does not already end in it, because
-    the viewer's file dialog filters on that extension.
-
-    Note this directory is on GPFS, which is not mounted on every analysis
-    workstation. Run the live viewer somewhere that can see ``/gdata``, or pass
-    ``spec_path=`` to put a copy somewhere shared.
+def save_images(det, save_img, num_pts, num_frames=1, file_path=None, folder_prefix=None):
     """
-    name = pv_registers.spec_file_name.get().strip()
-    if not name:
-        # A blank register would otherwise give a file called ".spec".
-        name = pv_registers.experiment_name.get().strip()
-        print(f"WARNING: pv_registers.spec_file_name is empty; using {name!r}.")
-    if not name.lower().endswith(".spec"):
-        name = name + ".spec"
-    return os.path.join(image_file_path(), name)
+    Toggle saving (1) or not saving (0) images.
 
-
-def scan_number_from_prefix(folder_prefix, fallback=0):
-    """``"A0092_G10_a0007"`` -> ``92``.
-
-    Reuses the number ``gen_folder_prefix()`` already burned, so SPEC ``#S 92``
-    lines up with ``A0092_*.h5``. Do not read ``measurement_num`` again here --
-    ``gen_folder_prefix()`` increments it as a side effect.
+    det: detector instance (eiger4M, lambda2M, or tetramm)
+    save_img: 1 save, 0 don't save
+    num_frames: number of frames to capture per point (default 1)
+    file_path: override base path (default uses a safe local path)
     """
-    try:
-        digits = "".join(c for c in folder_prefix.split("_")[0] if c.isdigit())
-        return int(digits)
-    except (ValueError, IndexError):
-        return fallback
+    if save_img not in (0, 1):
+        raise ValueError("save_img must be 1 or 0 (to save or not to save)")
+
+    if save_img == 1:
+        if folder_prefix is None:
+            folder_prefix = gen_folder_prefix()
+
+        if file_path is None:
+            file_path = data_folder()
+
+        is_eiger = ("eiger" in det.name.lower()) or ("eiger" in det.prefix.lower())
+        is_tetramm = "tetramm" in det.name.lower()
+
+        def has(obj, attr):
+            return getattr(obj, attr, None) is not None
+
+        # CHANGED (1): scan_8id.py calls gen_folder_prefix() again on this line,
+        # overwriting whatever the caller passed in. That is fatal here: the
+        # caller has already named the .csv after its prefix, so the .h5 would
+        # get a different name and the pair would no longer match. It also
+        # burned two measurement numbers per scan.
+        file_name = folder_prefix
+        file_header = folder_prefix
+
+        print("Scan folder created: " + folder_prefix)
+        print("File path: ", file_path)
+
+        if is_tetramm:
+            det.hdf1.file_path.put(file_path)
+            det.hdf1.file_name.put(file_name)
+            det.hdf1.num_capture.put(num_pts)
+            det.hdf1.file_write_mode.put(2)  # Stream mode
+            return
+
+        # for eiger4m, lambda2m
+        if has(det, "cam"):
+            if has(det.cam, "fw_enable"):
+                det.cam.fw_enable.put(1)
+            if has(det.cam, "save_files"):
+                det.cam.save_files.put(1)
+
+        if has(det, "hdf1"):
+            if has(det.hdf1, "num_capture"):
+                det.hdf1.num_capture.put(num_pts)
+            if has(det.hdf1, "file_name"):
+                det.hdf1.file_name.put(file_name)
+            if has(det.hdf1, "file_path"):
+                det.hdf1.file_path.put(file_path)
+
+        if has(det, "cam"):
+            if is_eiger:
+                if has(det.cam, "trigger_mode"):
+                    det.cam.trigger_mode.put("Internal Enable")
+                if has(det.cam, "num_triggers"):
+                    det.cam.num_triggers.put(1)
+                if has(det.cam, "num_images"):
+                    det.cam.num_images.put(1)
+
+                # CHANGED (2): bpp.stage_wrapper used to enable the HDF plugin
+                # and put it in Stream mode (apstools AD_EpicsHdf5FileName).
+                # Nothing stages any more, so without these three the scan runs
+                # happily and writes no file at all.
+                det.hdf1.enable.put(1)
+                det.hdf1.auto_save.put(1)
+                det.hdf1.file_write_mode.put(2)  # Stream
+
+                # CHANGED (3): scan_8id.py calls setup_eiger_internal(...) here.
+                # It re-points hdf1.file_path/file_name at get_common_file_path(),
+                # a different folder, which separates the .h5 from its .csv and
+                # breaks the viewer's "find the live scan" lookup. Everything
+                # else it sets (acquire_time/period, trigger_mode, num_images,
+                # num_triggers) dscan_ophyd overwrites moments later anyway.
+                #     setup_eiger_internal(
+                #         acq_time=float(det.cam.acquire_time.get()) if has(det.cam, "acquire_time") else 1.0,
+                #         num_frames=num_frames,
+                #         file_header=file_header,
+                #         file_name=file_name,
+                #     )
+            else:
+                if has(det.cam, "num_images"):
+                    det.cam.num_images.put(num_frames)
 
 
-# =============================================================================
-# Detector plumbing
-# =============================================================================
-
-
-def detector_kind(det):
-    """Return 'eiger', 'lambda', or 'tetramm'."""
-    name = (det.name or "").lower()
-    prefix = (getattr(det, "prefix", "") or "").lower()
-    if "eiger" in name or "eiger" in prefix:
-        return "eiger"
-    if "lambda" in name or "lambda" in prefix:
-        return "lambda"
-    if "tetramm" in name:
-        return "tetramm"
-    raise ValueError(f"Unrecognized detector {det.name!r}")
-
-
-def arm_hdf(det, file_path, file_name, num_capture, kind):
+def dscan_ophyd(motor, rel_begin, rel_end, num_pts, count_time, det=eiger4M, att_ratio=1e6, save_img=1, comment=""):
     """
-    Prepare the HDF5 plugin so images are written exactly as ``dscan()`` does.
-
-    The two detectors need different handling because ``dscan()`` in scan_8id.py
-    treats them differently:
-
-    * **lambda2M** -- ``dscan`` stages only the motor, so the HDF plugin is
-      never staged. Everything it gets comes from ``save_images()``:
-      ``num_capture``, ``file_name``, ``file_path``. Capture is switched on
-      later, after ``cam.acquire``. Nothing else is touched, so the IOC's own
-      ``FileWriteMode``/``AutoSave`` settings are left exactly as the beamline
-      configured them. Replicated faithfully here.
-    * **eiger4M** -- ``dscan`` stages the detector, and Bluesky staging applies
-      ``file_write_mode="Stream"`` and ``capture=1`` (verified in
-      ``apstools.devices.area_detector_support.AD_EpicsHdf5FileName``). Without
-      Bluesky nothing applies those, so they are set explicitly -- omit them and
-      the scan runs but writes no file.
-    """
-    det.hdf1.num_capture.put(num_capture)
-    det.hdf1.file_name.put(file_name)
-    det.hdf1.file_path.put(file_path)
-
-    if kind == "eiger":
-        # Replace what stage_wrapper would have done.
-        det.hdf1.enable.put(1)
-        det.hdf1.file_write_mode.put(2)  # Stream
-        det.hdf1.auto_save.put(1)
-        det.hdf1.capture.put(1)  # must be last
-
-
-def report_frames_captured(det):
-    """Print how many frames the HDF plugin actually wrote."""
-    print(f"# images captured: {det.hdf1.num_captured.get()}")
-
-
-def disarm_hdf(det):
-    """Stop capture so the IOC closes the file."""
-    try:
-        det.hdf1.capture.put(0)
-    except Exception as exc:
-        print(f"WARNING: could not stop HDF capture: {exc}")
-
-
-def wait_for_frames(det, n_expected, timeout):
-    """Block until the HDF plugin reports n_expected frames, or timeout."""
-    t0 = time.time()
-    while det.hdf1.num_captured.get() < n_expected:
-        time.sleep(0.005)
-        if time.time() - t0 > timeout:
-            print(
-                f"WARNING: timeout waiting for frame {n_expected} "
-                f"(captured {det.hdf1.num_captured.get()})."
-            )
-            return False
-    return True
-
-
-# =============================================================================
-# The scan
-# =============================================================================
-
-
-def dscan_ophyd(
-    motor,
-    rel_begin,
-    rel_end,
-    num_pts,
-    count_time,
-    det=None,
-    comment="",
-    att_ratio=1e6,
-    save_img=1,
-    spec_path=None,
-    spec_template=None,
-    set_attenuation=True,
-    beam_control=True,
-    verbose=True,
-):
-    """
-    Relative single-motor scan, Ophyd only, with live SPEC output.
-
-    Mirrors the hardware choreography of ``dscan`` in scan_8id.py (pre-armed
-    software trigger for the Eiger, softglue-pulsed external trigger for the
-    Lambda) but contains no Bluesky.
-
-    Call directly::
-
-        dscan_ophyd(huber.delta, -0.5, 0.5, 41, 1.0, det=lambda2M)
-        dscan_ophyd(sample.x, -0.1, 0.1, 21, 0.5, det=lambda2M)
+    Pre-armed software-trigger scan for fast acquisitions.
 
     args:
-        motor: any ophyd positioner -- huber.delta, sample.x, rheometer.y, ...
-        rel_begin, rel_end: start/end relative to the current position
+        motor: ophyd positioner -- huber.delta, sample.x, rheometer.y, ...
+        rel_begin, rel_end: relative start/end (motor units)
         num_pts: number of points
         count_time: detector acquisition time per point (s)
-        det: eiger4M (default) or lambda2M
-        comment: free-text note describing this scan -- letters, digits, spaces
-            and punctuation are all fine. Written as the **first** ``#MD`` line
-            of the scan block so you can Ctrl+F the ``.spec`` file for a keyword
-            and land on the scan you want::
-
-                dscan_ophyd(huber.delta, -0.5, 0.5, 41, 1.0, det=lambda2M,
-                            comment="3x3 grid spot 5, after realigning KB")
-
-            Any newlines are flattened to spaces so the file structure cannot
-            break. Leave it empty and no ``#MD comment`` line is written.
-        att_ratio: attenuation ratio, applied only if ``set_attenuation``
-        save_img: 1 to write detector images, 0 to scan without saving
-        spec_path: override the SPEC file location
-        spec_template: override the SPEC template (default: configs/spec_template.yml,
-            or ``$ID8_SPEC_TEMPLATE``). Controls every header line and column.
-        set_attenuation: if False, leave the attenuator exactly as it is. Use
-            when the current attenuation is already correct and you do not want
-            the scan changing the beam condition.
-        beam_control: if False, skip ``pre_align``/``PIND_status`` and the
-            shutter open/close. Use for a dry run that touches only the scanned
-            motor and the detector.
-        verbose: print a table row per point as the scan runs -- motor readback,
-            elapsed time, and every counter -- instead of only seeing the values
-            at the end. Set False for a quiet scan.
+        det: detector (eiger4M, lambda2M, or tetramm1)
+        att_ratio: attenuation ratio
+        save_img: 1 save, 0 don't save
+        comment: free-text note written near the top of the .csv, so you can
+            grep the data folder for a keyword and land on the right scan.
+            Newlines are flattened to spaces; empty means no comment line.
 
     returns:
-        ``ScanResult``, which unpacks as ``(positions, {label: [values]})`` but
-        prints as a one-line summary rather than dumping every value.
+        the :class:`scan_csv.ScanCsv` that was written -- ``.path`` is the file,
+        ``.data`` is ``{column_label: [values]}``.
 
-    On **Ctrl+C** the scan stops the motor, halts acquisition, closes the image
-    file, blocks the beam, drives the motor back to where it started, and closes
-    the SPEC block with ``exit_status = aborted`` so the partial scan still
-    parses. That teardown is protected from further interrupts, so a second
-    Ctrl+C will not strand the motor. The ``KeyboardInterrupt`` is re-raised
-    afterwards, so an enclosing loop still stops.
+    On Ctrl+C the motor stops and returns to where it started, acquisition
+    halts, the beam is blocked, and the .csv closes with ``#END,aborted``.
     """
-    if det is None:
-        det = eiger4M
-    kind = detector_kind(det)
-    if kind == "tetramm":
-        raise NotImplementedError(
-            "tetramm is not supported here. Its trigger path and HDF stream mode "
-            "differ from the area detectors and were not verified; use dscan() in "
-            "scan_8id.py for tetramm scans."
-        )
+    pre_align()
+    att(att_ratio)
+    PIND_status(0)
 
-    if beam_control:
-        pre_align()
-        PIND_status(0)
-    if set_attenuation:
-        att(att_ratio)
+    is_tetramm = "tetramm" in det.name.lower()
+    is_eiger = ("eiger" in det.name.lower()) or ("eiger" in det.prefix.lower())
+    is_lambda = ("lambda" in det.name.lower()) or ("lambda" in det.prefix.lower())
 
-    folder_prefix = gen_folder_prefix() if save_img == 1 else ""
-    scan_num = scan_number_from_prefix(folder_prefix)
+    # One measurement number per scan whether or not images are saved, so every
+    # .csv has a unique name that matches its .h5 when there is one.
+    folder_prefix = gen_folder_prefix()
+    file_path = data_folder()
+    h5_file = f"{file_path}/{folder_prefix}.h5" if save_img == 1 else ""
+    csv_file = f"{file_path}/{folder_prefix}.csv"
+    if save_img != 1:
+        print(f"save_img=0: no .h5 will be written; scan file is {folder_prefix}.csv")
 
-    # --- SPEC file -------------------------------------------------------
-    # Resolved before anything moves: a broken template raises here rather than
-    # partway through a scan.
-    rendered = ophyd_spec_config.render(
+    save_images(det, save_img, num_pts, folder_prefix=folder_prefix)
+
+    # This is what run_wrapper(md=...) used to do. Resolved before anything
+    # moves, so a typo in the template raises here and not halfway through a
+    # scan with the beam on.
+    command = f"dscan_ophyd({motor.name}, {rel_begin}, {rel_end}, {num_pts}, {count_time}, det={det.name})"
+    scan = scan_csv.open_scan(
+        csv_file,
         motor,
         det=det,
         scan_type="dscan_ophyd",
+        command=command,
         num_points=num_pts,
         count_time=count_time,
-        image_file=f"{folder_prefix}.h5" if folder_prefix else "",
+        h5_file=h5_file,
         comment=comment,
-        template=spec_template,
     )
-    spec = SpecFile(spec_path or default_spec_path())
-    spec.write_file_header(rendered.positioner_names)
+    scan.write_header()
+    pv_registers.scan_h5_file.put(h5_file)
+    pv_registers.scan_csv_file.put(csv_file)
 
-    command = (
-        f"dscan_ophyd({motor.name}, {rel_begin}, {rel_end}, {num_pts}, "
-        f"{count_time}, det={det.name})"
-    )
-    spec.start_scan(
-        scan_num,
-        command,
-        rendered.labels,
-        metadata=rendered.metadata,
-        motor_positions=rendered.positioner_positions,
-        comments=rendered.comments,
-    )
-    print(f"SPEC file: {spec.path}   (#S {scan_num})")
+    if is_tetramm:
+        det.hdf1.enable.put(1)
+        det.hdf1.capture.put(1)
+        print(f"TetrAMM HDF capture armed: {det.hdf1.file_name.get()}")
 
-    # --- detector / file setup -------------------------------------------
-    if save_img == 1:
-        file_path = image_file_path()
-        print(f"Scan folder created: {folder_prefix}")
-        print(f"File path: {file_path}")
-        arm_hdf(det, file_path, folder_prefix, num_pts, kind)
+        start_pos = motor.position
+        positions = np.linspace(start_pos + rel_begin, start_pos + rel_end, num_pts)
 
-    start_pos = motor.position
-    positions = np.linspace(start_pos + rel_begin, start_pos + rel_end, num_pts)
-    t_start = time.time()
-    counter_labels = rendered.counter_labels
-    measured, columns = [], {lab: [] for lab in counter_labels}
-    status = "success"
-    aborted = False
-
-    if verbose:
-        print(table_header(motor.name, counter_labels), flush=True)
-
-    def record(setpoint):
-        """Read every template column for one point and append a SPEC row.
-
-        ``setpoint`` is where the motor was told to go; the motor column is
-        where it actually is -- logging only the commanded value would draw a
-        perfect ramp even if the motor never moved.
-        """
-        elapsed = time.time() - t_start
-        actual = motor.position
-        values = rendered.read(actual, setpoint, elapsed)
-        spec.add_point(values)
-        measured.append(actual)
-        counters = [values[i] for i in rendered.counter_indices]
-        for lab, value in zip(counter_labels, counters, strict=False):
-            columns[lab].append(value)
-        if verbose:
-            print(table_row(len(measured), motor.name, actual, elapsed,
-                             counter_labels, counters), flush=True)
-
-    try:
-        if kind == "eiger":
-            det.cam.acquire_time.put(count_time)
-            det.cam.acquire_period.put(count_time)
-            det.cam.trigger_mode.put("Internal Series")
-            det.cam.manual_trigger.put("Enable")
-            det.cam.num_images.put(1)
-            det.cam.num_triggers.put(num_pts)
-            det.hdf1.num_capture.put(num_pts)
-
-            det.cam.acquire.put(1, wait=False)  # pre-arm for num_pts triggers
-            if beam_control:
-                showbeam()
-            for pos in positions:
-                motor.move(pos, wait=True)
-                det.cam.special_trigger_button.put(1, wait=False)
-                time.sleep(count_time)
-                record(pos)
-
-        else:  # lambda
-            det.cam.operating_mode.put(3)  # 24-bit dual threshold
-            det.cam.trigger_mode.put("External_ImagePer")
-            det.cam.acquire_time.put(count_time)
-            det.cam.acquire_period.put(count_time)
-            det.cam.num_images.put(num_pts)
-            det.hdf1.num_capture.put(num_pts)
-            softglue.num_triggers.put(1)  # one pulse per "1!"
-            softglue.acq_time.put(count_time)
-            softglue.acq_period.put(count_time)
-
-            det.cam.acquire.put(1)
-            if save_img == 1:
-                det.hdf1.capture.put(1)  # after acquire, exactly as dscan() does
-            if beam_control:
-                shutteron()
-                showbeam()
-            for i, pos in enumerate(positions):
-                motor.move(pos, wait=True)
-                softglue.start_pulses.put("1!")
-                if save_img == 1:
-                    # scan_8id.py spins here with no timeout; bounded here so a
-                    # missed trigger cannot hang the session indefinitely.
-                    wait_for_frames(det, i + 1, count_time * 5 + 10)
-                else:
+        def inner_tetramm():
+            try:
+                for pos in positions:
+                    motor.move(pos, wait=True)
+                    # The TetrAMM free-runs; trigger() only pokes Acquire and
+                    # stamps a datum, so this is what trigger_and_read did.
+                    det.acquire.put(1, wait=False)
                     time.sleep(count_time)
-                record(pos)
+                    scan.add_point(pos)
+            finally:
+                motor.stop()  # CHANGED (5) -- see the note in inner_lambda
+                time.sleep(0.2)
+                motor.move(start_pos, wait=True)
 
-    except KeyboardInterrupt:
-        status, aborted = "aborted", True
-        print(f"\n^C  Scan aborted at point {len(measured)}/{num_pts} -- "
-              "stopping motor and detector...", flush=True)
-        raise
-    except Exception:
-        status = "error"
-        raise
-    finally:
-        # One shared teardown for both detector branches, so they cannot drift.
-        # Ctrl+C is switched off for the duration so cleanup always finishes;
-        # the inner try/finally guarantees it gets switched back on.
-        saved_ctrl_c = disable_ctrl_c()
+        exit_status = "success"
         try:
-            if aborted:
-                # Stop motion first: this also clears the interrupted MoveStatus
-                # that would otherwise make the return move complain that
-                # another set() is still in progress.
-                safe_call(f"stop {motor.name}", motor.stop)
-                time.sleep(0.2)  # let the motor record settle before re-commanding
-
-            # Only wait for frames on a normal finish. On an abort the remaining
-            # frames are never coming, and waiting would stall teardown for up to
-            # num_pts * count_time + 10 s with the detector still live.
-            if save_img == 1 and not aborted:
-                safe_call("wait for frames", wait_for_frames,
-                          det, num_pts, num_pts * count_time + 10)
-
-            if kind == "lambda":
-                safe_call("stop softglue pulses", softglue.stop_pulses.put, "1!")
-            safe_call("stop detector acquisition", det.cam.acquire.put, 0)
-            if save_img == 1:
-                safe_call("close the HDF file", disarm_hdf, det)
-            if beam_control:
-                safe_call("block the beam", blockbeam)
-
-            if kind == "eiger":
-                safe_call("restore trigger mode",
-                          det.cam.trigger_mode.put, "Internal Enable")
-                safe_call("restore manual trigger",
-                          det.cam.manual_trigger.put, "Disable")
-            else:
-                safe_call("restore operating mode", det.cam.operating_mode.put, 3)
-                safe_call("restore trigger mode", det.cam.trigger_mode.put, 0)
-                safe_call("restore softglue preset", softglue_8id_acq.preset.put, 50)
-                if beam_control:
-                    safe_call("switch the shutter off", shutteroff)
-
-            if aborted:
-                print(f"    returning {motor.name} to {start_pos:.5g} ...", flush=True)
-            safe_call(f"return {motor.name} to {start_pos:.5g}",
-                      motor.move, start_pos, wait=True)
-
-            safe_call("close the SPEC scan block", spec.end_scan, status)
-
-            if save_img == 1:
-                safe_call("read the captured-frame count", report_frames_captured, det)
-            print(f"SPEC scan {scan_num} finished ({status}), {len(measured)} points.")
+            inner_tetramm()
+        except KeyboardInterrupt:
+            exit_status = "aborted"
+            print(f"\n^C  Scan aborted at point {scan.num_points}/{num_pts}.", flush=True)
         finally:
-            restore_ctrl_c(saved_ctrl_c)
+            scan.close(exit_status)
+            if save_img == 1:
+                det.hdf1.capture.put(0)
+        return scan
 
-    return ScanResult(np.array(measured), columns,
-                      scan_num=scan_num, motor_name=motor.name)
+    if is_lambda:
+        det.cam.operating_mode.put(3)  # 24-bit dual threshold mode
+        det.cam.trigger_mode.put("External_ImagePer")
+        det.cam.acquire_time.put(count_time)
+        det.cam.acquire_period.put(count_time)
+        det.cam.num_images.put(num_pts)
+        det.hdf1.num_capture.put(num_pts)
+        softglue.num_triggers.put(1)  # one pulse per "1!"; else stale value from run_measurement
+        softglue.acq_time.put(count_time)
+        softglue.acq_period.put(count_time)
+
+        start_pos = motor.position
+        positions = np.linspace(start_pos + rel_begin, start_pos + rel_end, num_pts)
+
+        def step_lambda(detectors, pos, frame_num):
+            motor.move(pos, wait=True)
+            softglue.start_pulses.put("1!")
+            if save_img == 1:
+                while det.hdf1.num_captured.get() < frame_num:
+                    time.sleep(0.005)
+            else:
+                # CHANGED (4): with save_img=0 nothing is capturing, so
+                # num_captured never advances and scan_8id.py's wait above spins
+                # for ever. Wait out the exposure instead.
+                time.sleep(count_time)
+            scan.add_point(pos)  # was: create / read motor+stats1..3 / save
+
+        def inner_lambda():
+            det.cam.acquire.put(1)
+            det.hdf1.capture.put(1)
+            shutteron()
+            showbeam()
+            try:
+                for ii, pos in enumerate(positions):
+                    step_lambda([det], pos, ii + 1)
+            finally:
+                softglue.stop_pulses.put("1!")
+                det.cam.acquire.put(0)
+                det.hdf1.capture.put(0)
+                blockbeam()
+                # CHANGED (5): stop() before the return move. A ^C leaves the
+                # interrupted move's MoveStatus unfinished, and ophyd then
+                # refuses the next move() ("another set() is still in
+                # progress") -- so scan_8id.py's line below silently does
+                # nothing and the motor is stranded mid-scan.
+                motor.stop()
+                time.sleep(0.2)
+                motor.move(start_pos, wait=True)
+
+        exit_status = "success"
+        try:
+            inner_lambda()
+        except KeyboardInterrupt:
+            exit_status = "aborted"
+            print(f"\n^C  Scan aborted at point {scan.num_points}/{num_pts}.", flush=True)
+        finally:
+            scan.close(exit_status)
+            det.cam.operating_mode.put(3)
+            det.cam.trigger_mode.put(0)
+            softglue_8id_acq.preset.put(50)
+            blockbeam()
+            shutteroff()
+            print("# images captured: ", det.hdf1.num_captured.get())
+        return scan
+
+    # eiger4M
+    if is_eiger:
+        det.cam.acquire_time.put(count_time)
+        det.cam.acquire_period.put(count_time)
+        det.cam.trigger_mode.put("Internal Series")
+        det.cam.manual_trigger.put("Enable")
+        det.cam.num_images.put(1)
+        det.cam.num_triggers.put(num_pts)
+        det.hdf1.num_capture.put(num_pts)
+
+        # scan_8id.py saves and patches det.cam.stage_sigs here, then restores
+        # it in the outer finally. stage_sigs are only applied by stage(), and
+        # nothing stages without bpp.stage_wrapper, so both halves would be
+        # dead code. The .put() calls just above are what arms the detector.
+
+        start_pos = motor.position
+        positions = np.linspace(start_pos + rel_begin, start_pos + rel_end, num_pts)
+
+        def step(detectors, pos):
+            """Move motor, fire software trigger, wait for frame, read motor."""
+            motor.move(pos, wait=True)
+            det.cam.special_trigger_button.put(1, wait=False)
+            time.sleep(count_time)
+            scan.add_point(pos)  # was: create / read motor+stats1..3 / save
+
+        def inner():
+            """Start pre-armed acquisition (accepts num_pts software triggers)"""
+            det.cam.acquire.put(1, wait=False)
+            showbeam()
+            try:
+                for pos in positions:
+                    step([det], pos)
+            finally:
+                t0 = time.time()
+                timeout = num_pts * count_time + 10
+                while det.hdf1.num_captured.get() < num_pts:
+                    time.sleep(0.05)
+                    if time.time() - t0 > timeout:
+                        print("WARNING: HDF write timeout -- not all frames saved.")
+                        break
+                det.cam.acquire.put(0)
+                motor.stop()  # CHANGED (5) -- see the note in inner_lambda
+                time.sleep(0.2)
+                motor.move(start_pos, wait=True)  # return to start position
+
+        exit_status = "success"
+        try:
+            inner()
+        except KeyboardInterrupt:
+            exit_status = "aborted"
+            print(f"\n^C  Scan aborted at point {scan.num_points}/{num_pts}.", flush=True)
+        finally:
+            scan.close(exit_status)
+            # Return detector to normal state: Internal Enable, manual trigger off
+            det.cam.trigger_mode.put("Internal Enable")
+            det.cam.manual_trigger.put("Disable")
+            blockbeam()
+            print("# images captured: ", det.hdf1.num_captured.get())
+        return scan
+
+    scan.close("error")
+    raise ValueError(f"Unrecognized detector {det.name!r} (expected eiger, lambda or tetramm)")

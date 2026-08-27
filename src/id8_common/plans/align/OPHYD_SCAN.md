@@ -1,560 +1,472 @@
-# Ophyd scans and the SPEC file template
+# Ophyd scans and the CSV file template
 
-How to run `dscan_ophyd()`, and how to control exactly what ends up in the
-`.spec` file it writes — without editing any Python.
+How to run an alignment scan without Bluesky, and how to control what the scan
+writes into its data file — by editing a YAML template, not Python.
+
+Two audiences:
+
+- **Just running scans?** Read [Quick start](#quick-start) and
+  [`dscan_ophyd()`](#dscan_ophyd). That is all you need.
+- **Want a different column, or another PV recorded?** Read
+  [Defining the CSV file structure](#defining-the-csv-file-structure).
 
 ## What is here
 
-| file | what it is | imports hardware? |
+| file | what it is | edit it when |
 |---|---|---|
-| `ophyd_scan.py` | **the scan itself** (`dscan_ophyd`) and the detector plumbing it drives | yes |
-| `ophyd_scan_paths.py` | where the files go — reads `pv_registers` and builds the paths | yes |
-| `ophyd_scan_utils.py` | Ctrl+C-safe cleanup, the `ScanResult` object, the live table | **no** — plain Python |
-| `ophyd_spec_config.py` | reads the YAML template and resolves it against the live `oregistry` | yes |
-| `ophyd_spec_writer.py` | formats and appends SPEC lines; `SpecFile` | **no** — stdlib only |
-| `/home/beams/8IDIUSER/bluesky/src/id8_common/configs/spec_template.yml` | **the file you edit** to change the SPEC layout | — |
+| [ophyd_scan.py](ophyd_scan.py) | the scan itself — moves the motor, arms the detector, reads counters | you are adding a new scan (`d2scan`, `mesh`, …) |
+| [scan_csv.py](scan_csv.py) | the CSV writer and a reader. Knows the file *format*, moves no hardware | almost never |
+| [../../configs/scan_csv_template.yml](../../configs/scan_csv_template.yml) | what goes in the file | you want a different column or another PV in the header |
 
-The split keeps `ophyd_scan.py` down to the two things that are actually about
-hardware: driving the detector, and the scan loop. Everything else — filenames,
-SPEC formatting, interrupt handling, the printed table — lives in its own file
-and is reused by any scan added later.
+The split is deliberate: `ophyd_scan.py` is about hardware, `scan_csv.py` is
+about a file. A future `d2scan` gets its file format for free, and someone
+reading the scan code is not reading string formatting.
 
-`ophyd_scan_utils.py` and `ophyd_spec_writer.py` import no ophyd, apsbits or
-EPICS at all, so they can be read and tested without a beamline.
-
-All of it is written with basic Python on purpose: plain functions and simple
-classes, no decorators, no context managers, no lambdas.
-
-**No Bluesky anywhere.** No RunEngine, no plans, no generators, no documents —
-just `.put()` / `.get()` / `.move()`. Nothing lands in databroker or Tiled. If you
-need the run in the catalog, use `dscan()` in `scan_8id.py` instead.
-
----
+`scan_csv.py` imports `oregistry` (to look up devices named in the template) but
+nothing from Bluesky. `ophyd_scan.py` imports no Bluesky either — that is the
+point of the module.
 
 ## Quick start
 
 ```python
-# in the beamline session (start_bluesky.sh)
-dscan_ophyd(huber.delta, -0.5, 0.5, 41, 1.0, det=lambda2M, att_ratio=10)
+# start the beamline session on Pearl with:  ~/bin/start_bluesky.sh
+# (it activates 8id_bits, then `from id8_common.startup import *`)
+#
+# NB *not* start_bluesky_8ide.sh -- that one is stale. It still does
+# `from id8_e.startup import *`, and id8_e was merged into id8_common.
+dscan_ophyd(huber.delta, -0.5, 0.5, 41, 1.0, det=lambda2M)
 ```
 
-Call it **directly** — do *not* wrap it in `RE()`. It is an ordinary function.
+That writes, in the experiment's `data/bluesky` folder:
 
-Watch it live from a workstation with the `specr_py` viewer:
-
-```bash
-conda activate specr_py
-python ~/Documents/specr_py/specr.py /gdata/dm/8ID/8IDE/2026-2/pope202607/data/bluesky/<spec_file_name>.spec --watch
+```
+A0201_Test_a0010.h5     the detector images
+A0201_Test_a0010.csv    motor positions and counters, one row per point
 ```
 
-This document is the reference for the **scan and the file format**. For the
-viewer — install, live mode, overlays, reading `.spec` files from your own
-scripts — see `~/Documents/specr_py/README.md` and its `OPHYD_SCAN_GUIDE.md`
-(<https://github.com/qzhang234/specr_py>).
+**One CSV per scan**, named after that scan's `.h5`. Nothing is appended to a
+previous scan's file, so there is no scan numbering to keep track of and no way
+for two scans to interfere.
 
----
+The file is closed after every point, so you can open it in a viewer, in Excel,
+or in the specr_py viewer *while the scan is still running*. That is the whole
+reason a scan writes a text file at all — reading a detector `.h5` mid-write is
+not safe, reading an append-only text file is.
+
+Call it **directly**. Do not wrap it in `RE()`; there is no RunEngine involved.
 
 ## `dscan_ophyd()`
 
 ```python
 dscan_ophyd(motor, rel_begin, rel_end, num_pts, count_time,
-            det=None, comment="", att_ratio=1e6, save_img=1, spec_path=None,
-            spec_template=None, set_attenuation=True, beam_control=True,
-            verbose=True)
+            det=eiger4M, att_ratio=1e6, save_img=1, comment="")
 ```
 
 | argument | meaning |
 |---|---|
-| `motor` | **any** Ophyd positioner — `huber.delta`, `sample.x`, `rheometer.y`, ... |
-| `rel_begin`, `rel_end` | start/end **relative to the current position** |
-| `num_pts` | number of points, inclusive of both ends |
-| `count_time` | detector exposure per point, seconds |
-| `det` | `eiger4M` (default) or `lambda2M` |
-| `comment` | free-text note, written as the first `#MD` line — see [below](#annotating-a-scan) |
-| `att_ratio` | attenuation ratio, same meaning as in `dscan()` |
-| `save_img` | `1` writes images and burns a measurement number; `0` scans without saving |
-| `spec_path` | override the SPEC file location |
-| `spec_template` | override the template for this one scan |
-| `set_attenuation` | `False` leaves the attenuator exactly as-is |
-| `beam_control` | `False` skips `pre_align()`, `PIND_status()` and the shutter |
-| `verbose` | `False` suppresses the per-point table |
+| `motor` | any ophyd positioner: `huber.delta`, `sample.x`, `rheometer.y`, … |
+| `rel_begin`, `rel_end` | scan range **relative to where the motor is now** |
+| `num_pts` | number of points (inclusive of both ends) |
+| `count_time` | seconds per point |
+| `det` | `eiger4M`, `lambda2M`, or `tetramm1` |
+| `att_ratio` | attenuation ratio passed to `att()` |
+| `save_img` | `1` writes the detector `.h5`; `0` scans without it (the CSV is still written) |
+| `comment` | free text describing this scan — see below |
 
-Nothing in the scan is specific to the diffractometer — any object with `.name`,
-`.position` and `.move()` works:
+Returns the `ScanCsv` object: `.path` is the file written, `.data` is
+`{column_label: [values]}` if you want the numbers in the session.
 
-```python
-dscan_ophyd(sample.x,     -0.1,  0.1, 21, 0.5, det=lambda2M)
-dscan_ophyd(rheometer.y,  -0.05, 0.05, 11, 2.0, det=eiger4M)
-dscan_ophyd(huber.eta,    -0.2,  0.2, 21, 0.5, det=lambda2M, save_img=0)
-```
+The motor is returned to its starting position when the scan finishes — or when
+you interrupt it.
 
-Returns a `ScanResult`, which unpacks as `(positions, columns)` but prints as one
-line instead of dumping every value:
-
-```python
-pos, cols = dscan_ophyd(huber.eta, -0.2, 0.2, 21, 0.5, det=lambda2M)
-import numpy as np
-print("peak at", pos[np.argmax(cols["lambda2M_stats1_total"])])
-```
-
-`positions` is the array of **measured** readbacks, not the commanded ones.
+**Any positioner works.** The scan only uses `.name`, `.position` and `.move()`.
+A motor does *not* have to be listed in the template to be scanned; the template's
+motor list only says whose *start position* gets recorded in the header.
 
 ### Annotating a scan
-
-Pass `comment=` to record why you ran a scan. It is written as the **first**
-`#MD` line of the scan block, so you can `Ctrl+F` the `.spec` file for a keyword
-and land straight on the scan you want:
 
 ```python
 dscan_ophyd(huber.delta, -0.5, 0.5, 41, 1.0, det=lambda2M,
             comment="3x3 grid spot 5, after realigning KB")
 ```
 
+lands on the third line of the file, where it is easy to find:
+
 ```
-#S 196  dscan_ophyd(huber_delta, -0.5, 0.5, 41, 1.0, det=lambda2M)
-#D Tue Aug 18 17:31:23 2026
-#C ... plan_type = function
-#MD comment = 3x3 grid spot 5, after realigning KB      <- first, easy to find
-#MD beamline_id = 8-ID-E
-...
-```
-
-Letters, digits, spaces and punctuation are all fine, including `=`, `#`, quotes
-and non-ASCII — a reader splits a `#MD` line on the *first* `=` only, so the rest
-of your text survives untouched. Newlines and tabs are flattened to single
-spaces, because a line break mid-record would end the `#MD` line early and leave
-the remainder looking like a data row. Leave `comment` empty (the default) and no
-`#MD comment` line is written at all.
-
-It is an ordinary template entry — the first one in `metadata:`:
-
-```yaml
-- {key: comment, value: "{comment}", skip_if_empty: true}
+start_time,2026-08-26 14:32:07
+h5_file,/gdata/dm/8ID/8IDE/2026-2/pope202607/data/bluesky/A0201_Test_a0010.h5
+comment,"3x3 grid spot 5, after realigning KB"
 ```
 
-so you can move it, rename the key, or delete it like anything else. If you
-delete it but still pass `comment=`, the note is written first anyway rather than
-being silently dropped.
+Commas and quotes inside a comment are safe — the writer quotes the field the
+way any CSV reader expects. Newlines are flattened to spaces so a pasted
+paragraph cannot break the file's structure. Leave `comment` out and the line is
+omitted entirely.
 
-> Not to be confused with the template's `comments:` list, which writes
-> timestamped `#C` lines and is the same for every scan. `comment=` is per-scan.
+Because it is plain text, `grep -l "spot 5" *.csv` in the data folder finds the
+scan.
 
 ### What it does to the hardware
 
-With defaults it follows `dscan()` in `scan_8id.py`: `pre_align()`,
-`att(att_ratio)`, `PIND_status(0)`, arm the detector, open the shutter, step and
-trigger, then close the shutter, restore the trigger mode and return the motor to
-its starting position. The Eiger is pre-armed for `num_pts` software triggers; the
-Lambda is externally triggered by a softglue pulse per point.
+Before the loop: `pre_align()`, `att(att_ratio)`, `PIND_status(0)`, then the
+detector is armed. During the loop: move, trigger, wait `count_time`, read.
+After: acquisition stops, the image file closes, the beam is blocked, trigger
+modes are restored, `shutteroff()`, and the motor drives back to start.
 
 ### Interrupting with Ctrl+C
 
-Safe at any point. The scan stops the motor, halts acquisition, closes the image
-file, blocks the beam, restores the trigger configuration, drives the motor **back
-to where it started**, and closes the SPEC block with `exit_status = aborted` so
-the partial scan still parses and still plots.
-
 ```
-^C  Scan aborted at point 12/41 -- stopping motor and detector...
-    returning huber_delta to 30.0004 ...
-SPEC scan 187 finished (aborted), 12 points.
+ 12            30.15            30.15  0.5012  ...
+^C  Scan aborted at point 12/41.
+Scan file closed (aborted, 12 points): /gdata/.../A0201_Test_a0010.csv
+# images captured:  12
 ```
 
-- **A second Ctrl+C during cleanup is ignored** (`(cleanup in progress -- interrupt
-  ignored)`), so the motor cannot be stranded mid-scan.
-- **Aborting is fast.** A normal finish waits for the detector to flush every
-  frame; an abort skips that wait, since the remaining frames are never coming.
-  Measured: a 41-point 1 s scan tears down in ~2 s rather than the ~51 s the frame
-  wait would take.
-- The `KeyboardInterrupt` is re-raised after cleanup, so a loop over samples stops
-  instead of silently continuing.
+The teardown halts acquisition, closes the image file, blocks the beam, stops
+the motor, drives it back to where it started, and closes the CSV with
+`#END,aborted,12` so the partial scan is still a valid file. The
+`KeyboardInterrupt` is caught, so you get the message above rather than a
+traceback, and `dscan_ophyd` still returns its `ScanCsv`.
+
+That teardown is Sam's `finally:` block from `scan_8id.py`, with two lines added
+in front of the return move:
+
+```python
+motor.stop()                        # added
+time.sleep(0.2)                     # added
+motor.move(start_pos, wait=True)    # Sam's line
+```
+
+**Why.** A ^C interrupts a move and leaves its `MoveStatus` unfinished; ophyd
+then refuses the next `move()` on that motor because "another set() is still in
+progress". That is what the abort test on 2026-08-26 ran into: everything else
+worked — the motor stopped (`DMOV=1`, `SPMG=Go`, no limit violation), the
+detector went idle, the beam was blocked, and the file closed as
+`#END,aborted,7` — but the motor stayed at 30.176 instead of driving back to
+31.001. `stop()` clears the stale status so the return move is accepted.
+
+> **⚠ Diagnosed, not yet retested on hardware.** The two lines above are the
+> fix for that failure, but no one has given the beamline another ^C since.
+> **Check the motor position after a ^C before starting the next scan.**
+
+Two things this file deliberately does *not* do, because `scan_8id.py` does not
+either:
+
+- **A second Ctrl+C during cleanup is not caught.** It interrupts the teardown,
+  possibly before the return move.
+- **The frame wait still runs after an abort** (eiger branch), so an abort there
+  can take up to `num_pts * count_time + 10` s to return.
 
 ---
 
-## Defining the SPEC file structure
+# Defining the CSV file structure
 
-Everything the file contains is declared in:
-
-```
-/home/beams/8IDIUSER/bluesky/src/id8_common/configs/spec_template.yml
-```
-
-Edit it and the next scan picks it up. No Python change, no session restart.
-
-### Anatomy: template key → SPEC output
+## Anatomy of the file
 
 ```
-#F /gdata/.../data/bluesky/pope202607.spec            <- automatic
-#O0 huber_nu  huber_delta  ... huber_y                <- positioners:  NAMES, first 8
-#O1 huber_z  sample_x  ... rheometer_z                <- positioners:  NAMES, next 7
-#o0 / #o1                                             <- same, mnemonics (a copy)
-
-#S 186  dscan_ophyd(huber_delta, -0.5, 0.5, 41, 1.0, det=lambda2M)
-#D Mon Aug 17 23:05:12 2026                           <- automatic
-#C ... plan_type = function                           <- comments:
-#MD comment = 3x3 grid spot 5                         <- metadata:  first entry, from comment=
-#MD beamline_id = 8-ID-E                              <- metadata:  (fixed text)
-#MD roi1 = min_x=730 min_y=983 size_x=100 size_y=10   <- metadata:  (sources: several PVs)
-#P0 -0.00049  30.0004  ... 21.1945                    <- positioners:  VALUES, first 8
-#P1 -4.7409  173.654  ... 0                           <- positioners:  VALUES, next 7
-#N 6                                                  <- automatic (len of columns)
-#L huber_delta  huber_delta_setpoint  ...             <- columns:
-29.500655 29.5 -0.400127 0 0 0                        <- columns:, one row per point
-#C ... exit_status = success                          <- automatic
+start_time,2026-08-26 14:32:07                        <- lines:
+h5_file,/gdata/.../A0201_Test_a0010.h5                <- lines:
+comment,"3x3 grid spot 5"                             <- lines:  (skipped if empty)
+command,"dscan_ophyd(huber_delta, -0.5, 0.5, 41, 1.0, det=lambda2M)"
+scan_type,dscan_ophyd
+motor,huber_delta
+detector,lambda2M
+num_points,41
+count_time,1.0
+beamline,8-ID-E
+epoch,1787793756.041
+attenuation,10                                        <- lines:  (source: a PV)
+huber_nu,-0.00049                                     <- lines:  (source: a PV)
+huber_delta,30.0004
+...
+roi1,730,983,100,10                                   <- lines:  (values: 4 PVs)
+#DATA                                                 <- marker:
+huber_delta,huber_delta_setpoint,elapsed_time,...     <- columns:  NAMES
+30.0,30.0,0.0,1234                                    <- columns:  one row per point
+30.025,30.025,1.05,1301
+#END,success,41                                       <- automatic
 ```
 
-The trailing digit on `#O`/`#o`/`#P` is **only line wrapping** — SPEC puts 8
-entries per line, so 15 positioners give `#O0`+`#O1` and `#P0`+`#P1`. Both come
-from the single `positioners:` list; see [below](#the-op-snapshot).
+Two parts, two template keys:
 
-### Where values come from — `source:`
+- **`lines:`** — things that *do not* change during the scan. Written once, above
+  the marker, as `label,value`.
+- **`columns:`** — things that *do* change. One column each, one row per point,
+  below the marker.
 
-| `source:` | value written |
-|---|---|
-| `motor` | scanned motor **readback** at the point |
-| `motor_setpoint` | where the motor was told to go |
-| `epoch` | whole seconds since the scan started |
-| `epoch_float` | the same, with fractions |
-| `det.<path>` | attribute path on the detector **passed to this scan** — so one template serves eiger4M and lambda2M (`det.stats1.total`, `det.roi1.size.x`) |
-| `<device>.<path>` | any device in the `oregistry` (`tetramm1.current1.mean_value`) |
+`#END,<status>,<points>` is written by the scan, not the template. Status is
+`success`, `aborted`, or `error`. Its absence means the scan is still running —
+which is how a live viewer knows to keep polling.
 
-Every source must name a signal that returns a **single value** — see
-[the gotcha below](#gotcha-bare-device-paths-are-not-scalars).
-
-### Text substitutions
-
-Usable in any `label:` or `value:`:
-
-| token | value |
-|---|---|
-| `{motor}` | name of the scanned motor, e.g. `huber_delta` |
-| `{det}` | name of the detector, e.g. `lambda2M` |
-| `{scan_type}` | the scan function, e.g. `dscan_ophyd` |
-| `{num_points}`, `{count_time}` | exactly as passed to `dscan_ophyd()` |
-| `{image_file}` | name of the detector HDF5 file — **not** an argument, see below |
-| `{comment}` | the scan's `comment=` text (used by the first `metadata:` entry) |
-
-`{image_file}` is **not** something you pass in. `dscan_ophyd()` builds it by
-calling `gen_folder_prefix()` (`plans/acquire/ad_acq.py`), which assembles
-
-```
-<header><measurement_num:04d>_<sample_name>_a<attenuation:04d>.h5
-```
-
-from `pv_registers.header`, `pv_registers.measurement_num`,
-`pv_registers.sample_name`, and the live `filter_8ide` attenuation — giving e.g.
-`A0186_HEA-15GPa-3x3Grid_a0010.h5`. This is also where the SPEC scan number comes
-from, which is why `#S 186` always matches `A0186_*.h5`.
-
-`measurement_num` increments **once per scan, and only when `save_img=1`**. With
-`save_img=0` there is no image file, `{image_file}` is empty, and the
-`skip_if_empty: true` flag on that entry drops the `#MD` line entirely.
-
-### Per-entry flags
-
-| flag | effect |
-|---|---|
-| `optional: true` | device missing → skip with a warning instead of failing the scan |
-| `skip_if_empty: true` | (metadata only) omit the line entirely when the value is blank |
-
-### Several PVs on one header line: `sources:`
-
-A header entry can read more than one PV and join them into a single `#MD` line.
-Write `sources:` (plural) as a mapping and the names are kept:
+## The three ways to give a line a value
 
 ```yaml
-- {key: roi1, optional: true, sources: {min_x: det.roi1.min_xyz.min_x, min_y: det.roi1.min_xyz.min_y, size_x: det.roi1.size.x, size_y: det.roi1.size.y}}
-```
-```
-#MD roi1 = min_x=730 min_y=983 size_x=100 size_y=10
-```
-
-Write it as a plain list instead to get bare values in order:
-
-```yaml
-- {key: roi1, sources: [det.roi1.min_xyz.min_x, det.roi1.size.x]}   ->  "730 100"
+lines:
+  - {label: beamline,    value: "8-ID-E"}                    # beamline,8-ID-E
+  - {label: attenuation, source: filter_8ide.attenuation.readback}   # attenuation,10
+  - {label: roi1, values: [det.roi1.min_xyz.min_x, det.roi1.min_xyz.min_y,
+                           det.roi1.size.x, det.roi1.size.y]}        # roi1,730,983,100,10
 ```
 
-Nothing in the code knows what an ROI is — the template names the PVs, so the
-same mechanism works for any group of related readings. Readers split a `#MD`
-line only on the **first** `=`, so the `name=value` pairs survive intact.
-
-`sources:` is **metadata only**. A data cell must be a single number, so a
-`sources:` on a column is a hard error — a joined value would contain spaces and
-shift every column after it.
-
-### Worked edits
-
-**Add a counter column.** Insert before the last entry — the last column is the
-viewer's default Y axis, so the primary counter stays there:
-
-```yaml
-columns:
-  # ...
-  - {label: tetramm2_current1, source: tetramm2.current1.mean_value, optional: true}
-  - {label: "{det}_stats1_total", source: det.stats1.total}   # keep last
-```
-
-**Add a time column.** Elapsed time is not recorded by default. Two sources are
-available, both counting from the start of the scan (despite the
-SPEC-conventional `Epoch` name) — they are present but commented out in the
-template:
-
-```yaml
-columns:
-  - {label: "{motor}", source: motor}
-  - {label: Epoch, source: epoch}              # whole seconds
-  - {label: Epoch_float, source: epoch_float}  # fractional seconds
-  - {label: "{det}_stats1_total", source: det.stats1.total}   # keep last
-```
-
-**Drop a column.** Delete its entry. Nothing depends on any particular column
-except the ordering rule below.
-
-**Add a header line from a device** — one PV with `source:`, or several joined
-onto one line with `sources:` (see [below](#several-pvs-on-one-header-line-sources)):
-
-```yaml
-metadata:
-  - {key: sample_temperature, source: lakeshore1.readback_ch1, optional: true}
-  - {key: slit4, optional: true, sources: {h: sl4.h.size.readback, v: sl4.v.size.readback}}
-```
-
-**Add a fixed or substituted header line:**
-
-```yaml
-metadata:
-  - {key: operator, value: "night shift"}
-  - {key: exposure, value: "{count_time} s x {num_points}"}
-```
-
-**Change the context snapshot** — edit `positioners:`. Safe mid-experiment; see
-below.
-
-### Rules the template must respect
-
-All three are checked **before the scan moves anything**, so a mistake fails
-immediately rather than producing a file that silently mis-parses hours later.
-
-1. **Scanned motor first, primary counter last.** `specr_py` and the MATLAB
-   `specr` both default X to the first column and Y to the last. The writer warns
-   if the last column is the motor or its setpoint.
-2. **No label may contain two consecutive spaces.** `#L` is split on runs of two or
-   more spaces, so such a label would silently become two columns. Hard error.
-3. **No duplicate labels.** Readers index columns by name and would only ever
-   return the first. Hard error.
-
-A missing device in a **non-optional** entry raises before the scan starts. A
-missing device in an `optional:` entry is skipped with a warning.
-
-### Gotcha: bare device paths are not scalars
-
-**Always name the individual PV, never a parent device.** `Device.get()` returns a
-*namedtuple* of every component, which is not a value anyone wants in a column or
-a header:
-
-```yaml
-- {label: eta, source: huber.eta}                  # WRONG -> warns, writes 0
-- {label: eta, source: huber.eta.user_readback}    # right -> the .RBV float
-```
-
-The same applies to the ROIs. `det.roi1` is a plugin, not a value; its geometry
-lives in four separate PVs, which is how the template records them:
-
-| template `source:` | equivalent in the session |
-|---|---|
-| `det.roi1.min_xyz.min_x` | `lambda2M.roi1.min_xyz.min_x.get()` |
-| `det.roi1.min_xyz.min_y` | `lambda2M.roi1.min_xyz.min_y.get()` |
-| `det.roi1.size.x` | `lambda2M.roi1.size.x.get()` |
-| `det.roi1.size.y` | `lambda2M.roi1.size.y.get()` |
-
-The template names each PV explicitly — there is no ROI-aware code — while
-`sources:` keeps the four of them on one `#MD` line.
-
-For a column, the writer prints `WARNING: SPEC column 'eta' is not a scalar (...)`
-once per label if you get this wrong, so it is visible rather than silent.
-
-### The `#O`/`#P` snapshot
-
-**The `positioners:` list is the sole source of every `#O`, `#o` and `#P` line.**
-It records where everything *not* being scanned was sitting, so the geometry can
-be reconstructed later.
-
-| line | contains | written |
+| key | takes | produces |
 |---|---|---|
-| `#O0`, `#O1`, … | motor **names** | once per **file**, in the `#F` header |
-| `#o0`, `#o1`, … | mnemonics — a copy of the names | once per **file** |
-| `#P0`, `#P1`, … | their **positions** | once per **scan**, in the `#S` block |
+| `value:` | text, with `{...}` substitutions | `label,text` |
+| `source:` | **one** dotted path to a PV | `label,value` |
+| `values:` | a **list** of dotted paths | `label,v1,v2,v3` |
 
-The trailing digit is nothing but line wrapping: SPEC allows 8 entries per line,
-so the 15 default positioners produce `#O0` (first 8) and `#O1` (remaining 7),
-and the matching `#P0`/`#P1`. Ordering follows the `positioners:` list exactly, so
-the Nth name across the `#O` lines pairs with the Nth value across the `#P` lines:
+All are read once, at scan start.
 
-```
-#O0 huber_nu  huber_delta  huber_mu  huber_eta  huber_chi  huber_phi  huber_x  huber_y
-#O1 huber_z  sample_x  sample_y  sample_z  rheometer_x  rheometer_y  rheometer_z
-#P0 -0.00049  30.0004  -0.00039  -0.00027  90.00002  0.00033  -0.12761  21.1945
-#P1 -4.7409  173.654  24.9957  3.38223  0  0  0
-```
-
-Add a 17th positioner and you get a `#P2`; trim the list to 8 and `#O1`/`#P1`
-disappear. Anything unavailable is skipped with a warning. `specr_py` reads these
-back under **Show Motor Positions**.
-
-#### This list does *not* restrict what you can scan
-
-`positioners:` only controls the **context snapshot**. You can scan **any**
-positioner in the session, listed or not:
-
-```python
-dscan_ophyd(mono.bragg, -0.01, 0.01, 21, 1.0, det=lambda2M)   # not in the list
-```
-
-The scanned motor is **appended automatically** to `#O`/`#P` when it is absent, so
-it is always recorded. Nothing else is needed to support a new motor — no code
-change, no template change.
-
-One side effect is worth knowing. Appending changes the length of the positioner
-list, so **alternating between a listed and an unlisted scanned motor starts a new
-`#F` block on every switch** (the writer will not let new `#P` values pair with
-stale `#O` names). Three such scans give three `#F` blocks. Everything still
-parses and plots — but if you scan a motor regularly, add it to `positioners:` so
-the list stays fixed and the file stays tidy.
-
-Note that **`huber` and `psic` drive the same physical motors** (both on
-`8ideSoft:CR8-E1:`; `huber.delta` and `psic.delta` are the same PV `m5`). Listing
-both records every angle twice. The default lists `huber`, which is the superset —
-`psic` has no `x`/`y`/`z`.
-
-Changing this list mid-experiment is safe. `#O` is written once per *file* but
-`#P` once per *scan*, and readers bind names at each `#S`, so a changed list would
-otherwise pair new positions with stale names. The writer detects the change and
-starts a fresh `#F` block instead:
+## Dotted paths
 
 ```
-NOTE: SPEC positioner list changed; starting a new #F block so #O names stay
-matched to #P values.
+det.stats1.total       the detector passed to THIS scan (eiger4M / lambda2M / tetramm1)
+motor.velocity         the motor being scanned
+huber.delta            any device in the oregistry
+sample.x
+filter_8ide.attenuation.readback
+tetramm1.current1.mean_value
 ```
 
-Readers reset their motor-name table on `#F`, so both halves of the file stay
-correct.
+`det.` and `motor.` are why one template covers every detector and every motor.
 
-### Trying a template without touching the default
+**Always name the individual signal, never a parent device.** `lambda2M.roi1`
+reads back a namedtuple of every field; `lambda2M.roi1.size.x` is a number. A
+non-numeric value is written as-is and a one-line warning names the column, so
+the mistake shows up rather than silently producing junk.
 
-```python
-dscan_ophyd(..., spec_template="~/my_template.yml")   # one scan
+## `{...}` substitutions
+
+Usable in any `label:` and in any `value:`.
+
+| | |
+|---|---|
+| `{start_time}` | `2026-08-26 14:32:07` |
+| `{epoch}` | the same instant as a unix timestamp |
+| `{h5_file}` | **full path** of this scan's detector `.h5` (see below); empty when `save_img=0` |
+| `{comment}` | the `comment="..."` argument |
+| `{command}` | `dscan_ophyd(huber_delta, -0.5, 0.5, 41, 1.0, det=lambda2M)` |
+| `{scan_type}` | `dscan_ophyd` |
+| `{motor}` | `huber_delta` |
+| `{det}` | `lambda2M` |
+| `{num_points}`, `{count_time}` | as passed |
+
+### Where `{h5_file}` comes from
+
+It is **not** an argument to `dscan_ophyd()`. The scan builds it:
+
+1. `gen_folder_prefix()` (in `plans/acquire/ad_acq.py`) combines
+   `pv_registers.header` + `measurement_num` + `sample_name` + the current
+   attenuation into e.g. `A0201_Test_a0010`, incrementing `measurement_num`.
+2. That prefix names both files, in the folder built from
+   `pv_registers.mount_point` + `cycle_name` + `experiment_name` + `/data/bluesky`.
+
+So the CSV and the `.h5` always share a name, and each scan gets exactly one
+measurement number.
+
+## Per-entry flags
+
+```yaml
+  - {label: comment,     value: "{comment}", skip_if_empty: true}
+  - {label: rheometer_x, source: rheometer.x, optional: true}
 ```
+
+- **`optional: true`** — if the device or signal does not exist, skip the entry
+  and print one note. Use it for anything that is not on every station or not on
+  every detector. Everything in the shipped template's `columns:` is optional,
+  which is how one template serves eiger, lambda and tetramm.
+- **`skip_if_empty: true`** — leave the line out when the value comes back blank.
+
+An entry **not** marked `optional` whose source is missing is an error raised
+**before the scan starts** — not halfway through with the beam on.
+
+## Columns
+
+```yaml
+columns:
+  - {label: "{motor}",            source: motor}
+  - {label: "{motor}_setpoint",   source: motor_setpoint}
+  - {label: elapsed_time,         source: elapsed}
+  - {label: tetramm1_current1,    source: tetramm1.current1.mean_value, optional: true}
+  - {label: "{det}_stats1_total", source: det.stats1.total, optional: true}
+```
+
+Four sources are computed by the scan rather than read from a PV:
+
+| source | value |
+|---|---|
+| `motor` | where the motor actually is (readback) |
+| `motor_setpoint` | where the motor was told to go |
+| `elapsed` | seconds since the scan started |
+| `epoch` | unix timestamp of the point |
+
+Anything else is a dotted path, read fresh at every point.
+
+**Order matters for plotting.** Viewers conventionally default X to the first
+column and Y to the last, so keep the scanned motor first and your primary
+counter last — which is why the shipped template ends with `stats1`.
+
+**Labels must be unique.** A duplicate makes the file ambiguous, so it is
+rejected before the scan starts. The usual cause is `{det}` or `{motor}`
+rendering two entries to the same text: with `det=tetramm1`, a
+`{det}_current1` column would collide with a `tetramm1_current1` column. The
+error names the offending labels.
+
+## Worked edits
+
+**Record another PV in the header** — say the monochromator energy:
+
+```yaml
+lines:
+  ...
+  - {label: energy, source: mono.energy, optional: true}
+```
+
+(`mono.energy` is an `EpicsMotor`, and the writer reads `.position` from
+anything that has one, so naming the positioner itself is right here.)
+
+**Add a counter column** — put it before the last one so `stats1` stays the
+default Y axis:
+
+```yaml
+columns:
+  ...
+  - {label: "{det}_stats2_total",  source: det.stats2.total, optional: true}
+  - {label: tetramm2_sum_all,      source: tetramm2.sum_all.mean_value, optional: true}
+  - {label: "{det}_stats1_total",  source: det.stats1.total, optional: true}
+```
+
+**Record a whole ROI on one line:**
+
+```yaml
+  - {label: roi2, values: [det.roi2.min_xyz.min_x, det.roi2.min_xyz.min_y,
+                           det.roi2.size.x, det.roi2.size.y], optional: true}
+```
+
+**Stop recording the rheometer** — delete its three lines. The template is
+re-read at the start of every scan, so the next scan picks the change up. No
+restart, no `reload`.
+
+## Trying a template without touching the default
+
 ```bash
-export ID8_SPEC_TEMPLATE=~/my_template.yml            # whole session
+cp ~/bluesky/src/id8_common/configs/scan_csv_template.yml ~/my_template.yml
+# edit ~/my_template.yml
+export ID8_SCAN_CSV_TEMPLATE=~/my_template.yml     # before starting bluesky
 ```
 
-Resolution order: the `spec_template=` argument, then `$ID8_SPEC_TEMPLATE`, then
-the default at
-`/home/beams/8IDIUSER/bluesky/src/id8_common/configs/spec_template.yml`.
-
-(In code that default is derived from the module location rather than hard-coded,
-so a different checkout still finds its own template. The scan prints the
-resolved absolute path if you ever need to confirm which one was used.)
-
-### Effect on the viewer
-
-Editing the template does not rewrite earlier scans, so one `.spec` file can hold
-scans with different column layouts. Each plots normally, but `specr_py` will not
-**overlay** across the boundary — it reports *"Multi-selections have to be scans of
-the same type"*. That is expected, not a bug.
+Resolution order is: the `template=` argument to `scan_csv.open_scan()`, then
+`$ID8_SCAN_CSV_TEMPLATE`, then the packaged default. A scan using anything other
+than the packaged default prints `NOTE: using CSV template ...`, so there is no
+mystery about which one is in force.
 
 ---
 
 ## Where files go
 
-| | path |
-|---|---|
-| SPEC file | `<mount_point><cycle>/<experiment>/data/bluesky/<spec_file_name>.spec` |
-| Detector images | `<mount_point><cycle>/<experiment>/data/bluesky/*.h5` |
-
-The SPEC file sits in the **same directory as the images**, e.g.
-`/gdata/dm/8ID/8IDE/2026-2/pope202607/data/bluesky/pope202607.spec`. Every part of
-the path comes from `pv_registers`, so it follows the run cycle automatically.
-
-### Switching SPEC files on demand
-
-The file name comes from **`pv_registers.spec_file_name`**, so you change it at
-any time without touching code:
-
-```python
-pv_registers.spec_file_name.put("alignment_run3")
+```
+<mount_point><cycle_name>/<experiment_name>/data/bluesky/
+    A0201_Test_a0010.h5      images
+    A0201_Test_a0010.csv     this scan
+    A0202_Test_a0010.h5      next scan
+    A0202_Test_a0010.csv
 ```
 
-The next scan writes to `alignment_run3.spec` in the same directory. `.spec` is
-appended when the register does not already end in it (the viewer's file dialog
-filters on that extension). If the register is empty the scan falls back to
-`experiment_name` and says so.
+built from `pv_registers.mount_point`, `.cycle_name`, `.experiment_name` — the
+same folder `save_images()` in `scan_8id.py` writes to.
 
-**New files are detected automatically.** If the target file does not exist, the
-scan writes the full `#F`/`#E`/`#D`/`#C`/`#O`/`#o` header block before the first
-`#S`; if it already exists, the scan just appends and no second header is written.
-Switching back to an earlier file appends to it as normal. The directory is
-created if it is not there yet.
+### Finding the running scan from anywhere
 
-> **The viewer must be able to see `/gdata`.** This directory is on GPFS, which is
-> not mounted on every analysis workstation — an earlier version of this module
-> deliberately put the SPEC file in `~/bluesky` for exactly that reason. Run
-> `specr_py` on a host that mounts `/gdata`, or pass `spec_path=` to write a copy
-> somewhere shared.
+Both names are published to EPICS as the scan starts:
 
-The SPEC scan number comes from the image prefix, so `#S 186` lines up with
-`A0186_*.h5`. `gen_folder_prefix()` increments `pv_registers.measurement_num` once
-per scan, and only when `save_img=1`.
-
----
-
-## Adding another scan (d2scan, mesh, ...)
-
-Scans live in `ophyd_scan.py`; the SPEC machinery is already factored out, so a new
-scan reuses it rather than copying it:
+```bash
+caget -S 8ideSoft:StrReg21     # the .h5  file of the current/last scan
+caget -S 8ideSoft:StrReg22     # the .csv file of the current/last scan
+```
 
 ```python
-rendered = ophyd_spec_config.render(
-    motor, det=det, scan_type="d2scan_ophyd",
-    num_points=num_pts, count_time=count_time,
-    image_file=f"{folder_prefix}.h5" if folder_prefix else "",
-    extra={"motor2": motor2.name},        # adds {motor2} as a substitution
+pv_registers.scan_h5_file.get()
+pv_registers.scan_csv_file.get()
+```
+
+These are 256-**character waveform** PVs, so a full path fits — which is also
+why `caget` needs `-S`, or it prints the path as a list of character codes.
+`scan_h5_file` is empty when `save_img=0`.
+
+The specr_py viewer uses this for its `--live` flag and File ▸ Follow Live Scan:
+read the register, open what it names, start monitoring. It is a convenience
+only — the viewer's actual live update comes from polling the data folder, so it
+works on machines with no channel access to `8ideSoft:`.
+
+## Reading the file back
+
+With pandas — skip everything down to and including the marker:
+
+```python
+import pandas
+
+def read_scan(path, marker="#DATA"):
+    with open(path) as f:
+        skip = next(i for i, line in enumerate(f) if line.startswith(marker)) + 1
+    return pandas.read_csv(path, skiprows=skip, comment="#")
+
+df = read_scan("/gdata/.../A0201_Test_a0010.csv")
+df.plot(x=df.columns[0], y=df.columns[-1])
+```
+
+Without pandas, `scan_csv.py` ships a reader that imports only the stdlib:
+
+```python
+from id8_common.plans.align.scan_csv import read_scan_csv
+
+header, labels, columns, status = read_scan_csv(path)
+header["h5_file"]      # ['/gdata/.../A0201_Test_a0010.h5']
+header["roi1"]         # ['730', '983', '100', '10']
+columns["huber_delta"] # [30.0, 30.025, ...]
+status                 # 'success' | 'aborted' | 'error' | 'running'
+```
+
+`status == "running"` means no `#END` line yet — call it again in a second and
+you have a live view. A half-written trailing row is ignored until it is
+complete, so polling a scan in progress is safe.
+
+## Adding another scan (d2scan, mesh, …)
+
+Copy `dscan_ophyd`, change the loop, and reuse the same four lines:
+
+```python
+scan = scan_csv.open_scan(
+    csv_file, motor, det=det, scan_type="d2scan_ophyd", command=command,
+    num_points=num_pts, count_time=count_time, h5_file=h5_file, comment=comment,
 )
-spec = SpecFile(spec_path or default_spec_path())
-spec.write_file_header(rendered.positioner_names)
-spec.start_scan(scan_num, command, rendered.labels,
-                metadata=rendered.metadata,
-                motor_positions=rendered.positioner_positions,
-                comments=rendered.comments)
+scan.write_header()
 # per point:
-spec.add_point(rendered.read(motor.position, setpoint, elapsed))
+scan.add_point(setpoint)
+# at the end (in a finally:):
+scan.close(status)
 ```
 
-Also reusable: `disable_ctrl_c()` / `restore_ctrl_c()` and `safe_call()` from
-`ophyd_scan_utils.py` for interrupt-safe teardown, `default_spec_path()` from
-`ophyd_scan_paths.py`, and `detector_kind()`, `arm_hdf()`, `disarm_hdf()`,
-`wait_for_frames()` from `ophyd_scan.py` for the detector.
-
-`extra=` supplies **substitutions** (label text), not new column sources. To record
-a second motor's readback today, use a dotted path — `huber.eta.user_readback`. To
-make `motor2` a first-class source, add it to `_SPECIAL_SOURCES` and to
-`_Column.value()` in `ophyd_spec_config.py`.
-
----
+For a two-motor scan, pass the second motor's position through
+`extra={"motor2": motor2.name}`, and the template can then use `{motor2}` and a
+`motor2.user_readback` column.
 
 ## Troubleshooting
 
 | symptom | cause |
 |---|---|
-| `invalid SPEC column labels` at scan start | duplicate label, or a label with two consecutive spaces |
-| `no device 'x' in the oregistry` at scan start | typo in a `source:`, or the device is not loaded — add `optional: true` if it is genuinely absent sometimes |
-| `WARNING: SPEC column '...' is not a scalar` | a bare device path used as a column; append the signal (`.user_readback`, `.total`, `.mean_value`) |
-| A column is silently missing | it was `optional:` and its device did not resolve — look for the warning at scan start |
-| Viewer plots the wrong Y axis | the primary counter is no longer the last entry in `columns:` |
-| Viewer refuses to overlay two scans | their column layouts differ, i.e. the template changed between them |
-| Motor positions look wrong in the viewer | should not happen — the writer re-emits `#F` when `positioners:` changes; report it if you see it |
-| Scan runs but no `.h5` appears | `save_img=0`, or the HDF plugin was not armed — check the printed file path |
+| `no device 'foo' in the oregistry` before the scan starts | typo in a template `source:`, or the device is not loaded. Add `optional: true` if it is genuinely not always present. |
+| `CSV template has duplicate column labels` | two entries render to the same text once `{det}`/`{motor}` is filled in. Rename one. |
+| `unknown substitution '{...}'` | a `{name}` that is not in the list above. The error prints the available ones. |
+| `WARNING: column X is not a number` | the dotted path points at a device rather than a signal. Name the individual signal. |
+| CSV written but no `.h5` | `save_img=0` (the scan says so on its first line), or the HDF plugin is not enabled. With `save_img=1` the scan prints `Scan folder created:` and the path it armed. |
+| no `#END` line | the session was killed outright. Everything up to the last complete row is still readable. |
+| `another set() is still in progress` on the next scan | should not happen — abort calls `motor.stop()` first. Report it. |
 
-The plot showing a perfect ramp with no motion is why both readback and setpoint
-are recorded by default: compare the two columns to confirm the motor really moved.
+## Notes and limits
+
+- **No RunEngine.** Nothing here writes to Tiled or databroker, and none of the
+  data is in the catalog. The CSV *is* the record.
+- **Not queueserver-safe.** `dscan_ophyd` is a plain function, not a plan, so
+  the QS cannot run it. Use it interactively.
+- The template is re-read at the start of every scan; the module-level device
+  handles (`eiger4M`, `lambda2M`, `pv_registers`, …) are resolved once at import,
+  so `ophyd_scan` must be imported after `make_devices()` — as `startup.py` does.

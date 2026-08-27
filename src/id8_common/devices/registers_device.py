@@ -31,6 +31,14 @@ class EpicsPvStorageRegisters(Device):
     inner_motor = Component(EpicsSignal, "StrReg14", string=True)
     outer_motor = Component(EpicsSignal, "StrReg15", string=True)
 
+    # Names of the files the currently-running scan is writing. Published so a
+    # GUI (or a shell script with caget) can find the live scan without being
+    # told where to look. Written by ophyd_scan.dscan_ophyd(). StrReg21/22 were
+    # unused and empty beamline-wide; each is a 256-character waveform, so a
+    # full path fits.
+    scan_h5_file = Component(EpicsSignal, "StrReg21", string=True)
+    scan_csv_file = Component(EpicsSignal, "StrReg22", string=True)
+
     det_name = Component(EpicsSignal, "StrReg16", string=True)
     det_mode = Component(EpicsSignal, "StrReg17", string=True)
     qmap_file = Component(EpicsSignal, "StrReg18", string=True)
