@@ -30,6 +30,7 @@ read the output.
 | read or set `expt` at the prompt, or work out why a field raised | [Using `expt`](docs/using-expt.md) |
 | add a new device's reading to the NeXus metadata file | [Adding metadata fields](docs/adding-metadata.md) |
 | check, debug or re-run a DM analysis job | [Data Management](docs/reference/data-management.md) |
+| know why we use our NeXus writer and not Miaoqi's | [Two NeXus writers](docs/reference/nexus-writers.md) |
 | find where session state is kept | [Configuration → `state/run_state.yml`](docs/configuration.md#staterun_stateyml) |
 | know why the counter lives in EPICS | [Configuration → the measurement counter](docs/configuration.md#the-measurement-counter-stays-in-epics) |
 | define a protocol and run a measurement | [Running measurements](docs/running-measurements.md) |

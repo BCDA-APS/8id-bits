@@ -235,6 +235,9 @@ create a field.
 
 ## If you switch to Miaoqi's writer
 
+For why we have not, and what switching would take, see
+[Two NeXus writers](reference/nexus-writers.md).
+
 `ID8_NEXUS_WRITER=mc` swaps only the final step, and **only at one call site** —
 the normal path in `det_acq_series()`. The abort path (`cleanup_acquisition()`)
 and the whole dual-detector path ignore the variable and always use

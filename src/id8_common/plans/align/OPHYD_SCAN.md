@@ -395,6 +395,10 @@ start_scanviewer.sh --dir <folder>
 this experiment's `data/bluesky` folder, and adds `--scan-prefix A` unless you
 pass your own — 8-ID names scans `A####`, BLUETELLA names its own `S#####`.
 
+That command is a thin wrapper around
+[`scripts/start_scanviewer.sh`](../../../../scripts/start_scanviewer.sh) in this
+repo, which is the copy to edit; the one in `~/bin` only `exec`s it.
+
 `--mesh` selects `meshviewer.py`: X vs Y coloured by Z. A file carrying a
 declared `shape` is drawn as a filled image, binned by nearest **commanded**
 position; anything without one stays a coloured scatter. Cells that were never
