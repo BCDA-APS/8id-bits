@@ -60,20 +60,29 @@
 #
 #   {start_time}   "2026-08-26 14:32:07", when the scan started
 #   {epoch}        the same instant as a unix timestamp
+#   {h5_name}      just the NAME of that .h5 file, e.g. "A0201_Test_a0010.h5".
+#                  Empty when save_img=0.
 #   {h5_file}      FULL PATH of the detector .h5 file for this scan.  It is
-#                  NOT an argument to dscan_ophyd().  The scan builds it from
-#                  the PV registers: gen_folder_prefix() combines
-#                  pv_registers.header + measurement_num + sample_name +
-#                  the current attenuation into e.g. "A0201_Test_a0010", and
-#                  that goes in the experiment's data/bluesky folder.  Empty
-#                  when save_img=0.
+#                  NOT an argument to dscan_ophyd().  The scan builds it:
+#                  gen_folder_prefix() combines expt.header +
+#                  expt.measurement_num + expt.sample_name + the current
+#                  attenuation into e.g. "A0201_Test_a0010", and that goes in
+#                  the experiment's data/bluesky folder.  Empty when
+#                  save_img=0.
 #   {comment}      the comment="..." argument of the scan
 #   {command}      the call that produced this file, e.g.
-#                  "dscan_ophyd(huber_delta, -0.5, 0.5, 41, 1.0, det=lambda2M)"
-#   {scan_type}    "dscan_ophyd"
-#   {motor}        name of the scanned motor, e.g. "huber_delta"
+#                  "dscan(huber_delta, -0.5, 0.5, 41, 1.0, det=lambda2M)"
+#   {scan_type}    "dscan" -- the bare name, never the _ophyd alias
+#   {motor}        name of the FIRST scanned motor, e.g. "huber_delta"
+#   {motor1}       the same thing, spelled to match {motor2}
+#   {motor2}       name of the second scanned motor in a d2scan/a2scan/dmesh/
+#                  mesh.  EMPTY in a one-motor dscan/ascan.
+#   {motors}       all of them, space separated: "huber_nu sim_z"
 #   {det}          name of the detector, e.g. "lambda2M"
 #   {num_points}   number of points
+#   {num1},{num2}  raster shape -- points along motor1 and motor2.
+#                  EMPTY unless this is a dmesh/mesh.
+#   {shape}        the same as "11x11".  EMPTY unless this is a dmesh/mesh.
 #   {count_time}   seconds per point
 #
 # =============================================================================
@@ -88,15 +97,36 @@ lines:
 
   # The first four are the ones you asked for, in order.
   - {label: start_time, value: "{start_time}"}
-  - {label: h5_file,    value: "{h5_file}"}
+  - {label: h5_file,    value: "{h5_file}"}   # full path to the images
+  - {label: h5_name,    value: "{h5_name}"}   # just the file name
   - {label: comment,    value: "{comment}", skip_if_empty: true}
 
   # What the scan was.
   - {label: command,     value: "{command}"}
   - {label: scan_type,   value: "{scan_type}"}
-  - {label: motor,       value: "{motor}"}
+  # "motor" keeps its label so anything already reading that key still finds the
+  # first motor.  The four lines below appear ONLY when they apply, so a plain
+  # dscan's header block is unchanged from before two-motor scans existed.
+  - {label: motor,       value: "{motor1}"}
+  - {label: motor2,      value: "{motor2}", skip_if_empty: true}
   - {label: detector,    value: "{det}"}
   - {label: num_points,  value: "{num_points}"}
+  # A viewer should test for the PRESENCE of "shape" to decide whether to draw a
+  # grid -- not string-match scan_type.  A d2scan/a2scan moves two motors along a
+  # single line and must NOT be gridded, so it writes no shape.
+  - {label: shape,       value: "{shape}", skip_if_empty: true}   # "11x11", raster only
+  - {label: num1,        value: "{num1}",  skip_if_empty: true}   # points along motor1 (outer/slow)
+  - {label: num2,        value: "{num2}",  skip_if_empty: true}   # points along motor2 (inner/fast)
+  # The COMMANDED first/last position of each raster axis.  A 2D viewer needs
+  # these to rebuild the grid exactly: motor READBACKS differ at every visit to
+  # the same cell (a real stage repeats only to its retry deadband), and an
+  # aborted mesh spans less than it was told to -- so a viewer that infers the
+  # grid from the readbacks alone puts the measured rows in the wrong cells.
+  # Raster scans only; a dscan/d2scan writes none of these.
+  - {label: motor1_start, value: "{motor1_start}", skip_if_empty: true}
+  - {label: motor1_stop,  value: "{motor1_stop}",  skip_if_empty: true}
+  - {label: motor2_start, value: "{motor2_start}", skip_if_empty: true}
+  - {label: motor2_stop,  value: "{motor2_stop}",  skip_if_empty: true}
   - {label: count_time,  value: "{count_time}"}
   - {label: beamline,    value: "8-ID-E"}
   - {label: epoch,       value: "{epoch}"}
@@ -143,9 +173,10 @@ marker: "#DATA"
 # -----------------------------------------------------------------------------
 # COLUMNS -- one value per scan point, written below the marker
 # -----------------------------------------------------------------------------
-# Order matters for plotting: viewers conventionally default the X axis to the
-# FIRST column and the Y axis to the LAST, so keep the scanned motor first and
-# your main counter last.
+# Order matters for plotting.  The 1D viewer (scanviewer.py) defaults its X axis
+# to the FIRST column and makes you pick Y; the 2D viewer (meshviewer.py)
+# defaults X to the first, Y to the second and Z to the LAST.  So: the scanned
+# motors first, in the order the scan moved them, and your main counter last.
 #
 # Four sources are computed by the scan rather than read from a PV:
 #
@@ -156,15 +187,29 @@ marker: "#DATA"
 #
 # ...anything else is a dotted path, read fresh at every point.
 #
-# Everything below is marked optional so that ONE template covers all three
-# detectors: an eiger4M or lambda2M scan uses the stats columns, a tetramm
-# scan skips them, and each scan prints one line naming what it skipped.
+# Every detector column below is marked optional so that ONE template covers
+# all three detectors: an eiger4M or lambda2M scan uses the stats columns, a
+# tetramm scan skips them, and each scan prints one line naming what it
+# skipped. The first motor column and elapsed_time are NOT optional -- see the
+# note on them just below.
 #
 # Column labels must be unique -- a duplicate makes the file ambiguous, so it
 # is rejected before the scan starts.
 columns:
-  - {label: "{motor}",             source: motor}
-  # - {label: "{motor}_setpoint",    source: motor_setpoint}
+  # The scanned motors, in the order the scan was given them.  motor1 is always
+  # present; motor2 exists only in a two-motor scan (d2scan, a2scan, dmesh,
+  # mesh) and is skipped -- with one printed note -- in a plain dscan/ascan.
+  #
+  # Do NOT delete these: a scan refuses to start if an axis it is about to move
+  # has no column, because the resulting file could not be plotted against that
+  # axis and nothing downstream could reconstruct where it was.
+  #
+  # "source: motor" and "source: motor1" mean the same thing, so a beamline-local
+  # template that still says "motor" keeps working untouched.
+  - {label: "{motor1}",            source: motor1}
+  - {label: "{motor2}",            source: motor2, optional: true}
+  # - {label: "{motor1}_setpoint",   source: motor1_setpoint}
+  # - {label: "{motor2}_setpoint",   source: motor2_setpoint, optional: true}
   - {label: elapsed_time,          source: elapsed}
 
   # TetrAMM picoammeters, named outright rather than as "det.*". Naming the
@@ -172,12 +217,25 @@ columns:
   # during an eiger/lambda scan AND when it is the detector being scanned --
   # writing them as "{det}_current1" would collide with this line in the
   # second case, and duplicate column names are rejected.
-  # - {label: tetramm1_current1,     source: tetramm1.current1.mean_value, optional: true}
-  # - {label: tetramm1_current2,     source: tetramm1.current2.mean_value, optional: true}
-  # - {label: tetramm1_current3,     source: tetramm1.current3.mean_value, optional: true}
-  # - {label: tetramm1_current4,     source: tetramm1.current4.mean_value, optional: true}
-  # - {label: tetramm1_sum_all,      source: tetramm1.sum_all.mean_value,  optional: true}
-  # - {label: tetramm3_sum_all,      source: tetramm3.sum_all.mean_value,  optional: true}
+  #
+  # These were commented out until 2026-09-06, which meant a scan whose DETECTOR
+  # was a tetramm recorded no signal whatsoever: a tetramm has no stats1-4, so
+  # every "det.*" line below was skipped as optional and the .csv came out with
+  # nothing but motor position and elapsed_time.  Nothing to plot, nothing to
+  # find a peak in -- and every lup defaults to tetramm1, so that was the entire
+  # alignment path.  All optional, so they are simply skipped on a station where
+  # a given picoammeter is not loaded.
+  - {label: tetramm1_current1,     source: tetramm1.current1.mean_value, optional: true}
+  - {label: tetramm1_current2,     source: tetramm1.current2.mean_value, optional: true}
+  - {label: tetramm1_current3,     source: tetramm1.current3.mean_value, optional: true}
+  - {label: tetramm1_current4,     source: tetramm1.current4.mean_value, optional: true}
+  # tetramm3 before tetramm1 on purpose. On an eiger/lambda scan the stats
+  # columns below come last and one of them is the default Y/Z; but on a scan
+  # whose detector IS a tetramm those are all skipped, and then the last column
+  # standing is what the viewers reach for -- which should be the summed current
+  # of the picoammeter being scanned, not the other one.
+  - {label: tetramm3_sum_all,      source: tetramm3.sum_all.mean_value,  optional: true}
+  - {label: tetramm1_sum_all,      source: tetramm1.sum_all.mean_value,  optional: true}
 
   # Area-detector ROI counters. stats1 last: it is the default Y axis.
   - {label: "{det}_stats4_total",  source: det.stats4.total, optional: true}

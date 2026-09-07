@@ -1,8 +1,5 @@
 import copy
-import yaml
 from pathlib import Path
-
-from apsbits.core.instrument_init import oregistry
 
 from id8_common.plans.acquire.ad_acq import ACQ_MODES
 from id8_common.plans.acquire.ad_acq import det_acq_series
@@ -14,66 +11,91 @@ from id8_common.plans.set.select_device import _find_motor
 from id8_common.plans.set.select_device import _load_config
 from id8_common.plans.set.select_device import move_detector_axes
 from id8_common.plans.set.select_device import select_device
+from id8_common.plans.acquire.validators import VALID_ANALYSIS_TYPES
+from id8_common.plans.acquire.validators import normalize_yes_no
+from id8_common.plans.acquire.validators import read_yaml
+from id8_common.plans.acquire.validators import require_fields
+from id8_common.plans.acquire.validators import require_mode_devices
+from id8_common.plans.acquire.validators import require_positive_int
+from id8_common.plans.acquire.validators import reset_sample_position
+from id8_common.plans.acquire.validators import validate_acq_time
+from id8_common.plans.acquire.validators import yes_no
+from id8_common.plans.acquire import validators
+from id8_common.expt_config import expt
+
+# Not used here. Both names reached the interactive prompt through this
+# module's `import *` before they moved to registry.py; the __all__ at the
+# bottom of this file now excludes them, so they no longer do. Each still gets
+# to the prompt by its own route: `get_ophyd_object` is in acq_helpers.__all__
+# and ad_acq star-imports acq_helpers, and startup.py binds `oregistry`
+# explicitly (startup_ophyd.py imports it from registry.py directly).
+from id8_common.registry import get_ophyd_object  # noqa: F401
+from id8_common.registry import oregistry  # noqa: F401
+
+#: Seconds the fast shutter needs to move. In eiger4M External Series the one
+#: softglue pulse both starts a segment and holds the shutter open, so BOTH the
+#: pulse width (shutter open = num_frames * acq_period) and the gap to the next
+#: pulse (shutter closed = trigger_period - that) are shutter movements, and
+#: neither may be shorter than this.
+SHUTTER_MIN_TIME = 0.1
+
+#: Slack so a value meant to be exactly SHUTTER_MIN_TIME is not rejected by
+#: binary rounding -- e.g. 0.3 - 0.2 evaluates to 0.09999999999999998.
+_TIME_EPS = 1e-9
 
 
-VALID_ANALYSIS_TYPES = ["Multitau", "Twotime", "Both"]
+
+# Plan files are resolved from configs/experiment.yml at CALL time, not import
+# time -- see expt.user_plan_dir. They used to be three hardcoded absolute paths
+# here, which broke the moment the files moved under <cycle>/<experiment>/ and
+# would have broken again on any clone of this repo. Nothing is pinned now:
+# change cycle_name/experiment_name in experiment.yml and the plans follow.
 
 
-pv_registers = oregistry["pv_registers"]
-
-USER_PLAN_DIR = Path("/home/beams10/8IDIUSER/bluesky/src/user_plans")
-SAMPLE_INFO_FILE = USER_PLAN_DIR / "sample_info.yaml"
-MEASUREMENT_INFO_FILE = USER_PLAN_DIR / "measurement_info.yaml"
-
-
-# =============================================================================
-# Basic file and object helpers
-# =============================================================================
-
-def read_yaml(file_path):
-    with open(file_path, "r") as f:
-        return yaml.safe_load(f)
-
-
-def get_ophyd_object(name):
-    parts = name.split(".")
-    obj = oregistry[parts[0]]
-
-    for part in parts[1:]:
-        obj = getattr(obj, part)
-
-    return obj
-
-
-def get_sample_position_register(sample_index):
-    register_name = f"sample{sample_index}_pos"
-    return getattr(pv_registers, register_name)
-
-
-def yes_no(value, field_name):
-    if value is True:
-        return "yes"
-
-    if value is False:
-        return "no"
-
-    if isinstance(value, str):
-        value = value.strip().lower()
-
-        if value == "yes":
-            return "yes"
-
-        if value == "no":
-            return "no"
-
-    raise ValueError(f"{field_name} must be yes or no.")
+# read_yaml, yes_no and get_ophyd_object used to be defined here. They are now
+# imported above -- from validators.py and registry.py -- so the dual path and
+# this one cannot drift apart again. None of the three is in this module's
+# __all__, so `import *` in startup.py no longer carries them to the prompt;
+# import them by name from validators.py / registry.py instead.
 
 
 # =============================================================================
 # YAML expansion
 # =============================================================================
+# A `runs:` block in measurement_info.yaml is shorthand. expand_measurements()
+# turns the whole file into one flat list of "measurement" dicts -- one dict per
+# acquisition -- and run_measurement_info() then walks that list in order.
+#
+# Worked example. This block:
+#
+#     loop_order: sample_major
+#     runs:
+#       - name: mode_test
+#         samples: [1, 2]
+#         protocols: [eiger_internal_series, rigaku_epics]
+#         repeats: 2
+#
+# expands to 2 samples x 2 protocols x 2 repeats = 8 measurements, in this order
+# (sample_major means the sample index turns slower than the protocol name;
+# protocol_major just swaps those two loops):
+#
+#     repeat 1:  (1, eiger_internal_series)  (1, rigaku_epics)
+#                (2, eiger_internal_series)  (2, rigaku_epics)
+#     repeat 2:  the same four again
+#
+# Each measurement is a deep copy of that protocol's own YAML body -- detector,
+# mode, acq_time, num_frames and the rest -- plus four bookkeeping keys that
+# add_measurement() stamps on it, e.g. for the last one above:
+#
+#     {..., "sample_index": 2, "protocol_name": "rigaku_epics",
+#           "run_name": "mode_test", "run_repeat": 2}
+#
+# Call chain: expand_measurements -> expand_run_block (once per runs: entry)
+#             -> expand_samples / expand_protocols -> add_measurement.
+
 
 def get_sample(sample_info, sample_index):
+    """One sample's settings from sample_info.yaml: the file's `defaults`, overridden by `sample_N`."""
     sample_key = f"sample_{sample_index}"
 
     defaults = sample_info.get("defaults", {})
@@ -90,6 +112,7 @@ def get_sample(sample_info, sample_index):
 
 
 def expand_samples(run_block):
+    """Sample indices one run block covers: an explicit `samples:` list, or an inclusive `sample_range:`."""
     if "samples" in run_block:
         return [int(x) for x in run_block["samples"]]
 
@@ -102,6 +125,7 @@ def expand_samples(run_block):
 
 
 def expand_protocols(run_block):
+    """Protocol names one run block covers. A bare string counts as a one-item list."""
     protocols = run_block["protocols"]
 
     if isinstance(protocols, str):
@@ -111,6 +135,13 @@ def expand_protocols(run_block):
 
 
 def add_measurement(expanded, protocols, run_block, sample_index, protocol_name, repeat_index):
+    """Append one measurement -- a copy of the protocol body plus its run bookkeeping -- to `expanded`.
+
+    The copy is deep because every measurement is edited in place later
+    (validate_timing fills in acq_period, validate_counts fills in
+    num_segments), and the protocols dict is shared by every run block that
+    names it.
+    """
     measurement = copy.deepcopy(protocols[protocol_name])
 
     measurement["sample_index"] = int(sample_index)
@@ -118,6 +149,10 @@ def add_measurement(expanded, protocols, run_block, sample_index, protocol_name,
     measurement["run_name"] = run_block.get("name", "unnamed_run")
     measurement["run_repeat"] = int(repeat_index)
 
+    # Only the first repeat may rewind the sample mesh. position_reset: yes
+    # sends the mesh index back to -1 (see validators.reset_sample_position);
+    # doing that on repeats 2..N would walk later repeats back over the same
+    # spots the first one already exposed.
     if repeat_index > 1:
         measurement["position_reset"] = "no"
 
@@ -125,6 +160,12 @@ def add_measurement(expanded, protocols, run_block, sample_index, protocol_name,
 
 
 def check_duplicate_assignments(run_block, seen):
+    """Reject a (sample, protocol) pair that an earlier run block in the same file already claimed.
+
+    `seen` is carried across every run block, so the check is file-wide rather
+    than per-block. Measuring the same pair twice is nearly always a copy-paste
+    slip; asking for it on purpose is what runs[].repeats is for.
+    """
     samples = expand_samples(run_block)
     protocol_names = expand_protocols(run_block)
 
@@ -143,6 +184,7 @@ def check_duplicate_assignments(run_block, seen):
 
 
 def expand_run_block(measurement_info, run_block):
+    """Expand one `runs:` entry into its list of measurement dicts -- see the worked example above."""
     protocols = measurement_info["protocols"]
     global_loop_order = measurement_info.get("loop_order", "sample_major")
 
@@ -194,6 +236,7 @@ def expand_run_block(measurement_info, run_block):
 
 
 def expand_measurements(measurement_info):
+    """Flatten every `runs:` block in the file into one ordered list of measurement dicts."""
     runs = measurement_info["runs"]
 
     expanded = []
@@ -211,56 +254,31 @@ def expand_measurements(measurement_info):
 # =============================================================================
 
 def normalize_measurement(measurement):
-    measurement["sample_move"] = yes_no(
-        measurement["sample_move"],
-        "sample_move",
-    )
-
-    measurement["position_reset"] = yes_no(
-        measurement.get("position_reset", "no"),
-        "position_reset",
-    )
+    normalize_yes_no(measurement)
 
 
 def validate_detector_mode(measurement):
-    detector = measurement["detector"]
-    mode = measurement["mode"]
-
-    if detector not in ACQ_MODES:
-        raise ValueError(f"Invalid detector: {detector}")
-
-    if mode not in ACQ_MODES[detector]:
-        raise ValueError(f"Invalid mode '{mode}' for detector '{detector}'.")
+    validators.validate_detector_mode(measurement["detector"], measurement["mode"])
 
 
 def validate_required_devices_connected(measurement):
-    detector = measurement["detector"]
-    mode = measurement["mode"]
-    mode_info = ACQ_MODES[detector][mode]
-
-    for device_name in mode_info["required_devices"]:
-        device = oregistry[device_name]
-
-        if not device.connected:
-            raise RuntimeError(f"{device_name} is not connected.")
+    # Also covers hardware_device, which this check used to miss -- see
+    # validators.require_mode_devices.
+    require_mode_devices(measurement["detector"], measurement["mode"])
 
 
 def validate_timing(measurement):
+    """Check acq_time / acq_period / trigger_period against this detector mode's rules.
+
+    Edits `measurement` in place: a mode that paces its own frames states no
+    acq_period, and this fills one in equal to acq_time so everything
+    downstream can read the key unconditionally.
+    """
     detector = measurement["detector"]
     mode = measurement["mode"]
     mode_info = ACQ_MODES[detector][mode]
 
-    acq_time = float(measurement["acq_time"])
-
-    if acq_time <= 0:
-        raise ValueError("acq_time must be > 0.")
-
-    min_acq_time = mode_info.get("min_acq_time")
-    if min_acq_time is not None and acq_time < min_acq_time:
-        raise ValueError(
-            f"{detector} {mode} requires acq_time >= {min_acq_time:.2e} s "
-            f"(got {acq_time:.2e} s)."
-        )
+    acq_time = validate_acq_time(measurement["acq_time"], detector, mode)
 
     if mode_info["needs_acq_period"]:
         if "acq_period" not in measurement:
@@ -281,6 +299,14 @@ def validate_timing(measurement):
             if acq_period < 0.1:
                 raise ValueError("Eiger External Enable requires acq_period >= 0.1 s.")
 
+        # External Series has no 0.1 s floor. That floor exists because the
+        # softglue pulse drives the shutter, and a shutter cannot follow faster
+        # than that. In External Series softglue only starts each segment --
+        # the shutter stays open for the whole acquisition -- and acq_period is
+        # the Eiger pacing its own frames internally, so nothing mechanical
+        # limits it. Only trigger_period, which is still softglue-generated,
+        # has a constraint (see below).
+
         if detector == "lambda2M" and mode == "External":
             if acq_time < 0.1:
                 raise ValueError("Lambda External requires acq_time >= 0.1 s.")
@@ -291,8 +317,55 @@ def validate_timing(measurement):
     else:
         measurement["acq_period"] = acq_time
 
+    if mode_info.get("needs_trigger_period", False):
+        if "trigger_period" not in measurement:
+            raise ValueError(f"{detector} {mode} requires trigger_period.")
+
+        trigger_period = float(measurement["trigger_period"])
+
+        if trigger_period <= 0:
+            raise ValueError("trigger_period must be > 0.")
+
+        # The single softglue pulse does two jobs: its rising edge starts a
+        # segment, and its width holds the shutter open. So the acquisition has
+        # two shutter movements per segment -- open for num_frames * acq_period,
+        # then closed for the remainder of trigger_period -- and each needs at
+        # least SHUTTER_MIN_TIME. The closed-gap check also subsumes the older
+        # "trigger_period must exceed one segment" rule: without it a pulse
+        # would land while the detector was still busy, be dropped, and the
+        # acquisition would hang on a trigger that was already spent.
+        segment_time = float(measurement["acq_period"]) * int(measurement["num_frames"])
+        closed_time = trigger_period - segment_time
+
+        if segment_time < SHUTTER_MIN_TIME - _TIME_EPS:
+            raise ValueError(
+                f"{detector} {mode}: the shutter is held open for one segment, "
+                f"num_frames * acq_period = {measurement['num_frames']} * "
+                f"{measurement['acq_period']} = {segment_time:g} s, which is shorter "
+                f"than the {SHUTTER_MIN_TIME} s the shutter needs to move."
+            )
+
+        if closed_time < SHUTTER_MIN_TIME - _TIME_EPS:
+            raise ValueError(
+                f"{detector} {mode}: the shutter is closed between segments for "
+                f"trigger_period - num_frames * acq_period = {trigger_period:g} - "
+                f"{segment_time:g} = {closed_time:g} s, which is shorter than the "
+                f"{SHUTTER_MIN_TIME} s the shutter needs to move. Raise trigger_period "
+                f"to at least {segment_time + SHUTTER_MIN_TIME:g} s."
+            )
+
+    elif "trigger_period" in measurement:
+        raise ValueError(f"{detector} {mode} does not use trigger_period.")
+
 
 def validate_detector_position_overrides(measurement):
+    """Refuse a protocol that asks to move a detector axis this detector does not have.
+
+    An override is any AXIS_NAMES key written straight into the protocol body --
+    `horizontal`, `vertical`, `swing_angle_horizontal`, `swing_angle_vertical`.
+    run_measurement() feeds those to move_detector_axes() after select_device(),
+    so they override the position device_position.yaml would have parked at.
+    """
     overrides = {axis: measurement[axis] for axis in AXIS_NAMES if axis in measurement}
 
     if not overrides:
@@ -313,63 +386,42 @@ def validate_detector_position_overrides(measurement):
 
 
 def validate_analysis_type(measurement):
-    analysis_type = measurement.get("analysis_type", "Multitau")
-
-    if analysis_type not in VALID_ANALYSIS_TYPES:
-        raise ValueError(
-            f"analysis_type must be one of {VALID_ANALYSIS_TYPES} (got '{analysis_type}')."
-        )
+    validators.validate_analysis_type(measurement.get("analysis_type", "Multitau"))
 
 
 def validate_counts(measurement):
-    num_frames = int(measurement["num_frames"])
-    num_repeats = int(measurement["num_repeats"])
+    """Check the frame/repeat/segment counts. Writes num_segments back as an int for modes that use it."""
+    detector = measurement["detector"]
+    mode = measurement["mode"]
+    mode_info = ACQ_MODES[detector][mode]
 
-    if num_frames < 1:
-        raise ValueError("num_frames must be >= 1.")
+    require_positive_int(measurement["num_frames"], "num_frames")
+    require_positive_int(measurement["num_repeats"], "num_repeats")
 
-    if num_repeats < 1:
-        raise ValueError("num_repeats must be >= 1.")
+    if mode_info.get("needs_num_segments", False):
+        measurement["num_segments"] = require_positive_int(
+            measurement.get("num_segments", 1), "num_segments"
+        )
+
+    elif "num_segments" in measurement:
+        # Reject rather than ignore: a num_segments on a mode that never reads
+        # it would silently do nothing.
+        raise ValueError(f"{detector} {mode} does not use num_segments.")
 
 
 def validate_sample_motion(measurement, sample):
-    sample_move = measurement["sample_move"]
-
-    if sample_move == "no":
-        return
-
-    required_sample_fields = [
-        "inner_motor",
-        "outer_motor",
-        "inner_center",
-        "outer_center",
-        "inner_range",
-        "outer_range",
-        "inner_pts",
-        "outer_pts",
-    ]
-
-    for field in required_sample_fields:
-        if field not in sample:
-            raise ValueError(f"Missing sample field: {field}")
-
-    get_ophyd_object(sample["inner_motor"])
-    get_ophyd_object(sample["outer_motor"])
-
-    inner_pts = int(sample["inner_pts"])
-    outer_pts = int(sample["outer_pts"])
-
-    if inner_pts < 1:
-        raise ValueError("inner_pts must be >= 1.")
-
-    if outer_pts < 1:
-        raise ValueError("outer_pts must be >= 1.")
-
-    sample_index = int(measurement["sample_index"])
-    get_sample_position_register(sample_index)
+    # No forbidden_motors: the serial path may mesh on any axis. The dual path
+    # passes FORBIDDEN_MOTORS to the same check.
+    validators.validate_sample_motion(measurement, sample)
 
 
 def validate_measurement(measurement, sample):
+    """Run every check a measurement must pass before any hardware moves.
+
+    Also NORMALISES `measurement` in place along the way -- yes/no fields to
+    their string form, a missing acq_period filled in, num_segments coerced to
+    int -- so the callers below can read those keys without re-deriving them.
+    """
     required_measurement_fields = [
         "sample_index",
         "detector",
@@ -382,9 +434,7 @@ def validate_measurement(measurement, sample):
         "qmap_file",
     ]
 
-    for field in required_measurement_fields:
-        if field not in measurement:
-            raise ValueError(f"Missing measurement field: {field}")
+    require_fields(measurement, required_measurement_fields, "measurement")
 
     normalize_measurement(measurement)
 
@@ -393,9 +443,7 @@ def validate_measurement(measurement, sample):
         "header",
     ]
 
-    for field in required_sample_fields:
-        if field not in sample:
-            raise ValueError(f"Missing sample field: {field}")
+    require_fields(sample, required_sample_fields, "sample")
 
     validate_detector_mode(measurement)
     validate_detector_position_overrides(measurement)
@@ -406,75 +454,20 @@ def validate_measurement(measurement, sample):
     validate_sample_motion(measurement, sample)
 
 
-# =============================================================================
-# Register writing
-# =============================================================================
-
-def write_sample_registers(sample_index, sample):
-    pv_registers.sample_index.put(int(sample_index))
-    pv_registers.header.put(sample["header"])
-    pv_registers.sample_name.put(sample["sample_name"])
-
-    if "inner_motor" in sample:
-        pv_registers.inner_motor.put(sample["inner_motor"])
-
-    if "outer_motor" in sample:
-        pv_registers.outer_motor.put(sample["outer_motor"])
-
-    if "inner_center" in sample:
-        pv_registers.inner_center.put(float(sample["inner_center"]))
-
-    if "outer_center" in sample:
-        pv_registers.outer_center.put(float(sample["outer_center"]))
-
-    if "inner_range" in sample:
-        pv_registers.inner_range.put(float(sample["inner_range"]))
-
-    if "outer_range" in sample:
-        pv_registers.outer_range.put(float(sample["outer_range"]))
-
-    if "inner_pts" in sample:
-        pv_registers.inner_pts.put(int(sample["inner_pts"]))
-
-    if "outer_pts" in sample:
-        pv_registers.outer_pts.put(int(sample["outer_pts"]))
-
-
-def write_measurement_registers(measurement):
-    pv_registers.det_name.put(measurement["detector"])
-    pv_registers.det_mode.put(measurement["mode"])
-
-    pv_registers.acq_time.put(float(measurement["acq_time"]))
-    pv_registers.acq_period.put(float(measurement["acq_period"]))
-
-    pv_registers.num_frames.put(int(measurement["num_frames"]))
-    pv_registers.num_repeats.put(int(measurement["num_repeats"]))
-
-    pv_registers.sample_move.put(measurement["sample_move"])
-    pv_registers.qmap_file.put(measurement["qmap_file"])
-    pv_registers.analysis_type.put(measurement.get("analysis_type", "Multitau"))
-
-
 def reset_sample_position_register(measurement):
-    if measurement["sample_move"] != "yes":
-        return
-
-    if measurement["position_reset"] != "yes":
-        return
-
-    sample_index = int(measurement["sample_index"])
-    sample_position_register = get_sample_position_register(sample_index)
-
-    sample_position_register.put(-1)
+    reset_sample_position(measurement)
 
 
 # =============================================================================
 # Detector placeholder hooks
 # =============================================================================
 # Called from run_measurement() right after select_device(), for every detector.
-# eiger4M moves huber to delta 10 / nu 22.7; rigaku3M (and its rigaku3M_epics
-# alias) moves huber to delta 10 / nu 0; lambda2M is a no-op. Every detector
-# acquires at delta = 10 -- at delta = 0 the lambda2M sits in the beam.
+# All three hooks are no-ops as they stand: nothing here moves the huber. The
+# moves are still in the file, commented out -- eiger4M to delta 10 / nu 22.7,
+# rigaku3M (and its rigaku3M_epics alias) to delta 10 / nu 0, lambda2M nothing.
+# They were written on the assumption that every detector acquires at delta = 10
+# -- at delta = 0 the lambda2M sits in the beam. Until one is uncommented, the
+# diffractometer has to be positioned before the acquisition.
 
 def placeholder_eiger4M():
     pass
@@ -500,15 +493,16 @@ DETECTOR_PLACEHOLDERS = {
     "rigaku3M": placeholder_rigaku3M,
 }
 
-# rigaku3M_epics is the same physical detector as rigaku3M (see DETECTOR_ALIASES
-# in select_device.py) so it gets the same placeholder hook.
+# rigaku3M_epics and rigaku3M_ftf are the same physical detector as rigaku3M
+# (see DETECTOR_ALIASES in select_device.py) so they get the same placeholder
+# hook. Any alias added there is picked up here automatically.
 for _alias, _canonical in DETECTOR_ALIASES.items():
     if _canonical in DETECTOR_PLACEHOLDERS:
         DETECTOR_PLACEHOLDERS[_alias] = DETECTOR_PLACEHOLDERS[_canonical]
 
 
 def run_detector_placeholder(name: str):
-    """Run the placeholder hook for a detector (rigaku3M_epics shares rigaku3M's hook)."""
+    """Run the placeholder hook for a detector (rigaku3M aliases share rigaku3M's hook)."""
     placeholder = DETECTOR_PLACEHOLDERS.get(name)
     if placeholder is not None:
         placeholder()
@@ -519,13 +513,16 @@ def run_detector_placeholder(name: str):
 # =============================================================================
 
 def run_measurement(measurement, sample_info):
+    """Validate one expanded measurement, publish it to the run state, set up hardware, and acquire."""
     sample_index = int(measurement["sample_index"])
     sample = get_sample(sample_info, sample_index)
 
     validate_measurement(measurement, sample)
 
-    write_sample_registers(sample_index, sample)
-    write_measurement_registers(measurement)
+    # The run state is what the acquisition path actually reads.
+    expt.sample_index = sample_index
+    expt.set_measurement(measurement=measurement, sample=sample)
+
     reset_sample_position_register(measurement)
 
     att_level = int(measurement["att_level"])
@@ -540,18 +537,23 @@ def run_measurement(measurement, sample_info):
     print(f"Protocol:       {measurement.get('protocol_name', '')}")
     print(f"Run repeat:     {measurement.get('run_repeat', 1)}")
     print(f"Sample index:   {sample_index}")
-    print(f"Sample name:    {pv_registers.sample_name.get()}")
-    print(f"Detector:       {pv_registers.det_name.get()}")
-    print(f"Mode:           {pv_registers.det_mode.get()}")
+    print(f"Sample name:    {expt.sample_name}")
+    print(f"Detector:       {expt.det_name}")
+    print(f"Mode:           {expt.det_mode}")
     print(f"Attenuation:    {att_level}")
-    print(f"acq_time:       {pv_registers.acq_time.get()}")
-    print(f"acq_period:     {pv_registers.acq_period.get()}")
-    print(f"num_frames:     {pv_registers.num_frames.get()}")
-    print(f"num_repeats:    {pv_registers.num_repeats.get()}")
-    print(f"sample_move:    {pv_registers.sample_move.get()}")
+    print(f"acq_time:       {expt.acq_time}")
+    print(f"acq_period:     {expt.acq_period}")
+    print(f"num_frames:     {expt.num_frames}")
+    if "num_segments" in measurement:
+        print(f"num_segments:   {expt.num_segments}  "
+              f"({expt.num_frames * expt.num_segments} frames total)")
+    if "trigger_period" in measurement:
+        print(f"trigger_period: {expt.trigger_period} s")
+    print(f"num_repeats:    {expt.num_repeats}")
+    print(f"sample_move:    {expt.sample_move}")
     print(f"position_reset: {measurement.get('position_reset', 'No')}")
-    print(f"qmap_file:      {pv_registers.qmap_file.get()}")
-    print(f"Analysis type:  {pv_registers.analysis_type.get()}")
+    print(f"qmap_file:      {expt.qmap_file}")
+    print(f"Analysis type:  {expt.analysis_type}")
     if position_overrides:
         print(f"Position override: {position_overrides}")
     print("==============================================")
@@ -567,9 +569,17 @@ def run_measurement(measurement, sample_info):
 
 
 def run_measurement_info(
-    measurement_info_file=MEASUREMENT_INFO_FILE,
-    sample_info_file=SAMPLE_INFO_FILE,
+    measurement_info_file=None,
+    sample_info_file=None,
 ):
+    """Read measurement_info.yaml + sample_info.yaml, expand them, and run every measurement in order."""
+    # None, not a default argument: a default is bound once at import, so it
+    # could not follow an experiment.yml edit or expt.reload().
+    measurement_info_file = measurement_info_file or expt.measurement_info_file
+    sample_info_file = sample_info_file or expt.sample_info_file
+
+    print(f"Reading plans from {measurement_info_file.parent}")
+
     sample_info = read_yaml(sample_info_file)
     measurement_info = read_yaml(measurement_info_file)
 
@@ -590,9 +600,20 @@ def run_measurement_info(
 # Dry-run preview (no acquisitions executed)
 # =============================================================================
 
-def dry_run_measurement_info():
-    sample_info = read_yaml(SAMPLE_INFO_FILE)
-    measurement_info = read_yaml(MEASUREMENT_INFO_FILE)
+def dry_run_measurement_info(measurement_info_file=None, sample_info_file=None):
+    """Validate and print what run_measurement_info() would do, with a time estimate. Moves nothing.
+
+    Deliberately NOT the full set of checks: this repeats the detector/mode,
+    position-override, analysis-type, timing and count checks, but skips the
+    required-field check, the device-connected check and the sample-mesh check
+    that validate_measurement() also makes. A protocol that passes here can
+    still be rejected once run_measurement() gets to it.
+    """
+    measurement_info_file = measurement_info_file or expt.measurement_info_file
+    sample_info_file = sample_info_file or expt.sample_info_file
+
+    sample_info = read_yaml(sample_info_file)
+    measurement_info = read_yaml(measurement_info_file)
 
     measurements = expand_measurements(measurement_info)
 
@@ -616,8 +637,17 @@ def dry_run_measurement_info():
         acq_period = float(measurement["acq_period"])
         num_frames = int(measurement["num_frames"])
         num_repeats = int(measurement["num_repeats"])
+        # num_frames is per segment where a mode uses segments, so the frames
+        # actually collected in one acquisition is the product.
+        num_segments = int(measurement.get("num_segments", 1))
         wait_time = float(measurement.get("wait_time", 0))
-        est_time = (acq_period * num_frames + wait_time) * num_repeats
+        # Where segments are triggered externally the wall-clock cost is set by
+        # the pulse spacing, not by how long a segment is busy for.
+        trigger_period = float(measurement.get("trigger_period", 0))
+        if trigger_period > 0:
+            est_time = (trigger_period * num_segments + wait_time) * num_repeats
+        else:
+            est_time = (acq_period * num_frames * num_segments + wait_time) * num_repeats
         total_time += est_time
 
         position_overrides = {axis: measurement[axis] for axis in AXIS_NAMES if axis in measurement}
@@ -635,6 +665,10 @@ def dry_run_measurement_info():
         print(f"acq_time:       {measurement['acq_time']}")
         print(f"acq_period:     {measurement['acq_period']}")
         print(f"num_frames:     {num_frames}")
+        if "num_segments" in measurement:
+            print(f"num_segments:   {num_segments}  ({num_frames * num_segments} frames total)")
+        if "trigger_period" in measurement:
+            print(f"trigger_period: {trigger_period:g} s  (segment busy {acq_period * num_frames:g} s)")
         print(f"num_repeats:    {num_repeats}")
         print(f"sample_move:    {measurement['sample_move']}")
         print(f"position_reset: {measurement.get('position_reset', 'no')}")
@@ -651,51 +685,43 @@ def dry_run_measurement_info():
 
 
 # =============================================================================
-# Usage examples
+# Usage examples -- see docs/running-measurements.md for
+# run_measurement_info()/dry_run_measurement_info() usage and the
+# recommended edit-YAML-then-run workflow.
 # =============================================================================
 
-# Example 1:
-# Run the default sample_info.yaml and measurement_info.yaml files:
-#
-# from id8_common.plans.acquire.master_plan import run_measurement_info
-# run_measurement_info()
 
-
-# Example 2:
-# Run a specific measurement YAML file with the default sample YAML file:
-#
-# from pathlib import Path
-# from id8_common.plans.acquire.master_plan import run_measurement_info
-#
-# measurement_file = Path("/home/beams10/8IDIUSER/bluesky/src/user_plans/measurement_info_test.yaml")
-#
-# run_measurement_info(
-#     measurement_info_file=measurement_file,
-# )
-
-
-# Example 3:
-# Run a specific sample YAML file and a specific measurement YAML file:
-#
-# from pathlib import Path
-# from id8_common.plans.acquire.master_plan import run_measurement_info
-#
-# sample_file = Path("/home/beams10/8IDIUSER/bluesky/src/user_plans/sample_info_test.yaml")
-# measurement_file = Path("/home/beams10/8IDIUSER/bluesky/src/user_plans/measurement_info_test.yaml")
-#
-# run_measurement_info(
-#     measurement_info_file=measurement_file,
-#     sample_info_file=sample_file,
-# )
-
-
-# Example 4:
-# Recommended user workflow:
-#
-# 1. Edit sample_info.yaml.
-# 2. Edit measurement_info.yaml.
-# 3. Control repetition using runs[].repeats inside measurement_info.yaml.
-# 4. Start IPython/Bluesky and run:
-#
-#       from id8_common.plans.acquire.master_plan import run_measurement_info
-#       run_measurement_info()
+#: What ``from master_plan import *`` puts in the beamline session.
+#:
+#: startup.py and startup_ophyd.py both star-import this module, so every
+#: public name here lands at the scientist's prompt. Without this list that
+#: was all 48 of them: ``copy``, ``Path``, the ``validators`` module, the whole
+#: YAML-expansion chain, and every ``validate_*`` helper -- so tab-completing
+#: ``val`` offered eight internals and ``require_positive_int`` looked like
+#: something you were meant to call. It also made the prompt fragile in the
+#: other direction: ``oregistry`` was reaching the session ONLY because this
+#: module happened to import it, so a tidy-up of the imports here would
+#: silently have taken it away. Neither it nor ``att`` is exported from here
+#: now -- startup.py binds ``oregistry`` itself, and ``att`` arrives with
+#: tetramm_acq's star-import of shutter_att, which startup.py runs first.
+#:
+#: The rule: list what a scientist would type, keep everything else internal.
+#: Nothing below is required for the module to work -- ``__all__`` affects
+#: ``import *`` only. dual_master_plan_eiger4m_rigaku3m.py's explicit
+#: ``from master_plan import expand_measurements`` is unaffected, and so is
+#: anything else that imports a name from here by name.
+__all__ = [
+    # Entry points.
+    "run_measurement_info",
+    "dry_run_measurement_info",
+    "run_measurement",
+    # Callable against a hand-built measurement dict, for debugging a protocol
+    # without running it.
+    "validate_measurement",
+    # Limits worth reading at the prompt when a protocol is rejected.
+    "SHUTTER_MIN_TIME",
+    "VALID_ANALYSIS_TYPES",
+    # Per-detector hook run right after select_device(), for every detector.
+    "DETECTOR_PLACEHOLDERS",
+    "run_detector_placeholder",
+]

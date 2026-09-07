@@ -8,11 +8,17 @@ from ophyd import FormattedComponent as FCpt
 
 
 class granite_device(Device):
-    """A device class for controlling Granite stages in the beamline.
+    """The single-axis granite base that carries the 8-ID-I sample environment.
 
-    This class provides control over Granite stages used for precise positioning
-    and motion control. It includes functionality for controlling position,
-    velocity, and acceleration parameters.
+    Only one motor: `x`, which slides the whole environment along the granite.
+    plans/set/select_device.py drives it to park the qnw, rheometer or robot at
+    the beam. It opens granite_8idi_valve before moving and closes it after;
+    the valve exists only to gate this motion.
+
+    Built from configs/devices.yml as `granite` with prefix
+    "8idiSoft:CR8-I2:US" and x_motor "m8". __init__ drops the last colon-
+    separated piece of the prefix ("US") to get the motor prefix, so `x` ends
+    up on "8idiSoft:CR8-I2:m8".
     """
 
     def __init__(

@@ -12,8 +12,11 @@ from typing import Dict
 from typing import Optional
 from typing import Union
 
+from copy import deepcopy
+
 import h5py
-from apsbits.core.instrument_init import oregistry
+from id8_common.expt_config import expt
+from id8_common.registry import oregistry
 
 from id8_common.plans.set.select_device import DETECTOR_ALIASES
 from id8_common.plans.set.select_device import _find_motor
@@ -24,38 +27,41 @@ from .default_metadata import default_metadata
 from .xpcs_schema import xpcs_schema
 
 # fofb = oregistry['fofb_s09']
-pv_registers = oregistry["pv_registers"]
-filter_8ide = oregistry["filter_8ide"]
-lakeshore1 = oregistry["lakeshore1"]
-mono = oregistry["mono"]
-tetramm1 = oregistry["tetramm1"]
+filter_8ide = oregistry.get("filter_8ide")
+lakeshore1 = oregistry.get("lakeshore1")
+mono = oregistry.get("mono")
+tetramm1 = oregistry.get("tetramm1")
 # undulator_upstream = oregistry["undulator_upstream"]
 # undulator_downstream = oregistry["undulator_downstream"]
-huber = oregistry["huber"]
-sl4 = oregistry["sl4"]
+huber = oregistry.get("huber")
+sl4 = oregistry.get("sl4")
 # xbpm1 = oregistry["xbpm1"]
-sl4 = oregistry["sl4"]
-sl7 = oregistry["sl7"]
-wb_slit = oregistry["wb_slit"]
-mono_slit = oregistry["mono_slit"]
+sl4 = oregistry.get("sl4")
+sl7 = oregistry.get("sl7")
+wb_slit = oregistry.get("wb_slit")
+mono_slit = oregistry.get("mono_slit")
 # xbpm1 = oregistry["xbpm1"]
 # aps = oregistry["aps"]
 # keithley_chA = oregistry["keithley_chA"]
 # keithley_chB = oregistry["keithley_chB"]
 # bk_pid = oregistry["bk_pid"]
 # keysight = oregistry["keysight"]
-rheometer = oregistry["rheometer"]
-sample = oregistry["sample"]
-qnw_env1 = oregistry["qnw_env1"]
-qnw_env2 = oregistry["qnw_env2"]
-qnw_env3 = oregistry["qnw_env3"]
+rheometer = oregistry.get("rheometer")
+sample = oregistry.get("sample")
+qnw_env1 = oregistry.get("qnw_env1")
+qnw_env2 = oregistry.get("qnw_env2")
+qnw_env3 = oregistry.get("qnw_env3")
 
 def _get_ring_current():
+    """Return the APS storage-ring current in mA.
 
-    aps_list = list(oregistry.findall(name="aps"))
-    machine = aps_list[0]
+    Raises IndexError if no device named "aps" is in the registry (i.e. the machine
+    status IOC was not loaded at startup).
+    """
+    matching_devices = list(oregistry.findall(name="aps"))
+    aps_device = matching_devices[0]
 
-    return float(machine.current.get())
+    return float(aps_device.current.get())
 
 
 def _get_detector_config(det_name):
@@ -74,7 +80,11 @@ def _get_detector_config(det_name):
 
 
 def _get_motor_value(motors_cfg, name):
-    """Return the current value of a named axis: literal `position` if no device, else the resolved device's `.position`."""
+    """Return the current value of a named axis.
+
+    An entry with no `device` is a fixed number, so its literal `position` is returned;
+    otherwise the device named by `device` is resolved and its live `.position` is read.
+    """
     for m in motors_cfg:
         if m["name"] == name:
             device_path = m.get("device")
@@ -113,15 +123,23 @@ def create_nexus_entry(
 ):
     """Create a NeXus entry from a dictionary that represents a Nexus format.
 
+    This CONSUMES runtime_schema: at every node it pop()s "required", "data", "type",
+    "units" and "description" out of the dict as it writes them. Always hand it a
+    deepcopy of a template you intend to reuse -- see create_nexus_format_metadata().
+
     Args:
         group_or_fhdl: The group or file handle to create the entry in
         runtime_schema: The dictionary that represents the Nexus format
-        ignore: If True, ignore optional fields (default: False)
+        ignore: If True, skip entries not marked "required" (default: False)
     """
     for key, val in runtime_schema.items():
         if key == "attributes":
             for attr_key, attr_val in val.items():
                 group_or_fhdl.attrs[attr_key] = attr_val["data"]
+        # Every other key is a child group or dataset. The five listed here instead
+        # describe the node we are already inside -- the parent popped
+        # type/required/units/description off before recursing into it, and
+        # "deprecated" is never popped anywhere, so this test is what keeps it out.
         elif key not in ("type", "required", "deprecated", "units", "description"):
             required = val.pop("required", False)
             if ignore and not required:
@@ -132,13 +150,18 @@ def create_nexus_entry(
                 if data_item is not None:
                     handle = group_or_fhdl.create_dataset(key, data=data_item)
                 else:
+                    # "data": None means the field has no value this run -- write a
+                    # zero-length dataset so the field still exists in the file.
                     handle = group_or_fhdl.create_dataset(key, shape=(0,))
             else:
+                # No "data" key at all means this node is a group, not a dataset.
                 handle = group_or_fhdl.create_group(key)
 
-            dtype = val.pop("type", None)
-            if dtype is not None:
-                handle.attrs["NX_Class"] = dtype
+            # This is the NeXus class/type string (e.g. "NXentry", "NX_CHAR"),
+            # not a numpy dtype.
+            nx_class = val.pop("type", None)
+            if nx_class is not None:
+                handle.attrs["NX_Class"] = nx_class
             units = val.pop("units", None)
             if units is not None:
                 handle.attrs["unit"] = default_units_keymap.get(units, "any")
@@ -155,6 +178,13 @@ def update_schema_at_runtime(
 ) -> Dict[str, Any]:
     """Update the metadata dictionary with runtime data.
 
+    Every key of runtime_metadata is a NeXus path such as
+    "/entry/instrument/detector_1/count_time". The path is followed one name at a time
+    down the nested schema, and the value is stored as that node's "data". A path with
+    no matching node raises KeyError -- add the field to xpcs_schema first.
+
+    Note that schema is modified in place as well as returned.
+
     Args:
         schema: The metadata dictionary
         runtime_metadata: The runtime metadata dictionary
@@ -163,11 +193,11 @@ def update_schema_at_runtime(
         The updated schema with runtime metadata
     """
     for path, value in runtime_metadata.items():
-        components = path.lstrip("/").split("/")
-        current = schema
-        for comp in components:
-            current = current[comp]
-        current["data"] = value
+        path_parts = path.lstrip("/").split("/")
+        node = schema
+        for part in path_parts:
+            node = node[part]
+        node["data"] = value
     return schema
 
 
@@ -188,13 +218,20 @@ def create_runtime_metadata_dict(
     Returns:
         The runtime metadata dictionary
     """
-    # Create a copy of the default metadata dictionary
+    # A shallow copy is enough here (unlike the deepcopy of xpcs_schema below):
+    # default_metadata is one flat level of plain numbers and strings, so nothing
+    # nested can be shared with -- and later mutated out of -- the module-level dict.
     runtime_metadata = default_metadata.copy()
 
     # Resolve the current detector's swing/translation axes and distance from device_position.yaml
-    det_name = pv_registers.det_name.get()
+    det_name = expt.det_name
     det_cfg = _get_detector_config(det_name)
     motors_cfg = det_cfg["motors"]
+
+    # Per DETECTOR, not per experiment: eiger4M 75 um, rigaku3M 76 um,
+    # lambda2M 55 um. Until 2026-09-06 this came from a single global in
+    # experiment.yml, so every rigaku and lambda file recorded the eiger value.
+    det_pixel_size = float(det_cfg["pixel_size"])
     horizontal = _get_motor_value(motors_cfg, "horizontal")
     vertical = _get_motor_value(motors_cfg, "vertical")
     swing_angle_horizontal = _get_motor_value(motors_cfg, "swing_angle_horizontal")
@@ -215,15 +252,15 @@ def create_runtime_metadata_dict(
         "/entry/entry_identifier": "xpcs_20240214_120000",
         "/entry/entry_identifier_uuid": "550e8400-e29b-41d4-a716-446655440000",
         "/entry/scan_number": 1,
-        "/entry/user/cycle": pv_registers.cycle_name.get(),
+        "/entry/user/cycle": expt.cycle_name,
         "/entry/start_time": str(datetime.datetime.now()),
         "/entry/end_time": str(datetime.datetime.now()),  # fixme later
-        "/entry/instrument/datamanagement/workflow_name": pv_registers.workflow_name.get(),
+        "/entry/instrument/datamanagement/workflow_name": expt.workflow_name,
 
         # TODO: Change the detector direct beam position and detector position to real numbers
 
         # Read detector name and use that name to decide what fields to use to populate the rest
-        "/entry/instrument/detector_1/detector_name": pv_registers.det_name.get(),
+        "/entry/instrument/detector_1/detector_name": expt.det_name,
 
         # Define all degrees of freedom of the detector
         "/entry/instrument/detector_1/position_x": horizontal / 1000.0,
@@ -237,10 +274,10 @@ def create_runtime_metadata_dict(
         # These below are shared by all detectors 
         "/entry/instrument/detector_1/count_time": det.cam.acquire_time.get(),
         "/entry/instrument/detector_1/frame_time": det.cam.acquire_period.get(),
-        "/entry/instrument/detector_1/qmap_file": pv_registers.qmap_file.get(),
+        "/entry/instrument/detector_1/qmap_file": expt.qmap_file,
         "/entry/instrument/detector_1/distance": sample_detector_distance,
-        "/entry/instrument/detector_1/x_pixel_size": pv_registers.det_pixel_size.get(),
-        "/entry/instrument/detector_1/y_pixel_size": pv_registers.det_pixel_size.get(),
+        "/entry/instrument/detector_1/x_pixel_size": det_pixel_size,
+        "/entry/instrument/detector_1/y_pixel_size": det_pixel_size,
 
         "/entry/instrument/detector_1/flightpath_swing": swing_angle_horizontal,
         "/entry/instrument/detector_1/flightpath_swing_vertical": swing_angle_vertical,
@@ -333,8 +370,8 @@ def create_runtime_metadata_dict(
         "/entry/sample/huber_z": huber.z.position,
         "/entry/sample/huber_x": huber.x.position,
         "/entry/instrument/bluesky/parent_folder": (
-            f"{pv_registers.mount_point.get()}/{pv_registers.cycle_name.get()}/"
-            f"{pv_registers.experiment_name.get()}/data/"
+            f"{expt.mount_point}/{expt.cycle_name}/"
+            f"{expt.experiment_name}/data/"
         ),
     }
     # update the runtime metadata with the runtime updates
@@ -356,8 +393,16 @@ def create_nexus_format_metadata(
         det: Detector object to get the metadata from
         additional_metadata: Additional metadata to add (optional)
     """
-    # create a copy of schema from the template, tree-structure of the nexus file
-    runtime_schema = xpcs_schema.copy()
+    # deepcopy, NOT .copy(): a shallow copy shares the nested dicts with the
+    # module-level xpcs_schema, and create_nexus_entry() pop()s "required",
+    # "data", "type", "units" and "description" out of them as it writes. With
+    # a shallow copy the first write in a process permanently guts the template,
+    # so every metadata file after it in the same session came out with ZERO
+    # NeXus attributes and six datasets degraded to empty groups -- and that
+    # loss propagates into the analysed *_results.hdf, which is a copy of this
+    # file. Measured before the fix: write 1 = 143 objects/143 with attributes,
+    # writes 2+ = 143/0. After: 143/143 every time. (Fixed 2026-09-05.)
+    runtime_schema = deepcopy(xpcs_schema)
 
     # create a dictionary of the runtime metadata
     runtime_metadata = create_runtime_metadata_dict(det, additional_metadata)

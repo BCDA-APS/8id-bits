@@ -7,7 +7,7 @@ apstools.devices.area_detector_factory.ad_creator:
 #   heartbeat_pv: "8idEiger4m:cam1:Acquire_RBV"
   labels: [ "area_detector", "detectors" ]
   plugins:
-  - badpix1 # apstools 1.7.3+, no extra customization needed
+  - badpix1: { class: id8_common.devices.area_detector.ID8_BadPixelPlugin } # pool_* PVs removed from AD now, see ID8_PluginMixin
   - cam: { class: id8_common.devices.area_detector.EigerDetectorCam_V34 }
   - codec1:
       # needed by PVA and HDF
@@ -15,9 +15,9 @@ apstools.devices.area_detector_factory.ad_creator:
   - image: { class: id8_common.devices.area_detector.ID8_ImagePlugin }
   - hdf1:
       class: id8_common.devices.area_detector.ID8_EpicsFileNameHDF5Plugin
-      read_path_template: /gdata/dm/8IDI/2025-2/
+      read_path_template: /gdata/dm/8ID/8IDE/2026-3/
       # same filesystem for IOC & Bluesky
-      write_path_template: /gdata/dm/8IDI/2025-2/
+      write_path_template: /gdata/dm/8ID/8IDE/2026-3/
       kind: normal
   - overlay1: { class: id8_common.devices.area_detector.ID8_OverlayPlugin }
   - process1: { class: id8_common.devices.area_detector.ID8_ProcessPlugin }
@@ -41,7 +41,7 @@ apstools.devices.area_detector_factory.ad_creator:
 #   heartbeat_pv: "8idLambda2m:cam1:Acquire_RBV"
   labels: [ "area_detector", "detectors" ]
   plugins:
-  - badpix1 # apstools 1.7.3+, no extra customization needed
+  - badpix1: { class: id8_common.devices.area_detector.ID8_BadPixelPlugin } # pool_* PVs removed from AD now, see ID8_PluginMixin
   - cam:
       class: id8_common.devices.area_detector.Lambda2MCam
   - codec1:
@@ -50,8 +50,8 @@ apstools.devices.area_detector_factory.ad_creator:
   - image: { class: id8_common.devices.area_detector.ID8_ImagePlugin }
   - hdf1:
       class: id8_common.devices.area_detector.ID8_EpicsFileNameHDF5Plugin
-      read_path_template: /gdata/dm/8IDI/2025-2/
-      write_path_template: /gdata/dm/8IDI/2025-2/
+      read_path_template: /gdata/dm/8ID/8IDE/2026-3/
+      write_path_template: /gdata/dm/8ID/8IDE/2026-3/
       kind: normal
   - overlay1: { class: id8_common.devices.area_detector.ID8_OverlayPlugin }
   - process1: { class: id8_common.devices.area_detector.ID8_ProcessPlugin }
@@ -79,8 +79,8 @@ apstools.devices.area_detector_factory.ad_creator:
 #   - image: { class: id8_common.devices.area_detector.ID8_ImagePlugin }
 #   - hdf1:
 #       class: id8_common.devices.area_detector.ID8_EpicsFileNameHDF5Plugin
-#       read_path_template: /gdata/dm/8IDI/2025-2/
-#       write_path_template: /gdata/dm/8IDI/2025-2/
+#       read_path_template: /gdata/dm/8ID/8IDE/2026-3/
+#       write_path_template: /gdata/dm/8ID/8IDE/2026-3/
 #       kind: normal
 #   - overlay1: { class: id8_common.devices.area_detector.ID8_OverlayPlugin }
 #   - process1: { class: id8_common.devices.area_detector.ID8_ProcessPlugin }
@@ -103,8 +103,8 @@ apstools.devices.area_detector_factory.ad_creator:
 #   - image: { class: id8_common.devices.area_detector.ID8_ImagePlugin }
 #   - hdf1:
 #       class: id8_common.devices.area_detector.ID8_EpicsFileNameHDF5Plugin
-#       read_path_template: /gdata/dm/8IDI/2025-2/
-#       write_path_template: /gdata/dm/8IDI/2025-2/
+#       read_path_template: /gdata/dm/8ID/8IDE/2026-3/
+#       write_path_template: /gdata/dm/8ID/8IDE/2026-3/
 #       kind: normal
 #   - overlay1: { class: id8_common.devices.area_detector.ID8_OverlayPlugin }
 #   - process1: { class: id8_common.devices.area_detector.ID8_ProcessPlugin }
@@ -129,8 +129,8 @@ apstools.devices.area_detector_factory.ad_creator:
 #   - image: { class: id8_common.devices.area_detector.ID8_ImagePlugin }
 #   - hdf1:
 #       class: id8_common.devices.area_detector.ID8_EpicsFileNameHDF5Plugin
-#       read_path_template: /gdata/dm/8IDI/2025-2/
-#       write_path_template: /gdata/dm/8IDI/2025-2/
+#       read_path_template: /gdata/dm/8ID/8IDE/2026-3/
+#       write_path_template: /gdata/dm/8ID/8IDE/2026-3/
 #       kind: normal
 #   - overlay1: { class: id8_common.devices.area_detector.ID8_OverlayPlugin }
 #   - process1: { class: id8_common.devices.area_detector.ID8_ProcessPlugin }
@@ -155,8 +155,8 @@ apstools.devices.area_detector_factory.ad_creator:
 #   - image: { class: id8_common.devices.area_detector.ID8_ImagePlugin }
 #   - hdf1:
 #       class: id8_common.devices.area_detector.ID8_EpicsFileNameHDF5Plugin
-#       read_path_template: /gdata/dm/8IDI/2025-2/
-#       write_path_template: /gdata/dm/8IDI/2025-2/
+#       read_path_template: /gdata/dm/8ID/8IDE/2026-3/
+#       write_path_template: /gdata/dm/8ID/8IDE/2026-3/
 #       kind: normal
 #   - overlay1: { class: id8_common.devices.area_detector.ID8_OverlayPlugin }
 #   - process1: { class: id8_common.devices.area_detector.ID8_ProcessPlugin }
@@ -182,8 +182,8 @@ apstools.devices.area_detector_factory.ad_creator:
 #   - image: { class: id8_common.devices.area_detector.ID8_ImagePlugin }
 #   - hdf1:
 #       class: id8_common.devices.area_detector.ID8_EpicsFileNameHDF5Plugin
-#       read_path_template: /gdata/dm/8IDI/2025-2/
-#       write_path_template: /gdata/dm/8IDI/2025-2/
+#       read_path_template: /gdata/dm/8ID/8IDE/2026-3/
+#       write_path_template: /gdata/dm/8ID/8IDE/2026-3/
 #       kind: normal
 #   - overlay1: { class: id8_common.devices.area_detector.ID8_OverlayPlugin }
 #   - process1: { class: id8_common.devices.area_detector.ID8_ProcessPlugin }
@@ -199,7 +199,7 @@ apstools.devices.area_detector_factory.ad_creator:
   # IOC host: rigakusi3m (10.54.116.29)
   labels: [ "area_detector", "detectors" ]
   plugins:
-  - badpix1 # apstools 1.7.3+, no extra customization needed
+  - badpix1: { class: id8_common.devices.area_detector.ID8_BadPixelPlugin } # pool_* PVs removed from AD now, see ID8_PluginMixin
   - cam:
       class: id8_common.devices.area_detector.Rigaku3MCam
   - codec1:
@@ -208,8 +208,8 @@ apstools.devices.area_detector_factory.ad_creator:
   - image: { class: id8_common.devices.area_detector.ID8_ImagePlugin }
   - hdf1:
       class: id8_common.devices.area_detector.ID8_EpicsFileNameHDF5Plugin
-      read_path_template: /gdata/dm/8ID/8IDI/2025-2/
-      write_path_template: /gdata/dm/8ID/8IDI/2025-2/
+      read_path_template: /gdata/dm/8ID/8IDE/2026-3/
+      write_path_template: /gdata/dm/8ID/8IDE/2026-3/
       kind: normal
   - overlay1: { class: id8_common.devices.area_detector.ID8_OverlayPlugin }
   - process1: { class: id8_common.devices.area_detector.ID8_ProcessPlugin }
@@ -233,8 +233,8 @@ apstools.devices.area_detector_factory.ad_creator:
 #   - image: { class: id8_common.devices.area_detector.ID8_ImagePlugin }
 #   - hdf1:
 #       class: id8_common.devices.area_detector.ID8_EpicsFileNameHDF5Plugin
-#       read_path_template: /gdata/dm/8IDI/2025-2/
-#       write_path_template: /gdata/dm/8IDI/2025-2/
+#       read_path_template: /gdata/dm/8ID/8IDE/2026-3/
+#       write_path_template: /gdata/dm/8ID/8IDE/2026-3/
 #       kind: normal
 #   - overlay1: { class: id8_common.devices.area_detector.ID8_OverlayPlugin }
 #   - process1: { class: id8_common.devices.area_detector.ID8_ProcessPlugin }

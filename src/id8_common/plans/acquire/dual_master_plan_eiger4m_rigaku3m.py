@@ -1,18 +1,22 @@
 """
 YAML front end for parallel two-detector acquisition.
 
-The dual counterpart to master_plan.py. Reads user_plans/dual_measurement_info.yaml, validates
+The dual counterpart to master_plan.py. Reads dual_measurement_info.yaml from expt.user_plan_dir, validates
 it hard enough that nothing can move before an error surfaces, and hands per-detector "legs" to
-dual_acq.dual_acq_series().
+dual_acq_eiger4m_rigaku3m.dual_acq_series().
 
-Imported by startup.py, so these are already in the session:
+Imported by startup.py, so these are already in the session (the __all__ at the bottom of
+this file is the full list `import *` brings across):
 
     dry_run_dual_measurement_info(check_hardware=True)   # validate and preview, moves nothing
     run_dual_measurement_info()                          # go
 
-Importing this alongside master_plan.py is safe: the two share no state and no names. A dual
-run touches the same pv_registers only after its parallel window has closed, and restores them
-afterwards, so single-detector acquisition behaves exactly as it did before.
+Importing this alongside master_plan.py is safe: the two export no names in common, both
+having an __all__. They do share one thing -- the `expt` run state -- and a dual run is
+careful with it: it sets only the sample fields and sample_move globally, while the per-leg
+fields (det_name, qmap_file, analysis_type, workflow_name) are swapped in one leg at a time
+by dual_acq_eiger4m_rigaku3m.swapped_registers(), after the parallel window has closed, and restored
+afterwards. So single-detector acquisition behaves exactly as it did before.
 
 Run expansion (runs/protocols/samples/loop_order) is reused wholesale from master_plan.py, so
 the two files behave identically there. What differs is the protocol body: a dual protocol
@@ -22,27 +26,30 @@ rather than at protocol level.
 sample_info.yaml is shared with the serial path and read unchanged.
 """
 
-from apsbits.core.instrument_init import oregistry
-from id8_common.plans.acquire.ad_acq import ACQ_MODES
-from id8_common.plans.acquire.ad_acq import get_ophyd_object
-from id8_common.plans.acquire.dual_acq import DUAL_LEGS
-from id8_common.plans.acquire.dual_acq import FORBIDDEN_MOTORS
-from id8_common.plans.acquire.dual_acq import dual_acq_series
-from id8_common.plans.acquire.master_plan import SAMPLE_INFO_FILE
-from id8_common.plans.acquire.master_plan import USER_PLAN_DIR
-from id8_common.plans.acquire.master_plan import VALID_ANALYSIS_TYPES
+from id8_common.plans.acquire.dual_acq_eiger4m_rigaku3m import DUAL_LEGS
+from id8_common.plans.acquire.dual_acq_eiger4m_rigaku3m import FORBIDDEN_MOTORS
+from id8_common.plans.acquire.dual_acq_eiger4m_rigaku3m import dual_acq_series
 from id8_common.plans.acquire.master_plan import expand_measurements
 from id8_common.plans.acquire.master_plan import get_sample
-from id8_common.plans.acquire.master_plan import get_sample_position_register
-from id8_common.plans.acquire.master_plan import read_yaml
-from id8_common.plans.acquire.master_plan import write_sample_registers
-from id8_common.plans.acquire.master_plan import yes_no
+from id8_common.plans.acquire.validators import as_bool
+from id8_common.plans.acquire.validators import normalize_yes_no
+from id8_common.plans.acquire.validators import read_yaml
+from id8_common.plans.acquire.validators import require_fields
+from id8_common.plans.acquire.validators import require_mode_devices
+from id8_common.plans.acquire.validators import require_positive_int
+from id8_common.plans.acquire.validators import reset_sample_position
+from id8_common.plans.acquire.validators import validate_acq_time
+from id8_common.plans.acquire import validators
 from id8_common.plans.set.select_device import DETECTOR_ALIASES
 from id8_common.plans.set.shutter_att import att
+from id8_common.expt_config import expt
+from id8_common.registry import get_ophyd_object
 
-pv_registers = oregistry["pv_registers"]
 
-DUAL_MEASUREMENT_INFO_FILE = USER_PLAN_DIR / "dual_measurement_info.yaml"
+# The YAML plan files are resolved from configs/experiment.yml at CALL time, not
+# import time -- see expt.user_plan_dir and the run functions at the bottom of
+# this file. No plan path is hardcoded here. (This note describes the plan
+# files; the constants immediately below are unrelated to it.)
 
 # Huber position a dual Eiger+Rigaku measurement acquires at.
 DUAL_HUBER_DELTA = 10.0
@@ -84,14 +91,6 @@ KNOWN_GEOMETRY_FIELDS = [
 # =============================================================================
 # Helpers
 # =============================================================================
-
-
-def as_bool(value, field_name):
-    """YAML `yes`/`no` arrives as a bool; accept the string spellings too."""
-    if isinstance(value, bool):
-        return value
-
-    return yes_no(value, field_name) == "yes"
 
 
 def leg_label(leg):
@@ -141,24 +140,28 @@ def validate_geometry(geometry, label):
                     f"nor a resolvable ophyd path ({exc})."
                 ) from exc
         else:
+            # Called for the exception, not the result -- float() raises on
+            # anything that is not a number. A bad value has to be caught here,
+            # while the run can still be fixed, rather than at metadata-writing
+            # time with the data already on disk.
             float(value)
 
 
 def validate_leg(leg):
-    label = leg_label(leg)
+    """Check one detector leg of a dual protocol.
 
-    for field in REQUIRED_LEG_FIELDS:
-        if field not in leg:
-            raise ValueError(f"Leg '{label}': missing field '{field}'.")
+    Resolves devices and motors, so this needs a live session -- it is the part
+    the dry run skips unless asked for with check_hardware=True.
+    """
+    label = leg_label(leg)
+    where = f"Leg '{label}'"
+
+    require_fields(leg, REQUIRED_LEG_FIELDS, "leg", where=where)
 
     device = leg["device"]
     mode = leg["mode"]
 
-    if device not in ACQ_MODES:
-        raise ValueError(f"Leg '{label}': invalid detector '{device}'. Known: {sorted(ACQ_MODES)}")
-
-    if mode not in ACQ_MODES[device]:
-        raise ValueError(f"Leg '{label}': invalid mode '{mode}' for '{device}'. Known: {sorted(ACQ_MODES[device])}")
+    validators.validate_detector_mode(device, mode, where=where)
 
     if (device, mode) not in DUAL_LEGS:
         supported = ", ".join(f"{d}/{m}" for d, m in sorted(DUAL_LEGS))
@@ -166,32 +169,21 @@ def validate_leg(leg):
             f"Leg '{label}': {device}/{mode} is not supported for dual acquisition. Supported: {supported}"
         )
 
-    acq_time = float(leg["acq_time"])
-
-    if acq_time <= 0:
-        raise ValueError(f"Leg '{label}': acq_time must be > 0.")
-
-    min_acq_time = ACQ_MODES[device][mode].get("min_acq_time")
-
-    if min_acq_time is not None and acq_time < min_acq_time:
-        raise ValueError(
-            f"Leg '{label}': {device} {mode} requires acq_time >= {min_acq_time:.2e} s (got {acq_time:.2e} s)."
-        )
-
-    if int(leg["num_frames"]) < 1:
-        raise ValueError(f"Leg '{label}': num_frames must be >= 1.")
+    validate_acq_time(leg["acq_time"], device, mode, where=where)
+    require_positive_int(leg["num_frames"], "num_frames", where=where)
 
     if not str(leg["qmap_file"]).strip():
-        raise ValueError(f"Leg '{label}': qmap_file must not be empty.")
+        raise ValueError(f"{where}: qmap_file must not be empty.")
 
-    analysis_type = leg.get("analysis_type", "Multitau")
-
-    if analysis_type not in VALID_ANALYSIS_TYPES:
-        raise ValueError(f"Leg '{label}': analysis_type must be one of {VALID_ANALYSIS_TYPES} (got '{analysis_type}').")
+    validators.validate_analysis_type(leg.get("analysis_type", "Multitau"), where=where)
 
     validate_geometry(leg.get("geometry"), label)
 
-    for dotted in leg.get("motors") or {}:
+    # `or {}` covers both a leg with no motors block and one written as
+    # `motors:` with nothing under it, which YAML reads as None.
+    motors = leg.get("motors") or {}
+
+    for dotted in motors:
         if dotted in FORBIDDEN_MOTORS:
             raise ValueError(
                 f"Leg '{label}': '{dotted}' cannot appear in a dual protocol's motors block. "
@@ -200,20 +192,32 @@ def validate_leg(leg):
             )
         get_ophyd_object(dotted)
 
-    device_obj = oregistry[ACQ_MODES[device][mode].get("hardware_device", device)]
-
-    if not device_obj.connected:
-        raise RuntimeError(f"Leg '{label}': {device} is not connected.")
+    # Checks required_devices too -- softglue for an eiger4M External Series
+    # leg used to go unchecked here and only fail once the run had started.
+    require_mode_devices(device, mode, where=where)
 
 
 def validate_shutter_owner(legs):
+    """Exactly one leg of a dual protocol must set shutter_owner: yes.
+
+    The owner is armed first and everyone else waits for it -- see the shutter
+    contract at the top of dual_acq_eiger4m_rigaku3m.py. A single-leg protocol
+    may leave it unset and owns the shutter by default; prepare_legs() marks it
+    as the owner at run time.
+    """
     owners = [leg for leg in legs if as_bool(leg.get("shutter_owner", False), "shutter_owner")]
 
     if len(legs) == 1 and not owners:
         return
 
     if len(owners) != 1:
-        labels = ", ".join(leg_label(leg) for leg in owners) or "none"
+        labels = ", ".join(leg_label(leg) for leg in owners)
+
+        # No owner at all joins to the empty string, which reads as a truncated
+        # message rather than as the real problem.
+        if not labels:
+            labels = "none"
+
         raise ValueError(
             f"Exactly one leg must set shutter_owner: yes (got {len(owners)}: {labels}). "
             f"The owner is armed first and everyone else waits for it to confirm it is acquiring."
@@ -221,58 +225,28 @@ def validate_shutter_owner(legs):
 
 
 def validate_sample_motion(measurement, sample):
-    if measurement["sample_move"] != "yes":
-        return
-
-    required = [
-        "inner_motor",
-        "outer_motor",
-        "inner_center",
-        "outer_center",
-        "inner_range",
-        "outer_range",
-        "inner_pts",
-        "outer_pts",
-    ]
-
-    for field in required:
-        if field not in sample:
-            raise ValueError(f"Missing sample field: {field}")
-
-    # The mesh is the other way huber.delta / huber.nu could be driven, via sample_info.yaml's
-    # inner_motor / outer_motor. Refuse it for the same reason as a leg's motors block.
-    for role in ("inner_motor", "outer_motor"):
-        if sample[role] in FORBIDDEN_MOTORS:
-            raise ValueError(
-                f"sample_info.yaml sets {role} = '{sample[role]}', which a dual acquisition "
-                f"must never move. Use a different sample axis, or set sample_move: no."
-            )
-
-    get_ophyd_object(sample["inner_motor"])
-    get_ophyd_object(sample["outer_motor"])
-
-    if int(sample["inner_pts"]) < 1:
-        raise ValueError("inner_pts must be >= 1.")
-
-    if int(sample["outer_pts"]) < 1:
-        raise ValueError("outer_pts must be >= 1.")
-
-    get_sample_position_register(int(measurement["sample_index"]))
+    # FORBIDDEN_MOTORS is the dual-only part: the mesh is the other way
+    # huber.delta / huber.nu could be driven, via sample_info.yaml's
+    # inner_motor / outer_motor. Refuse it for the same reason as a leg's
+    # motors block -- setup_huber_for_dual() owns both axes.
+    validators.validate_sample_motion(measurement, sample, forbidden_motors=FORBIDDEN_MOTORS)
 
 
 def normalize_dual_measurement(measurement):
-    measurement["sample_move"] = yes_no(measurement["sample_move"], "sample_move")
-    measurement["position_reset"] = yes_no(measurement.get("position_reset", "no"), "position_reset")
+    """Coerce the protocol's yes/no fields to their string form, in place."""
+    normalize_yes_no(measurement)
 
 
 def validate_dual_measurement(measurement, sample, check_hardware=True):
-    for field in REQUIRED_PROTOCOL_FIELDS:
-        if field not in measurement:
-            raise ValueError(f"Missing protocol field: {field}")
+    """Check one expanded dual measurement: protocol level first, then leg by leg.
 
-    for field in ["sample_name", "header"]:
-        if field not in sample:
-            raise ValueError(f"Missing sample field: {field}")
+    check_hardware=False skips validate_leg(), which is the part that resolves
+    devices and so needs a live session. The sample-mesh check runs either way
+    and resolves the mesh motors, so a sample_move: yes protocol still cannot be
+    checked offline.
+    """
+    require_fields(measurement, REQUIRED_PROTOCOL_FIELDS, "protocol")
+    require_fields(sample, ["sample_name", "header"], "sample")
 
     normalize_dual_measurement(measurement)
 
@@ -281,8 +255,7 @@ def validate_dual_measurement(measurement, sample, check_hardware=True):
     if not isinstance(legs, list) or not legs:
         raise ValueError("protocol 'detectors' must be a non-empty list.")
 
-    if int(measurement["num_repeats"]) < 1:
-        raise ValueError("num_repeats must be >= 1.")
+    require_positive_int(measurement["num_repeats"], "num_repeats")
 
     labels = [leg_label(leg) for leg in legs]
 
@@ -337,13 +310,7 @@ def build_leg_specs(measurement):
 
 
 def reset_sample_position_register(measurement):
-    if measurement["sample_move"] != "yes":
-        return
-
-    if measurement["position_reset"] != "yes":
-        return
-
-    get_sample_position_register(int(measurement["sample_index"])).put(-1)
+    reset_sample_position(measurement)
 
 
 # =============================================================================
@@ -352,6 +319,11 @@ def reset_sample_position_register(measurement):
 
 
 def print_measurement_header(measurement, sample, sample_index, extra=None):
+    """Print the per-measurement banner, shared by the real run and the dry run.
+
+    `extra` is a list of already-formatted lines printed just before the closing
+    rule -- how the dry run adds its parallel/serial time estimates.
+    """
     legs = measurement["detectors"]
 
     print("")
@@ -400,18 +372,29 @@ def print_measurement_header(measurement, sample, sample_index, extra=None):
 
 
 def setup_huber_for_dual():
-    """Move the huber to the dual-acquisition position: delta 10, nu 0.
+    """Huber positioning hook for a dual run. Motion is DISABLED: this moves nothing.
 
-    These two axes are the only huber motion in a dual run. Once this returns, nothing in the
-    acquisition may touch them -- see FORBIDDEN_MOTORS in dual_acq.py, which refuses both a
-    leg's motors block and the sample mesh.
+    As it stands the function only prints the delta 10 / nu 0 position it would have moved to
+    -- see the comment below. Position the diffractometer yourself before the run.
+
+    When the motion is re-enabled, these two axes are the only huber motion in a dual run, and
+    once this returns nothing in the acquisition may touch them -- see FORBIDDEN_MOTORS in
+    dual_acq_eiger4m_rigaku3m.py, which refuses both a leg's motors block and the sample mesh.
     """
-    huber = oregistry["huber"]
-
-    print(f"Moving huber.delta to {DUAL_HUBER_DELTA}, huber.nu to {DUAL_HUBER_NU}")
-
-    huber.delta.move(DUAL_HUBER_DELTA, wait=True)
-    huber.nu.move(DUAL_HUBER_NU, wait=True)
+    # DISABLED 2026-09-06 for testing: no motor motion. The dual geometry is
+    # whatever the diffractometer is already at, so a leg's metadata may not
+    # describe the true beam path -- see the geometry: block in
+    # dual_measurement_info.yaml for how to override it per leg.
+    # Re-enable by uncommenting the three lines below.
+    #
+    # huber = oregistry["huber"]
+    # print(f"Moving huber.delta to {DUAL_HUBER_DELTA}, huber.nu to {DUAL_HUBER_NU}")
+    # huber.delta.move(DUAL_HUBER_DELTA, wait=True)
+    # huber.nu.move(DUAL_HUBER_NU, wait=True)
+    print(
+        f"setup_huber_for_dual: motion DISABLED -- leaving huber where it is "
+        f"(would have moved delta to {DUAL_HUBER_DELTA}, nu to {DUAL_HUBER_NU})"
+    )
 
 
 # =============================================================================
@@ -426,8 +409,20 @@ def run_dual_measurement(measurement, sample_info):
 
     validate_dual_measurement(measurement, sample)
 
-    write_sample_registers(sample_index, sample)
-    pv_registers.sample_move.put(measurement["sample_move"])
+    # Populate the SAMPLE half of the run state. Added 2026-09-06: without it
+    # expt.header and expt.sample_name are never set, and the first call to
+    # gen_folder_prefix() raises AttributeError before any hardware moves.
+    # master_plan.run_measurement() has always done this; the dual path was
+    # missed when the pv_registers -> expt migration landed.
+    #
+    # Only the sample half. The measurement half (det_name, mode, acq_time,
+    # qmap_file, analysis_type) is PER LEG in a dual run and is applied one leg
+    # at a time by swapped_registers() in dual_acq_eiger4m_rigaku3m -- setting it globally here
+    # would stamp both legs with whichever leg happened to be written last.
+    expt.sample_index = sample_index
+    expt.set_measurement(sample=sample)
+
+    expt.sample_move = measurement["sample_move"]
     reset_sample_position_register(measurement)
 
     att(int(measurement["att_level"]))
@@ -445,10 +440,17 @@ def run_dual_measurement(measurement, sample_info):
 
 
 def run_dual_measurement_info(
-    measurement_info_file=DUAL_MEASUREMENT_INFO_FILE,
-    sample_info_file=SAMPLE_INFO_FILE,
+    measurement_info_file=None,
+    sample_info_file=None,
 ):
     """Expand dual_measurement_info.yaml and run every measurement it describes."""
+    # None, not a default argument: a default binds once at import and could not
+    # follow an experiment.yml edit or expt.reload().
+    measurement_info_file = measurement_info_file or expt.dual_measurement_info_file
+    sample_info_file = sample_info_file or expt.sample_info_file
+
+    print(f"Reading dual plans from {measurement_info_file.parent}")
+
     sample_info = read_yaml(sample_info_file)
     measurement_info = read_yaml(measurement_info_file)
 
@@ -468,8 +470,8 @@ def run_dual_measurement_info(
 
 
 def dry_run_dual_measurement_info(
-    measurement_info_file=DUAL_MEASUREMENT_INFO_FILE,
-    sample_info_file=SAMPLE_INFO_FILE,
+    measurement_info_file=None,
+    sample_info_file=None,
     check_hardware=False,
 ):
     """Validate and preview without moving anything.
@@ -477,9 +479,13 @@ def dry_run_dual_measurement_info(
     Estimated time uses max() over the legs, not sum() -- that difference is the whole point
     of running them in parallel, so the preview shows the saving up front.
 
-    check_hardware=False skips the device-connected and ophyd-path checks so this can be run
-    off the beamline; pass True on a live session to validate those too.
+    check_hardware=False skips the per-leg device-connected checks; pass True on a live session
+    to run them too. It does NOT skip the sample-mesh check, which resolves inner_motor and
+    outer_motor either way, so a sample_move: yes protocol still needs a live session.
     """
+    measurement_info_file = measurement_info_file or expt.dual_measurement_info_file
+    sample_info_file = sample_info_file or expt.sample_info_file
+
     sample_info = read_yaml(sample_info_file)
     measurement_info = read_yaml(measurement_info_file)
 
@@ -533,8 +539,8 @@ def dry_run_dual_measurement_info(
 # 2. Edit dual_measurement_info.yaml.
 # 3. In IPython/Bluesky:
 #
-#       from id8_common.plans.acquire.dual_master_plan import dry_run_dual_measurement_info
-#       from id8_common.plans.acquire.dual_master_plan import run_dual_measurement_info
+#       from id8_common.plans.acquire.dual_master_plan_eiger4m_rigaku3m import dry_run_dual_measurement_info
+#       from id8_common.plans.acquire.dual_master_plan_eiger4m_rigaku3m import run_dual_measurement_info
 #
 #       dry_run_dual_measurement_info(check_hardware=True)
 #       run_dual_measurement_info()
@@ -548,7 +554,6 @@ def dry_run_dual_measurement_info(
 __all__ = [
     "DUAL_HUBER_DELTA",
     "DUAL_HUBER_NU",
-    "DUAL_MEASUREMENT_INFO_FILE",
     "build_leg_specs",
     "dry_run_dual_measurement_info",
     "run_dual_measurement",

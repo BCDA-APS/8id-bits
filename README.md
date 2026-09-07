@@ -1,5 +1,21 @@
 # 8-ID-I XPCS Bluesky Instrument
 
+## 📖 Documentation
+
+**[docs/](docs/README.md)** — start here for operating the instrument:
+
+| | |
+|---|---|
+| [Starting a session](docs/starting-a-session.md) | how to start, and what it loads |
+| [Devices](docs/devices.md) | how devices are imported; adding and removing one |
+| [Configuration](docs/configuration.md) | where every setting lives, and how it reaches an acquisition |
+| [Running measurements](docs/running-measurements.md) | protocols, examples, single and dual detector |
+| [Detector modes](docs/reference/detector-modes.md) | the thirteen detector/mode pairs and their timing rules |
+| [Troubleshooting](docs/reference/troubleshooting.md) | known failure modes |
+
+The rest of this file covers installation and developer setup.
+
+
 ## Installation Steps
 *aps_8id_bs_instrument* can also use *conda* for dependency management, and
 *setuptools* for installation and development.

@@ -7,28 +7,40 @@ from ophyd import Device
 from ophyd import EpicsSignalRO, EpicsSignal
 
 class Keithley2400(Device):
+    """Keithley 2400 SourceMeter -- one channel that both sources and measures.
+
+    Used to bias a sample during an acquisition (see plans/set/volt_seq.py).
+    Its configs/devices.yml entry -- currently commented out -- uses prefix
+    "8idKeithley2400:K1:". Nothing reaches the sample until `output` is set to 1.
+    """
+
     output = Component(EpicsSignal, "enableBO")
 
-    '''source'''
+    # --- source: what the instrument drives onto the sample ---
     set_volt = Component(EpicsSignal, "setVoltAO")
     set_curr = Component(EpicsSignal, "setCurrAO")
 
     set_compl_volt = Component(EpicsSignal, "setComplVoltAO")
     set_compl_curr = Component(EpicsSignal, "setComplCurrAO")
 
-    '''measure'''
+    # --- measure: what the instrument reads back ---
     meas_volt = Component(EpicsSignalRO, 'measVoltAI')
     meas_curr = Component(EpicsSignalRO, 'measCurrAI')
     output_status = Component(EpicsSignalRO, "enabledBI")
 
 class Keithley(Device):
-    """Device representing a Keithley 2600 class device.
-    Component(EpicsSignal, "")
+    """One channel (SMU A or B) of a Keithley 2600-series SourceMeter.
+
+    Its configs/devices.yml entries -- currently commented out -- instantiate
+    one per channel, prefixes "8idKeithley2600:SMU:A:" and ":B:". Component
+    names below mirror the EPICS
+    record names one for one: the ``_AO``/``_BO`` suffixes are the settable
+    records and ``_AI``/``_BI`` the matching readbacks.
     """
 
     output = Component(EpicsSignal, "SourceOutputBO")
     
-    """Source"""
+    # --- source: what the instrument drives onto the sample ---
     
     SrcAutorangeV_BO = Component(EpicsSignal, "SrcAutorangeV_BO")
     SrcLowrangeV_AO = Component(EpicsSignal, "SrcLowrangeV_AO")
@@ -58,7 +70,7 @@ class Keithley(Device):
     OfflimitI_AO = Component(EpicsSignal, "OfflimitI_AO")
     OffmodeMO = Component(EpicsSignal, "OffmodeMO")
 
-    """Measure"""
+    # --- measure: what the instrument reads back ---
 
     MeasAutorangeI_BO = Component(EpicsSignal, "MeasAutorangeI_BO")
     MeasLowrangeI_AO = Component(EpicsSignal, "MeasLowrangeI_AO")

@@ -13,15 +13,19 @@ Includes:
 import logging
 from pathlib import Path
 
+# Not used by this module: `yaml` reached the interactive prompt only as a
+# side effect of `from master_plan import *`, and master_plan stopped needing
+# it when read_yaml moved to validators.py. startup_ophyd.py imports it the
+# same way, explicitly.
+import yaml  # noqa: F401
+
 # Core Functions
 from apsbits.core.best_effort_init import init_bec_peaks
 from apsbits.core.catalog_init import init_catalog
 from apsbits.core.instrument_init import init_instrument
-from apsbits.core.instrument_init import make_devices
 from apsbits.core.run_engine_init import init_RE
 
 # Utility functions
-from apsbits.utils.aps_functions import host_on_aps_subnet
 from apsbits.utils.baseline_setup import setup_baseline_stream
 
 # Configuration functions
@@ -89,23 +93,71 @@ else:
     from bluesky import plans as bp  # noqa: F401
 
 # Experiment specific logic, device and plan loading. # Create the devices.
-# offline_devices = []
-# offline_devices += safe_make_devices(file="devices.yml", device_manager=instrument)
-# offline_devices += safe_make_devices(file="ad_devices.yml", device_manager=instrument)
-# if offline_devices:
-#     print(f"\033[91m\n*** Devices not online: {offline_devices} ***\n\033[0m")
-# if host_on_aps_subnet(): # test this 
-#     make_devices(clear=False, file="devices_aps_only.yml", device_manager=instrument)
+# safe_make_devices skips (with a warning) a device that fails to build, or
+# fails its basic wait_for_connection() check (genuinely offline) -- instead
+# of letting it take down the rest of startup. It doesn't try to prove every
+# lazily-declared PV on a device connects; a missing lazy PV only surfaces
+# when a plan actually reads or writes it. See
+# id8_common/registry.py:safe_make_devices for how.
+offline_devices = []
+offline_devices += safe_make_devices(file="devices.yml", device_manager=instrument)
+offline_devices += safe_make_devices(file="ad_devices.yml", device_manager=instrument)
+offline_devices += safe_make_devices(file="devices_aps_only.yml", device_manager=instrument)
+if offline_devices:
+    print(f"\033[91m\n*** Devices not online: {offline_devices} ***\n\033[0m")
 
-make_devices(clear=False, file="devices.yml", device_manager=instrument)
-make_devices(clear=False, file="ad_devices.yml", device_manager=instrument)
-make_devices(clear=False, file="devices_aps_only.yml", device_manager=instrument)
+# Bridging step: copy the devices just loaded into id8_common's own registry,
+# so plan modules written against `from id8_common.registry import oregistry`
+# resolve devices the same way whether this Bluesky startup or
+# startup_ophyd.py launched the session.
+from id8_common.registry import oregistry as shared_oregistry
+
+for _device in oregistry.root_devices:
+    shared_oregistry.register(_device)
 
 from id8_common.devices.area_detector import ad_setup
-ad_setup(oregistry["eiger4M"], iconfig)
-ad_setup(oregistry["lambda2M"], iconfig)
 
-pv_registers = oregistry["pv_registers"]
+# Guard, not assume: safe_make_devices() above may have skipped any of
+# these detectors as offline. Checked against shared_oregistry, not the bare
+# guarneri `oregistry` -- that object defines __getitem__ but neither
+# __contains__ nor __iter__, so `in` on it falls back to the legacy
+# __getitem__(0), __getitem__(1), ... protocol and raises
+# ComponentNotFound instead of doing a membership test.
+if "eiger4M" in shared_oregistry:
+    ad_setup(shared_oregistry["eiger4M"], iconfig)
+if "lambda2M" in shared_oregistry:
+    ad_setup(shared_oregistry["lambda2M"], iconfig)
+# rigaku3M: plugin config yes, warmup/priming no.
+#
+# AD_plugin_primed() compares cam.data_type with hdf1.data_type; on this
+# detector they differ permanently (cam Int32, HDF1 UInt8 -- the ZDT
+# sparsified output path), so it reports "not primed" on EVERY startup and
+# AD_prime_plugin2() would fire a real exposure each time: image_mode ->
+# Single, trigger_mode -> 0, acquire -> 1, 2 s wait, then restore. That
+# would disturb a detector that is often mid-acquisition when a session
+# starts, and it is unnecessary here -- hdf1 runs LazyOpen=Yes in Stream
+# mode, which per apstools' own AD_plugin_primed docstring removes the need
+# to prime at all. So hand ad_setup an iconfig with the warmup flag off:
+# everything else (wait_for_plugins, blocking_callbacks, stage_sigs
+# cleanup, hdf1.kind) still applies. Verified against live PVs 2026-09-03.
+_iconfig_no_warmup = dict(iconfig, ALLOW_AREA_DETECTOR_WARMUP=False)
+if "rigaku3M" in shared_oregistry:
+    ad_setup(shared_oregistry["rigaku3M"], _iconfig_no_warmup)
+
+# pv_registers is down to one live field: expt.measurement_num is 8ideSoft:Reg1
+# (see PV_FIELDS in expt_config.py -- a counter that restarts overwrites data,
+# so it must outlive the checkout). Everything else it used to carry moved to
+# configs/experiment.yml and state/run_state.yml on 2026-09-06.
+
+# Experiment settings (configs/experiment.yml) and the current measurement's
+# run state. `expt` is the single source for everything the acquisition path
+# reads: static settings from configs/experiment.yml, per-measurement values
+# from measurement_info.yaml, persistent session state (sample index, mesh
+# positions) in state/run_state.yml, and the measurement counter in
+# 8ideSoft:Reg1. See id8_common/expt_config.py.
+from id8_common.expt_config import expt  # noqa: E402
+
+print(f"[expt_config] {expt}")
 
 # Setup baseline stream with connect=False is default
 # Devices with the label 'baseline' will be added to the baseline stream.
@@ -122,13 +174,30 @@ from .utils.check_file_dim import check_h5_shape
 # from .plans.shutter_logic import *
 
 # hklpy2 setup - only for 8ide
-from hklpy2.user import *  
+from hklpy2.user import *
 from .utils.hklpy2_setup import configure_hklpy2
-configure_hklpy2(oregistry)
+
+# Guard, checked against shared_oregistry for the same reason as the
+# ad_setup guard above: configure_hklpy2() immediately calls
+# set_diffractometer(psic) and psic.add_reflection(...) -- real use of the
+# device -- so if psic is offline, skip diffractometer setup entirely
+# rather than crash the session over it.
+if "psic" in shared_oregistry:
+    configure_hklpy2(oregistry)
+else:
+    print("\033[91m*** psic not online: skipping hklpy2/diffractometer setup ***\033[0m")
 
 from .utils.misc import stream_rois
-stream_rois(oregistry["eiger4M"])
-stream_rois(oregistry["lambda2M"])
+if "eiger4M" in shared_oregistry:
+    stream_rois(shared_oregistry["eiger4M"])
+if "lambda2M" in shared_oregistry:
+    stream_rois(shared_oregistry["lambda2M"])
+# stats_nums=(1,): ad_creator only builds the plugins listed in
+# ad_devices.yml, and rigaku3M declares stats1 only (eiger4M/lambda2M
+# declare stats1-4). The default stats_nums=(1, 2, 3) would raise
+# AttributeError on stats2 here and abort startup.
+if "rigaku3M" in shared_oregistry:
+    stream_rois(shared_oregistry["rigaku3M"], stats_nums=(1,))
 
 # import acquire plans
 
@@ -138,13 +207,36 @@ from .plans.acquire.master_plan import *
 
 # Parallel two-detector acquisition (Eiger + Rigaku in one beam window). Separate from the
 # serial path above and shares no state with it -- single-detector runs are unaffected.
-from .plans.acquire.dual_master_plan import *
+from .plans.acquire.dual_master_plan_eiger4m_rigaku3m import *
+
+# The prompt's `oregistry` is the id8_common registry, not the guarneri object
+# bound at the top of this file: it supports `in`, len() and iteration, which
+# the guarneri one does not (see the comment above the ad_setup guards). Until
+# 2026-09-06 that happened only as a side effect of `from master_plan import *`
+# re-exporting the name after guarneri had bound it. master_plan now has an
+# __all__, so state it here rather than depend on import order.
+oregistry = shared_oregistry
 
 # import align plans
 from .plans.align.scan_8id import *
 
 # QZ added on 08/14:
-from .plans.align.ophyd_scan import dscan_ophyd
+# The Ophyd-only scans, under their suffixed names ONLY. This session also does
+# `from .plans.align.scan_8id import *` above, and both modules define dscan,
+# ascan, dmesh, mesh, d2scan and a2scan. Importing the plain names here would
+# shadow Sam's generators with functions that run immediately -- and because
+# Python evaluates arguments first, `RE(dscan(...))` would then perform the
+# whole scan before raising on the non-generator. See the alias block at the
+# bottom of ophyd_scan.py.
+from .plans.align.ophyd_scan import (  # noqa: F401
+    a2scan_ophyd,
+    ascan_ophyd,
+    auto_att_ophyd,
+    d2scan_ophyd,
+    dmesh_ophyd,
+    dscan_ophyd,
+    mesh_ophyd,
+)
 
 # import set plans
 from .plans.set.select_sample import select_sample

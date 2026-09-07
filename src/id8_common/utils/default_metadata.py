@@ -5,6 +5,12 @@ This module defines the default metadata values used in NeXus files for
 experiments at the APS 8-ID-I beamline. These values serve as templates
 for various instrument parameters, sample information, and experimental
 conditions.
+
+How it is used: create_runtime_metadata_dict() in nexus_utils.py starts from a copy of
+this dict and overwrites the entries it can read from live hardware, so anything left
+here is what ends up in the file when nothing measured it. Each key is a NeXus path that
+must already exist in xpcs_schema.py -- a key with no matching node there makes
+update_schema_at_runtime() raise KeyError, so add the field to the schema first.
 """
 
 # populated list for the defaults used at 8IDI
@@ -122,6 +128,6 @@ default_metadata = {
     "/entry/user/name": "John Doe",
     "/entry/user/email": "JohnDoe@mail.edu",
     "/entry/user/institution": "Institution Name",
-    "/entry/user/cycle": "2025-1",
+    "/entry/user/cycle": "2026-3",
     "/entry/user/proposal_id": "none",
 }

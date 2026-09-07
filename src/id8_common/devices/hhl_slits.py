@@ -11,7 +11,7 @@ from ophyd import FormattedComponent as FCpt
 
 class HHLSlits(Device):
     """
-    High Heat Load SHHLSlitst.
+    High Heat Load Slits.
 
     There are no independent parts to move, so each axis only has center and size.
 

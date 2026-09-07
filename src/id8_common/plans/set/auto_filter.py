@@ -1,19 +1,36 @@
+"""
+Pick an attenuation that keeps the detector under a safe count rate.
+
+auto_att() is the workhorse: it opens the shutter, takes short "pilot"
+exposures, and steps the AVS filter transmission up or down until the
+brightest pixel lands inside an acceptable counts/second window.
+
+run_att_pilot_scan() runs auto_att() once per position of an upcoming scan and
+remembers the answer in a JSON cache under ~/.config/8id_bluesky/, so a repeat
+of the same scan does not have to re-measure every point.
+"""
 
 import json
 import pathlib
 import time
 
-from apsbits.core.instrument_init import oregistry
+from id8_common.registry import oregistry
 from id8_common.plans.set.shutter_att import showbeam, blockbeam
 
-filter_beam = oregistry["filter_8ide"]
+filter_beam = oregistry.get("filter_8ide")
 
 ATT_CACHE_PATH = pathlib.Path.home() / ".config" / "8id_bluesky" / "att_cache.json"
 
 def pos_key(pos: float) -> str:
+    """Format a motor position as the string used to key the cache.
+
+    Rounding to 4 decimals means a position looked up later matches the one
+    stored during the pilot scan, despite float round-trips through JSON.
+    """
     return f"{pos:.4f}"
 
 def make_att_cache_key(motor, positions) -> str:
+    """Build the cache key identifying one scan: its motor plus every position."""
     pos_str = ",".join(pos_key(p) for p in positions)
     return f"{motor.name}:{pos_str}"
 
@@ -25,8 +42,12 @@ def load_att_cache(key: str) -> dict | None:
     return data.get(key)
 
 def save_att_cache(key: str, att_map: dict) -> None:
+    """Store this scan's {pos_key: transmission} map, keeping other scans' entries."""
     ATT_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    data = json.loads(ATT_CACHE_PATH.read_text()) if ATT_CACHE_PATH.exists() else {}
+    if ATT_CACHE_PATH.exists():
+        data = json.loads(ATT_CACHE_PATH.read_text())
+    else:
+        data = {}
     data[key] = att_map
     ATT_CACHE_PATH.write_text(json.dumps(data, indent=2))
 
@@ -72,9 +93,12 @@ def auto_att(
         retry_max:      max iterations before giving up
         grace_factor:   lower rate bound = rate_limit * grace_factor
 
+    Returns nothing. The result is a side effect: the filter set is left at the
+    transmission that was converged on, and the shutter is left blocked.
+
     Example::
 
-        auto_attenuate(eiger4M, pilot_exptime=0.05, rate_limit=4e5)
+        auto_att(eiger4M, pilot_exptime=0.05, rate_limit=4e5)
         RE(dscan(sample.x, -1, 1, 100, count_time=1.0))
     """
     
@@ -110,6 +134,9 @@ def auto_att(
             det.cam.acquire.put(1)
             t0 = time.time()
             timeout = pilot_exptime * 5 + 2
+            # Give up on a frame instead of spinning forever: the shutter is open
+            # for the whole of this loop, so a detector stuck in Acquire would
+            # otherwise leave the sample in the beam indefinitely.
             while det.cam.acquire.get() == 1:
                 time.sleep(0.02)
                 if time.time() - t0 > timeout:
@@ -121,7 +148,7 @@ def auto_att(
             current_trans = filter_beam.transmission.readback.get()
 
             print(
-                f"Attempt {attempt + 1}: trans={current_trans:.4f}"
+                f"Attempt {attempt + 1}: trans={current_trans:.4f}  "
                 f"max_cts={max_cts:.0f}  rate={rate:.0f} cts/s"
             )
 
@@ -132,6 +159,9 @@ def auto_att(
 
             elif rate < low_rate:
                 if rate > 0:
+                    # Aim at 75% of the ceiling rather than exactly at it, so that
+                    # the next frame lands inside the window instead of overshooting
+                    # back above rate_limit.
                     new_trans = current_trans * (0.75 * rate_limit / rate)
                 else:
                     new_trans = current_trans * filter_factor
@@ -140,6 +170,9 @@ def auto_att(
             else:
                 print(f"    Rate in [{low_rate:.0f}, {rate_limit:.0f}] cts/s -- converged.")
                 break
+        # This `else` belongs to the `for` above, not to the `if`: Python runs it
+        # only when the loop finished all retry_max attempts without a `break`,
+        # i.e. when no acceptable transmission was found.
         else:
             print(f"WARNING: auto_attenuate did not converge in {retry_max} attempts")
     finally:

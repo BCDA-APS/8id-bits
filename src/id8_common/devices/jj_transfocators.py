@@ -55,7 +55,6 @@ from ophyd import FormattedComponent as FCpt
 from ophyd import PVPositioner
 
 logger = logging.getLogger(__name__)
-logger.info(__file__)
 
 
 class fpower_index(PVPositioner):

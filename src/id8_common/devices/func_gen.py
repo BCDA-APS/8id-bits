@@ -20,7 +20,8 @@ class Function_Generator(Device):
     and control. It includes functionality for setting frequency, amplitude, and
     waveform parameters.
     """
-    """Control PVs"""
+
+    # --- settable PVs ---
     func = Component(EpicsSignal, "1:FUNC")
     frequency = Component(EpicsSignal, "1:FREQ")
     amplitude = Component(EpicsSignal, "1:AMP")
@@ -34,7 +35,7 @@ class Function_Generator(Device):
     send_trigger = Component(EpicsSignal, "TRIG.PROC")
     output = Component(EpicsSignal, "1:OUT")
 
-    """Readback PVs"""
+    # --- matching readbacks, one per settable PV above ---
     func_rbv = Component(EpicsSignalRO, "1:FUNC:RBV")
     frequency_rbv = Component(EpicsSignalRO, "1:FREQ:RBV")
     amplitude_rbv = Component(EpicsSignalRO, "1:AMP:RBV")

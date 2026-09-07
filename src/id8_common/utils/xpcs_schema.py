@@ -4,6 +4,22 @@ NeXus schema definition for APS 8-ID-I XPCS.
 This module defines the customized NeXus schema used for storing XPCS data at the
 APS 8-ID-I beamline. The schema follows the NXxpcs application definition and
 includes metadata about the experiment, instrument, and data collection.
+
+Shape of the dict, since create_nexus_entry() in nexus_utils.py reads it by convention
+rather than by any formal validation:
+
+  * Every node is a dict. The keys "type", "required", "deprecated", "units",
+    "description" and "data" describe that node; EVERY OTHER KEY is a child.
+  * A node that has "data" is written as an HDF5 dataset, one that does not is written
+    as a group. So adding a field means adding a node with a "data" placeholder here,
+    and the placeholder value is overwritten at write time via default_metadata.py or
+    create_runtime_metadata_dict().
+  * "units" holds a NeXus unit category such as "NX_LENGTH"; the actual unit string
+    written to the file comes from default_units_keymap in nexus_utils.py.
+
+Treat this dict as a read-only template. Writing a file consumes a deepcopy of it,
+because the writer pop()s the describing keys out of every node as it goes -- never hand
+xpcs_schema itself to create_nexus_entry().
 """
 
 # customized NeXus schema for APS 8-ID-I XPCS
@@ -963,7 +979,7 @@ xpcs_schema = {
             "cycle": {
                 "type": "NX_CHAR",
                 "required": True,
-                "description": ("Cycle during which the experiment was performed, e.g., 2025-2"),
+                "description": ("Cycle during which the experiment was performed, e.g., 2026-3"),
                 "data": "cycle",
             },
             "proposal_id": {

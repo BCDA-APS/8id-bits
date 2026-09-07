@@ -8,6 +8,7 @@ from apstools.devices import AD_EpicsFileNameHDF5Plugin
 from apstools.devices import AD_plugin_primed
 from apstools.devices import AD_prime_plugin2
 from apstools.devices import CamMixin_V34
+from apstools.devices.area_detector_factory import BadPixelPlugin
 from ophyd import ADComponent
 from ophyd import EpicsSignal
 from ophyd import EpicsSignalRO
@@ -30,7 +31,6 @@ from ophyd.ophydobj import Kind
 from ophyd.status import Status
 
 logger = logging.getLogger(__name__)
-logger.info(__file__)
 
 PLUGINS__CLEAR_STAGE_SIGS = "image process1 transform1".split()
 
@@ -181,9 +181,29 @@ class SimDetectorCam_V34(CamMixin_V34, SimDetectorCam):
 
 
 class ID8_PluginMixin(PluginBase_V34):
-    """Remove property attribute found in AD IOCs now."""
+    """Remove components no longer present on this beamline's AD IOCs.
+
+    ``_asyn_pipeline_configuration_names`` was already handled here. The
+    ``pool_*`` stats (``PoolMaxBuffers``, etc.) are inherited unchanged from
+    ophyd's base ``PluginBase`` -- they were dropped from ADCore's plugin
+    template on the versions running at 8-ID, the same way they were
+    already dropped from the *camera* template (see ``CamBase_V34`` above).
+    Confirmed live: e.g. ``8idTetra:QUAD1:image1:PoolMaxBuffers`` times out
+    while a sibling record on the same port (``EnableCallbacks_RBV``)
+    connects fine, and the same is true for every ``eiger4M``/``lambda2M``/
+    ``rigaku3M``/``tetramm*`` plugin -- they all inherit this same
+    component. Without this, ``wait_for_connection`` (even with
+    ``all_signals=False``) fails permanently on an otherwise fully-online
+    device, because these components are declared non-lazy.
+    """
 
     _asyn_pipeline_configuration_names = None
+    pool_alloc_buffers = None
+    pool_free_buffers = None
+    pool_max_buffers = None
+    pool_max_mem = None
+    pool_used_buffers = None
+    pool_used_mem = None
 
 
 class ID8_CodecPlugin(ID8_PluginMixin, CodecPlugin_V34):
@@ -278,3 +298,13 @@ class ID8_StatsPlugin(ID8_PluginMixin, StatsPlugin_V34):
 
 class ID8_TransformPlugin(ID8_PluginMixin, TransformPlugin_V34):
     """Remove property attribute found in AD IOCs now."""
+
+
+class ID8_BadPixelPlugin(ID8_PluginMixin, BadPixelPlugin):
+    """apstools' BadPixelPlugin, with the same pool_* cleanup as every other plugin here.
+
+    ad_devices.yml's ``badpix1`` entries used the bare apstools class directly
+    ("no extra customization needed") -- that was true until the pool_*
+    components became a problem; route through ID8_PluginMixin like every
+    other plugin instead of duplicating the same six lines here.
+    """

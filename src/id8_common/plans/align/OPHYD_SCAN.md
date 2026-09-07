@@ -14,12 +14,12 @@ Two audiences:
 
 | file | what it is | edit it when |
 |---|---|---|
-| [ophyd_scan.py](ophyd_scan.py) | the scan itself — moves the motor, arms the detector, reads counters | you are adding a new scan (`d2scan`, `mesh`, …) |
+| [ophyd_scan.py](ophyd_scan.py) | the scan itself — moves the motor, arms the detector, reads counters | you are adding a new scan (it already has `dscan`, `ascan`, `d2scan`, `a2scan`, `dmesh`, `mesh` and the lups) |
 | [scan_csv.py](scan_csv.py) | the CSV writer and a reader. Knows the file *format*, moves no hardware | almost never |
 | [../../configs/scan_csv_template.yml](../../configs/scan_csv_template.yml) | what goes in the file | you want a different column or another PV in the header |
 
 The split is deliberate: `ophyd_scan.py` is about hardware, `scan_csv.py` is
-about a file. A future `d2scan` gets its file format for free, and someone
+about a file. A new scan gets its file format for free, and someone
 reading the scan code is not reading string formatting.
 
 `scan_csv.py` imports `oregistry` (to look up devices named in the template) but
@@ -59,7 +59,7 @@ Call it **directly**. Do not wrap it in `RE()`; there is no RunEngine involved.
 
 ```python
 dscan_ophyd(motor, rel_begin, rel_end, num_pts, count_time,
-            det=eiger4M, att_ratio=1e6, save_img=1, comment="")
+            det=None, att_ratio=1e6, save_img=1, comment="")
 ```
 
 | argument | meaning |
@@ -68,7 +68,7 @@ dscan_ophyd(motor, rel_begin, rel_end, num_pts, count_time,
 | `rel_begin`, `rel_end` | scan range **relative to where the motor is now** |
 | `num_pts` | number of points (inclusive of both ends) |
 | `count_time` | seconds per point |
-| `det` | `eiger4M`, `lambda2M`, or `tetramm1` |
+| `det` | `eiger4M`, `lambda2M`, or `tetramm1`; `None` looks up `eiger4M` at call time |
 | `att_ratio` | attenuation ratio passed to `att()` |
 | `save_img` | `1` writes the detector `.h5`; `0` scans without it (the CSV is still written) |
 | `comment` | free text describing this scan — see below |
@@ -167,8 +167,8 @@ either:
 start_time,2026-08-26 14:32:07                        <- lines:
 h5_file,/gdata/.../A0201_Test_a0010.h5                <- lines:
 comment,"3x3 grid spot 5"                             <- lines:  (skipped if empty)
-command,"dscan_ophyd(huber_delta, -0.5, 0.5, 41, 1.0, det=lambda2M)"
-scan_type,dscan_ophyd
+command,"dscan(huber_delta, -0.5, 0.5, 41, 1.0, det=lambda2M)"
+scan_type,dscan
 motor,huber_delta
 detector,lambda2M
 num_points,41
@@ -181,9 +181,9 @@ huber_delta,30.0004
 ...
 roi1,730,983,100,10                                   <- lines:  (values: 4 PVs)
 #DATA                                                 <- marker:
-huber_delta,huber_delta_setpoint,elapsed_time,...     <- columns:  NAMES
-30.0,30.0,0.0,1234                                    <- columns:  one row per point
-30.025,30.025,1.05,1301
+,huber_delta,elapsed_time,lambda2M_stats1_total       <- columns:  NAMES
+0,30.0,0.0,1234                                       <- columns:  one row per point
+1,30.025,1.0504968166351318,1301
 #END,success,41                                       <- automatic
 ```
 
@@ -194,9 +194,39 @@ Two parts, two template keys:
 - **`columns:`** — things that *do* change. One column each, one row per point,
   below the marker.
 
+The leading column — 0-based point index, **blank name** — is not a template
+entry either. Every scan file gets it, and the blank name is the pandas index
+convention, so `read_csv(..., index_col=0)` treats it as the index rather than
+as a data column. That is also why it does not become the default X axis: the
+scanned motor is still the first *named* column.
+
 `#END,<status>,<points>` is written by the scan, not the template. Status is
 `success`, `aborted`, or `error`. Its absence means the scan is still running —
 which is how a live viewer knows to keep polling.
+
+## What you see on the screen
+
+The same columns are echoed to the terminal as the scan runs, but **only as a
+summary** — it is meant to be read at a glance while the beam is on:
+
+```
+Scan file: /gdata/dm/8ID/8IDE/2026-2/pope202607/data/bluesky/A0204_Test_a0010.csv
+   #   huber_delta  elapsed_time .stats4_total .stats3_total .stats2_total .stats1_total
+   1        29.501         1.050         0.000         0.000         0.000       1234567
+   2        29.750         2.101         0.000         0.000         0.000       1234567
+Scan file closed (success, 5 points): /gdata/.../A0204_Test_a0010.csv
+```
+
+- Numbers are shown to **3 decimals**; integers are left alone. The `.csv` still
+  gets every digit — `29.500603937599992`, not `29.501`.
+- A column name longer than 13 characters is trimmed **from the left**, with a
+  leading `.` to say so: `lambda2M_stats4_total` shows as `.stats4_total`. The
+  end is the part that tells two columns apart, and the file keeps the full name.
+- The first column is the point number, so you can see how far along the scan is.
+
+Both settings live at the top of `scan_csv.py` as `SCREEN_DECIMALS` and
+`SCREEN_WIDTH`. Neither touches the file. Pass `verbose=False` to `open_scan()`
+to print nothing at all.
 
 ## The three ways to give a line a value
 
@@ -244,9 +274,11 @@ Usable in any `label:` and in any `value:`.
 | `{epoch}` | the same instant as a unix timestamp |
 | `{h5_file}` | **full path** of this scan's detector `.h5` (see below); empty when `save_img=0` |
 | `{comment}` | the `comment="..."` argument |
-| `{command}` | `dscan_ophyd(huber_delta, -0.5, 0.5, 41, 1.0, det=lambda2M)` |
-| `{scan_type}` | `dscan_ophyd` |
+| `{command}` | `dscan(huber_delta, -0.5, 0.5, 41, 1.0, det=lambda2M)` |
+| `{scan_type}` | `dscan` — the bare name, never the `_ophyd` alias |
 | `{motor}` | `huber_delta` |
+| `{motor1}` … `{motor4}`, `{motors}` | one per scanned motor, blank past the ones this scan has; `{motor}` is an alias for `{motor1}` |
+| `{num1}`, `{num2}`, `{shape}` | the raster grid, from `shape=(num1, num2)`; blank on a scan that is not a raster |
 | `{det}` | `lambda2M` |
 | `{num_points}`, `{count_time}` | as passed |
 
@@ -254,14 +286,24 @@ Usable in any `label:` and in any `value:`.
 
 It is **not** an argument to `dscan_ophyd()`. The scan builds it:
 
-1. `gen_folder_prefix()` (in `plans/acquire/ad_acq.py`) combines
-   `pv_registers.header` + `measurement_num` + `sample_name` + the current
-   attenuation into e.g. `A0201_Test_a0010`, incrementing `measurement_num`.
-2. That prefix names both files, in the folder built from
-   `pv_registers.mount_point` + `cycle_name` + `experiment_name` + `/data/bluesky`.
+1. `gen_folder_prefix()` (defined in `plans/acquire/acq_helpers.py`, and
+   re-exported by `ad_acq.py`) combines `expt.header` + `expt.measurement_num`
+   + `expt.sample_name` + the current attenuation into e.g. `A0201_Test_a0010`,
+   then advances `measurement_num`.
+2. That prefix names both files, in the folder built from `expt.mount_point` +
+   `cycle_name` + `experiment_name` + `/data/bluesky`.
 
 So the CSV and the `.h5` always share a name, and each scan gets exactly one
 measurement number.
+
+**That counter is shared with acquisitions.** `measurement_num` is the EPICS
+register `8ideSoft:Reg1`, and `det_acq_series()` calls the same
+`gen_folder_prefix()` — so a scan advances the acquisition numbering and an
+acquisition advances the scans'. The two do not share a *folder*, though:
+acquisitions write under `data/`, these scans under `data/bluesky/`, so the
+highest number already used may be under either one. See
+[docs/configuration.md](../../../../docs/configuration.md#the-measurement-counter-stays-in-epics)
+for why the counter is kept in EPICS rather than in `state/run_state.yml`.
 
 ## Per-entry flags
 
@@ -272,8 +314,9 @@ measurement number.
 
 - **`optional: true`** — if the device or signal does not exist, skip the entry
   and print one note. Use it for anything that is not on every station or not on
-  every detector. Everything in the shipped template's `columns:` is optional,
-  which is how one template serves eiger, lambda and tetramm.
+  every detector. Every *detector* column in the shipped template is optional,
+  which is how one template serves eiger, lambda and tetramm; the first motor
+  column and `elapsed_time` are deliberately not.
 - **`skip_if_empty: true`** — leave the line out when the value comes back blank.
 
 An entry **not** marked `optional` whose source is missing is an error raised
@@ -371,31 +414,61 @@ mystery about which one is in force.
     A0202_Test_a0010.csv
 ```
 
-built from `pv_registers.mount_point`, `.cycle_name`, `.experiment_name` — the
-same folder `save_images()` in `scan_8id.py` writes to.
+built from `expt.mount_point`, `expt.cycle_name` and `expt.experiment_name` —
+three settings in `configs/experiment.yml` — the same folder `save_images()` in
+`scan_8id.py` writes to.
 
 ### Finding the running scan from anywhere
 
-Both names are published to EPICS as the scan starts:
-
-```bash
-caget -S 8ideSoft:StrReg21     # the .h5  file of the current/last scan
-caget -S 8ideSoft:StrReg22     # the .csv file of the current/last scan
-```
+The name shared by both files is recorded as the scan starts, right after the
+header is written:
 
 ```python
-pv_registers.scan_h5_file.get()
-pv_registers.scan_csv_file.get()
+expt.file_name          # 'A0201_Test_a0010'
 ```
 
-These are 256-**character waveform** PVs, so a full path fits — which is also
-why `caget` needs `-S`, or it prints the path as a list of character codes.
-`scan_h5_file` is empty when `save_img=0`.
+`file_name` is persistent session state, so it is on disk as well as in the
+session — in the `persistent:` block of `state/run_state.yml` in the checkout
+the session is running from. A GUI or a shell script running **as the account
+that owns the session** can read it there with no channel access at all:
 
-The specr_py viewer uses this for its `--live` flag and File ▸ Follow Live Scan:
-read the register, open what it names, start monitoring. It is a convenience
-only — the viewer's actual live update comes from polling the data folder, so it
-works on machines with no channel access to `8ideSoft:`.
+```bash
+grep file_name ~/bluesky/state/run_state.yml
+```
+
+The file is written mode `0600`, so another account cannot read it — unlike the
+registers below, which anything with channel access could `caget`.
+
+It is the **bare name — no extension, no path**. Append `.h5` or `.csv`, and
+rebuild the folder from `mount_point` + `cycle_name` + `experiment_name` +
+`/data/bluesky` (the same three `configs/experiment.yml` settings the scan
+itself uses).
+
+The name is written whether or not `save_img=1` — the `.csv` is always
+produced, and only the `.h5` is conditional.
+
+`det_acq_series()` in `plans/acquire/ad_acq.py` sets this **same** field with
+its measurement name, so one look finds whichever of the two is running. That
+also means it holds the most recent of either — a scan started after an
+acquisition overwrites it.
+
+> **Changed 2026-09-06.** This used to be published to EPICS. First as two
+> registers holding full paths, `scan_h5_file` (`StrReg21`) and `scan_csv_file`
+> (`StrReg22`) — both commented out in `registers_device.py` on 2026-09-02 —
+> and then as the bare name in `file_name` (`StrReg8`). Nothing writes
+> `StrReg8` any more: the Component is still declared on
+> `EpicsPvStorageRegisters`, so a `caget` on it returns whatever was left there
+> before the move, which is worse than nothing. Anything that polled those
+> registers — including the specr_py viewer below — needs to read
+> `state/run_state.yml` instead. `measurement_num` (`8ideSoft:Reg1`) is the one
+> register that did *not* move; see
+> [docs/configuration.md](../../../../docs/configuration.md#the-measurement-counter-stays-in-epics).
+
+The specr_py viewer does this at startup, and again on File ▸ Follow Live Scan:
+read the published name, open what it names, start monitoring. That lookup is
+the part the note above affects. It is a convenience only — the viewer's actual
+live update comes from polling the data folder, so it works on machines with no
+channel access to `8ideSoft:`.
 
 ## Reading the file back
 
@@ -407,11 +480,15 @@ import pandas
 def read_scan(path, marker="#DATA"):
     with open(path) as f:
         skip = next(i for i, line in enumerate(f) if line.startswith(marker)) + 1
-    return pandas.read_csv(path, skiprows=skip, comment="#")
+    return pandas.read_csv(path, skiprows=skip, comment="#", index_col=0)
 
 df = read_scan("/gdata/.../A0201_Test_a0010.csv")
 df.plot(x=df.columns[0], y=df.columns[-1])
 ```
+
+`index_col=0` consumes the blank-named point-index column, so `df.columns[0]`
+is the scanned motor and the plot above is unchanged. Drop `index_col=0` on a
+file written before that column existed.
 
 Without pandas, `scan_csv.py` ships a reader that imports only the stdlib:
 
@@ -425,17 +502,20 @@ columns["huber_delta"] # [30.0, 30.025, ...]
 status                 # 'success' | 'aborted' | 'error' | 'running'
 ```
 
+It strips the index column, so `labels` and `columns` are the same whether or
+not the file has one.
+
 `status == "running"` means no `#END` line yet — call it again in a second and
 you have a live view. A half-written trailing row is ignored until it is
 complete, so polling a scan in progress is safe.
 
-## Adding another scan (d2scan, mesh, …)
+## Adding another scan
 
-Copy `dscan_ophyd`, change the loop, and reuse the same four lines:
+Copy the closest existing scan, change the loop, and reuse the same four lines:
 
 ```python
 scan = scan_csv.open_scan(
-    csv_file, motor, det=det, scan_type="d2scan_ophyd", command=command,
+    csv_file, motor, det=det, scan_type="d3scan", command=command,
     num_points=num_pts, count_time=count_time, h5_file=h5_file, comment=comment,
 )
 scan.write_header()
@@ -445,9 +525,16 @@ scan.add_point(setpoint)
 scan.close(status)
 ```
 
-For a two-motor scan, pass the second motor's position through
-`extra={"motor2": motor2.name}`, and the template can then use `{motor2}` and a
-`motor2.user_readback` column.
+Multi-motor scans need no special handling: pass a **list** of positioners as
+`motor`, and one setpoint per motor to `add_point(p1, p2)`. `{motor1}`,
+`{motor2}` and the `motor1`/`motor2` column sources then resolve on their own —
+that is what `d2scan`, `a2scan`, `dmesh` and `mesh` already do. Up to
+`scan_csv.MAX_MOTORS` (4) of them. A raster additionally passes
+`shape=(num1, num2)`, which is how a viewer tells a grid from a trajectory —
+`d2scan` sweeps both axes along one line and deliberately passes no `shape`.
+
+A template that has no column for a motor the scan actually moved is rejected
+before the scan starts, so a new scan cannot quietly write an unplottable file.
 
 ## Troubleshooting
 
@@ -467,6 +554,8 @@ For a two-motor scan, pass the second motor's position through
   data is in the catalog. The CSV *is* the record.
 - **Not queueserver-safe.** `dscan_ophyd` is a plain function, not a plan, so
   the QS cannot run it. Use it interactively.
-- The template is re-read at the start of every scan; the module-level device
-  handles (`eiger4M`, `lambda2M`, `pv_registers`, …) are resolved once at import,
-  so `ophyd_scan` must be imported after `make_devices()` — as `startup.py` does.
+- The template is re-read at the start of every scan, and the detectors and
+  template devices are looked up per scan, so a device that was offline at
+  startup fails at the call that needs it rather than poisoning the import.
+  `ophyd_scan` still binds `softglue` and `softglue_8id_acq` at module scope,
+  so it must be imported after `make_devices()` — as `startup.py` does.

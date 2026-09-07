@@ -8,11 +8,15 @@ from ophyd import EpicsMotor
 
 
 class Huber_Diffractometer(Device):
-    """A device class for controlling Huber diffractometers in the beamline.
+    """The Huber diffractometer at 8-ID-E.
 
-    This class provides control over Huber diffractometers used for X-ray
-    diffraction experiments. It includes functionality for controlling angles,
-    positions, and other diffractometer parameters.
+    Built from configs/devices.yml as `huber`, prefix "8ideSoft:CR8-E1:", so
+    `nu` is 8ideSoft:CR8-E1:m4 and so on. nu/delta/mu/eta/chi/phi are the six
+    circles; x/y/z translate the sample on top of them.
+
+    `nu` and `delta` double as lambda2M's swing angles in
+    plans/set/device_position.yaml. plans/set/select_device.py never drives
+    them; only an explicit move_detector_axes() call does.
     """
 
     nu = Component(EpicsMotor, "m4", name="nu")

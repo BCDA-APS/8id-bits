@@ -11,15 +11,14 @@ import time as ttime
 
 from ophyd import Component
 from ophyd import TetrAMM
-from ophyd.areadetector.plugins import ImagePlugin_V34
-from ophyd.areadetector.plugins import StatsPlugin_V34
 from ophyd.device import Staged
 from ophyd.quadem import QuadEMPort
 
 from id8_common.devices.area_detector import ID8_EpicsFileNameHDF5Plugin
+from id8_common.devices.area_detector import ID8_ImagePlugin
+from id8_common.devices.area_detector import ID8_StatsPlugin
 
 logger = logging.getLogger(__name__)
-logger.info(__file__)
 
 
 class MyTetrAMM(TetrAMM):
@@ -27,17 +26,23 @@ class MyTetrAMM(TetrAMM):
 
     conf = Component(QuadEMPort, port_name="QUAD_PORT")
 
-    current1 = Component(StatsPlugin_V34, "Current1:")
-    current2 = Component(StatsPlugin_V34, "Current2:")
-    current3 = Component(StatsPlugin_V34, "Current3:")
-    current4 = Component(StatsPlugin_V34, "Current4:")
-    # image = Component(ImagePlugin_V34, "image1:")
-    sum_all = Component(StatsPlugin_V34, "SumAll:")
+    # Base QuadEM (ophyd.quadem) declares these with bare ImagePlugin/
+    # StatsPlugin -- unmodified ADCore classes that still carry the pool_*
+    # components ADCore dropped from this beamline's IOC database template
+    # (see ID8_PluginMixin in area_detector.py). Override every one of them
+    # with the ID8_-prefixed variant so tetramm devices get the same pool_*
+    # cleanup as eiger4M/lambda2M/rigaku3M instead of failing to connect.
+    current1 = Component(ID8_StatsPlugin, "Current1:")
+    current2 = Component(ID8_StatsPlugin, "Current2:")
+    current3 = Component(ID8_StatsPlugin, "Current3:")
+    current4 = Component(ID8_StatsPlugin, "Current4:")
+    image = Component(ID8_ImagePlugin, "image1:")
+    sum_all = Component(ID8_StatsPlugin, "SumAll:")
     hdf1 = Component(
         ID8_EpicsFileNameHDF5Plugin,
         "HDF1:",
-        read_path_template = "/gdata/dm/8IDE/2026-1/", #"/home/beams/8IDIUSER/sdmarks/tetramm_testing",  
-        write_path_template = "/gdata/dm/8IDE/2026-1/", #"/home/beams/8IDIUSER/sdmarks/tetramm_testing",  
+        read_path_template = "/gdata/dm/8ID/8IDE/2026-3/", #"/home/beams/8IDIUSER/sdmarks/tetramm_testing",  
+        write_path_template = "/gdata/dm/8ID/8IDE/2026-3/", #"/home/beams/8IDIUSER/sdmarks/tetramm_testing",  
     )
 
     def __init__(self, *args, port_name="TetrAMM", **kwargs):

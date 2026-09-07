@@ -49,3 +49,10 @@ user_plans/
 
 # local reference copies
 *\ copy.py
+
+# generated run state (id8_common/expt_config.py) -- lives in state/ since
+# 2026-09-06. Both patterns are unanchored, so they also catch a stale copy
+# left at the repo root by an older checkout. The state/ directory itself does
+# not need to exist in a checkout: expt_config.dump() mkdir -p's it.
+run_state.yml
+.run_state-*
