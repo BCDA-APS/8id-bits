@@ -1,0 +1,325 @@
+
+{
+    "sample_0": {
+        "sample_name": "LMWtracer200_PP_0424overnight_test",
+        "x_cen": -21.5,
+        "y_cen": 349.6,
+        "x_radius": 0.2,
+        "y_radius": 0.4,
+        "x_pts": 10,
+        "y_pts": 10,
+        "header": "ZZ",
+        "temp_zone": "qnw_env1"
+    },
+
+    "sample_1": {
+        "sample_name": "xxx",
+        "x_cen": 300,
+        "y_cen": 20.7,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "A",
+        "temp_zone": "qnw_env1"
+    },
+ 
+    "sample_2": {
+        "sample_name": "xxx",
+        "x_cen": 303,
+        "y_cen": 20.7,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "A",
+        "temp_zone": "qnw_env1"
+    },
+
+    "sample_3": {
+        "sample_name": "xxx",
+        "x_cen": 297.65,
+        "y_cen": 20.7,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "A",
+        "temp_zone": "qnw_env1"
+    },
+
+    "sample_4": {
+        "sample_name": "xxx",
+        "x_cen": 297.65,
+        "y_cen": 20.7,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "A",
+        "temp_zone": "qnw_env1"
+    },
+
+    "sample_5": {
+        "sample_name": "AL-ITO-33mM-TBAPF6-16-8nm-C",
+        "x_cen": 271.5,
+        "y_cen": 22.5,
+        "x_radius": 0.5,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 5,
+        "header": "56esaxs",
+        "temp_zone": "qnw_env1"
+    },
+
+    "sample_6": {
+        "sample_name": "xxx",
+        "x_cen": 297.65,
+        "y_cen": 20.7,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "A",
+        "temp_zone": "qnw_env1"
+    },
+
+    "sample_7": {
+        "sample_name": "xxx",
+        "x_cen": 297.65,
+        "y_cen": 20.7,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "A",
+        "temp_zone": "qnw_env1"
+    },
+
+    "sample_8": {
+        "sample_name": "AL-ITO-33mM-TBAPF6-16-8nm-D",
+        "x_cen": 238,
+        "y_cen": 22.5,
+        "x_radius": 0.5,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 5,
+        "header": "57esaxs",
+        "temp_zone": "qnw_env1"
+    },
+
+    "sample_9": {
+        "sample_name": "xxx",
+        "x_cen": 297.65,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "A",
+        "temp_zone": "qnw_env1"
+    },
+
+    "sample_10": {
+        "sample_name": "DMEM",
+        "x_cen": 188.6,
+        "y_cen": 20,
+        "x_radius": 1,
+        "y_radius": 1,
+        "x_pts": 20,
+        "y_pts": 20,
+        "header": "D",
+        "temp_zone": "qnw_env2"
+    },
+
+    "sample_11": {
+        "sample_name": "OIL",
+        "x_cen": 183.4,
+        "y_cen": 20,
+        "x_radius": 0.5,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 5,
+        "header": "D",
+        "temp_zone": "qnw_env2"
+    },
+  
+    "sample_12": {
+        "sample_name": "PARTICLE0P25",
+        "x_cen": 178.5,
+        "y_cen": 20,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "D",
+        "temp_zone": "qnw_env2"
+    },
+
+    "sample_13": {
+        "sample_name": "LMWSOLN3P",
+        "x_cen": 155.35,
+        "y_cen": 20,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "D",
+        "temp_zone": "qnw_env2"
+    },
+
+    "sample_14": {
+        "sample_name": "FITO-highconc-gel",
+        "x_cen": 156.94,
+        "y_cen": 20,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "FITO-3",
+        "temp_zone": "qnw_env2"
+    },
+    "sample_15": {
+        "sample_name": "HMWSOLN3P",
+        "x_cen": 145.25,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "D",
+        "temp_zone": "Fe2O3-3"
+    },
+    "sample_16": {
+        "sample_name": "LMW1",
+        "x_cen": 122,
+        "y_cen": 20,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "A",
+        "temp_zone": "qnw_env2"
+    },
+    "sample_17": {
+        "sample_name": "lmw2",
+        "x_cen": 116.8,
+        "y_cen": 20,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "A",
+        "temp_zone": "qnw_env2"
+    },
+    "sample_18": {
+        "sample_name": "LMW3",
+        "x_cen": 111.7,
+        "y_cen": 20,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 40,
+        "header": "A",
+        "temp_zone": "qnw_env2"
+    },
+    "sample_19": {
+        "sample_name": "HMW1",
+        "x_cen": 74.8,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 40,
+        "header": "B",
+        "temp_zone": "qnw_env3"
+    },
+    "sample_20": {
+        "sample_name": "HMW2",
+        "x_cen": 69.6,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 40,
+        "header": "B",
+        "temp_zone": "qnw_env3"
+    },
+    "sample_21": {
+        "sample_name": "HMW3",
+        "x_cen": 64.5,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 40,
+        "header": "B",
+        "temp_zone": "qnw_env3"
+    },
+    "sample_22": {
+        "sample_name": "LMW5UL1",
+        "x_cen": 41,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "C",
+        "temp_zone": "qnw_env3"
+    },
+    "sample_23": {
+        "sample_name": "AL-ITO-100mM-TBAPF6-16-8nm-F",
+        "x_cen": 43.21,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "C",
+        "temp_zone": "qnw_env3"
+    },
+    "sample_24": {
+        "sample_name": "LMW5UL2",
+        "x_cen": 31,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "C",  
+        "temp_zone": "qnw_env3"
+    },
+    "sample_25": {
+        "sample_name": "LMW200UL1-1",
+        "x_cen": 8.1,
+        "y_cen": 21.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "E",
+        "temp_zone": "qnw_env3"
+    },
+    "sample_26": {
+        "sample_name": "LMW200UL1-2",
+        "x_cen": 8.15,
+        "y_cen": 20.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "E",
+        "temp_zone": "qnw_env3"
+    },
+    "sample_27": {
+        "sample_name": "",
+        "x_cen": 4.9,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "C",
+        "temp_zone": "qnw_env3"
+    }
+}

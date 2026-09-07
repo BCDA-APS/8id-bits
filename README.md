@@ -9,6 +9,9 @@
 | [Starting a session](docs/starting-a-session.md) | how to start, and what it loads |
 | [Devices](docs/devices.md) | how devices are imported; adding and removing one |
 | [Configuration](docs/configuration.md) | where every setting lives, and how it reaches an acquisition |
+| [Using `expt`](docs/using-expt.md) | reading and setting session state at the prompt |
+| [Adding metadata fields](docs/adding-metadata.md) | getting a new EPICS device into the NeXus file |
+| [Data Management](docs/reference/data-management.md) | submitting, checking and debugging analysis jobs |
 | [Running measurements](docs/running-measurements.md) | protocols, examples, single and dual detector |
 | [Detector modes](docs/reference/detector-modes.md) | the thirteen detector/mode pairs and their timing rules |
 | [Troubleshooting](docs/reference/troubleshooting.md) | known failure modes |
@@ -61,7 +64,11 @@ RE(sim_count_plan())
 RE(sim_rel_scan_plan())
 ```
 
-See this [example](./docs/source/demo.ipynb).
+**⚠ Not wired up.** The `sim_*_plan` imports are commented out in
+`src/id8_common/startup.py`, and the Ophyd-only session has no `RE` at all. This
+section is inherited from the apsbits template; see
+[docs/starting-a-session.md](docs/starting-a-session.md) for how a session is
+actually started here.
 
 ## Configuration files
 The files that can be configured to adhere to your preferences are:
@@ -92,7 +99,12 @@ queue-monitor &
 
 ### Shell script explained
 
-A [shell script](./qs/qs_host.sh) is used to start the QS host process. Below are all the command options, and what they do.
+**⚠ Stale.** The real scripts are `scripts/id8_i_qs_host.sh` and
+`scripts/id8_e_qs_host.sh`, and both resolve `src/id8_i/...`, which moved under
+`src/legacy/` — so neither works as written and nobody has run the queueserver
+since the move. The rest of this section is inherited from the apsbits template.
+
+A shell script is used to start the QS host process. Below are all the command options, and what they do.
 ```bash
 (bstest) $ ./qs/qs_host.sh help
 Usage: qs_host.sh {start|stop|restart|status|checkup|console|run} [NAME]

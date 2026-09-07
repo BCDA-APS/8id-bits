@@ -1,0 +1,313 @@
+
+{
+    "sample_1": {
+        "sample_name": "xxx",
+        "x_cen": 300,
+        "y_cen": 20.7,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "A",
+        "temp_zone": "qnw_env1"
+    },
+ 
+    "sample_2": {
+        "sample_name": "xxx",
+        "x_cen": 303,
+        "y_cen": 20.7,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "A",
+        "temp_zone": "qnw_env1"
+    },
+
+    "sample_3": {
+        "sample_name": "xxx",
+        "x_cen": 297.65,
+        "y_cen": 20.7,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "A",
+        "temp_zone": "qnw_env1"
+    },
+
+    "sample_4": {
+        "sample_name": "xxx",
+        "x_cen": 297.65,
+        "y_cen": 20.7,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "A",
+        "temp_zone": "qnw_env1"
+    },
+
+    "sample_5": {
+        "sample_name": "AL-ITO-33mM-TBAPF6-16-8nm-C",
+        "x_cen": 271.5,
+        "y_cen": 22.5,
+        "x_radius": 0.5,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 5,
+        "header": "56esaxs",
+        "temp_zone": "qnw_env1"
+    },
+
+    "sample_6": {
+        "sample_name": "xxx",
+        "x_cen": 297.65,
+        "y_cen": 20.7,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "A",
+        "temp_zone": "qnw_env1"
+    },
+
+    "sample_7": {
+        "sample_name": "xxx",
+        "x_cen": 297.65,
+        "y_cen": 20.7,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "A",
+        "temp_zone": "qnw_env1"
+    },
+
+    "sample_8": {
+        "sample_name": "AL-ITO-33mM-TBAPF6-16-8nm-D",
+        "x_cen": 238,
+        "y_cen": 22.5,
+        "x_radius": 0.5,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 5,
+        "header": "57esaxs",
+        "temp_zone": "qnw_env1"
+    },
+
+    "sample_9": {
+        "sample_name": "xxx",
+        "x_cen": 297.65,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "A",
+        "temp_zone": "qnw_env1"
+    },
+
+    "sample_10": {
+        "sample_name": "FITO-highconc",
+        "x_cen": 195.1,
+        "y_cen": 20,
+        "x_radius": 1,
+        "y_radius": 1,
+        "x_pts": 20,
+        "y_pts": 20,
+        "header": "FITO-1",
+        "temp_zone": "qnw_env2"
+    },
+
+    "sample_11": {
+        "sample_name": "Fe2O3-highconc",
+        "x_cen": 190.3,
+        "y_cen": 20,
+        "x_radius": 0.5,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 5,
+        "header": "Fe2O3-1",
+        "temp_zone": "qnw_env2"
+    },
+  
+    "sample_12": {
+        "sample_name": "FITO-lowconc",
+        "x_cen": 185.09,
+        "y_cen": 20,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "FITO-2",
+        "temp_zone": "qnw_env2"
+    },
+
+    "sample_13": {
+        "sample_name": "Fe2O3-lowconc",
+        "x_cen": 162,
+        "y_cen": 20,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "Fe2O3-2",
+        "temp_zone": "qnw_env2"
+    },
+
+    "sample_14": {
+        "sample_name": "FITO-highconc-gel",
+        "x_cen": 156.94,
+        "y_cen": 20,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "FITO-3",
+        "temp_zone": "qnw_env2"
+    },
+    "sample_15": {
+        "sample_name": "Fe2O3-highconc-gel",
+        "x_cen": 152.1,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "",
+        "temp_zone": "Fe2O3-3"
+    },
+    "sample_16": {
+        "sample_name": "aged-ITO-gel-campus-10nm",
+        "x_cen": 128.7,
+        "y_cen": 20,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "aged01",
+        "temp_zone": "qnw_env2"
+    },
+    "sample_17": {
+        "sample_name": "aged-ITO-gel-campus-17nm",
+        "x_cen": 124,
+        "y_cen": 20,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "aged02",
+        "temp_zone": "qnw_env2"
+    },
+    "sample_18": {
+        "sample_name": "aged-ITO-gel-campus-26nm",
+        "x_cen": 119.0,
+        "y_cen": 20,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 40,
+        "header": "aged03",
+        "temp_zone": "qnw_env2"
+    },
+    "sample_19": {
+        "sample_name": "PA-PEG-E",
+        "x_cen": 81.5,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 40,
+        "header": "08bsaxs",
+        "temp_zone": "qnw_env3"
+    },
+    "sample_20": {
+        "sample_name": "AL-ITO-B",
+        "x_cen": 76.3,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 40,
+        "header": "20csaxs",
+        "temp_zone": "qnw_env3"
+    },
+    "sample_21": {
+        "sample_name": "AL-ITO-50mM-26nm-A",
+        "x_cen": 71.5,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 40,
+        "header": "21dsaxs",
+        "temp_zone": "qnw_env3"
+    },
+    "sample_22": {
+        "sample_name": "AL-ITO-50mM-10nm-F",
+        "x_cen": 48.25,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "22dsaxs",
+        "temp_zone": "qnw_env3"
+    },
+    "sample_23": {
+        "sample_name": "AL-ITO-100mM-TBAPF6-16-8nm-F",
+        "x_cen": 43.21,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "71esaxs",
+        "temp_zone": "qnw_env3"
+    },
+    "sample_24": {
+        "sample_name": "kofi-bnl1",
+        "x_cen": 38.14,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "bnl1",
+        "temp_zone": "qnw_env3"
+    },
+    "sample_25": {
+        "sample_name": "kofi-bnl2",
+        "x_cen": 14.89,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "bnl2",
+        "temp_zone": "qnw_env3"
+    },
+    "sample_26": {
+        "sample_name": "kofi-bnl3",
+        "x_cen": 9.9,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "bnl3",
+        "temp_zone": "qnw_env3"
+    },
+    "sample_27": {
+        "sample_name": "kofi-bnl4",
+        "x_cen": 4.9,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "bnl4",
+        "temp_zone": "qnw_env3"
+    }
+}

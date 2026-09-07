@@ -1,0 +1,101 @@
+{
+    "sample_1": {
+        "sample_name": "DO-NOT-USE",
+        "x_cen": 30,
+        "y_cen": 25,
+        "x_radius": 0.5,
+        "y_radius": 0.5,
+        "x_pts": 20,
+        "y_pts": 20,
+        "header": "A",
+        "temp_zone": "qnw_env1"
+    },
+    "sample_2": {
+        "sample_name": "Bluesky-Test",
+        "x_cen": 34.9,
+        "y_cen": 21.2,
+        "x_radius": 0.2,
+        "y_radius": 0.2,
+        "x_pts": 20,
+        "y_pts": 20,
+        "header": "B",
+        "temp_zone": "qnw_env1"
+    },
+    "sample_3": {
+        "sample_name": "DO-NOT-USE",
+        "x_cen": 224.5,
+        "y_cen": 21.2,
+        "x_radius": 0.5,
+        "y_radius": 0.5,
+        "x_pts": 20,
+        "y_pts": 20,
+        "header": "C",
+        "temp_zone": "qnw_env1"
+    },
+    "sample_4": {
+        "sample_name": "DO-NOT-USE",
+        "x_cen": 173.3,
+        "y_cen": 21.2,
+        "x_radius": 0.5,
+        "y_radius": 0.5,
+        "x_pts": 20,
+        "y_pts": 20,
+        "header": "D",
+        "temp_zone": "qnw_env2"
+    },
+    "sample_5": {
+        "sample_name": "E-BL-3",  
+        "x_cen": 139.2,
+        "y_cen": 21.1,
+        "x_radius": 0.5,
+        "y_radius": 0.5,
+        "x_pts": 20,
+        "y_pts": 20,
+        "header": "E",
+        "temp_zone": "qnw_env2"
+    },
+    "sample_6": {
+        "sample_name": "DO-NOT-USE",
+        "x_cen": 107.3,
+        "y_cen": 21.2,
+        "x_radius": 0.5,
+        "y_radius": 0.5,
+        "x_pts": 20,
+        "y_pts": 20,
+        "header": "F",
+        "temp_zone": "qnw_env2"
+    },
+    "sample_7": {
+        "sample_name": "DO-NOT-USE",
+        "x_cen": 59.3,
+        "y_cen": 21.2,
+        "x_radius": 0.5,
+        "y_radius": 0.5,
+        "x_pts": 20,
+        "y_pts": 20,
+        "header": "G",
+        "temp_zone": "qnw_env3"
+    },
+    "sample_8": {
+        "sample_name": "DO-NOT-USE",
+        "x_cen": 26.3,
+        "y_cen": 21.2,
+        "x_radius": 0.5,
+        "y_radius": 0.5,
+        "x_pts": 20,
+        "y_pts": 20,
+        "header": "H",
+        "temp_zone": "qnw_env3"
+    },
+    "sample_9": {
+        "sample_name": "DO-NOT-USE",
+        "x_cen": -6.7,
+        "y_cen": 21.2,
+        "x_radius": 0.5,
+        "y_radius": 0.5,
+        "x_pts": 20,
+        "y_pts": 20,
+        "header": "I",
+        "temp_zone": "qnw_env3"
+    }
+}

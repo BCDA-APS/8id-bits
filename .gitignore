@@ -41,8 +41,12 @@ notes_*.md
 # previous bluesky instrument (local copy)
 old_code/
 
-# user-defined plans
-user_plans/
+# Per-experiment plans (sample_info.yaml, measurement_info.yaml, beamtime
+# scripts) ARE tracked as of 2026-09-07 -- they are the worked examples a new
+# user copies, and expt.user_plan_dir resolves into them from experiment.yml.
+# Only the throwaway bits are ignored.
+src/user_plans/.loglogin
+src/user_plans/**/error_log.txt
 
 # RE metadata dictionary for session persistence
 .re_md_dict.yml

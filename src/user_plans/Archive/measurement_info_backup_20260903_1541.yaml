@@ -1,0 +1,362 @@
+loop_order: sample_major
+
+################ Change here to run measurements ################
+
+runs:
+ - name: test
+   samples: [1]
+   protocols:
+     - eiger_external_series
+   repeats: 1
+
+###### Change here to change measurement conditions #######
+
+protocols:
+
+  eiger_external_series:
+    detector: eiger4M
+    mode: External Series
+    att_level: 2
+    acq_time: 1
+    acq_period: 2
+    # num_frames is PER SEGMENT in this mode, and num_segments is how many
+    # softglue pulses are sent -- 10 x 5 = 50 frames written to the file.
+    # trigger_period is the gap between those pulses and must be longer than
+    # one segment (num_frames * acq_period = 10 * 2 = 20 s), or the next pulse
+    # lands mid-segment and is dropped. External Series is the only mode that
+    # takes num_segments (defaults to 1) and trigger_period (required).
+    num_frames: 10
+    num_segments: 5
+    trigger_period: 30
+    num_repeats: 1
+    wait_time: 0
+    sample_move: no
+    position_reset: no
+    analysis_type: Multitau
+    qmap_file: eiger4m_qmap_default.hdf
+
+  eiger_att2:
+    detector: eiger4M
+    mode: Internal Series
+    att_level: 2
+    acq_time: 1.0
+    num_frames: 1000
+    num_repeats: 1
+    wait_time: 0
+    sample_move: no
+    position_reset: yes
+    analysis_type: Both
+    qmap_file: eiger4m_qmap_default.hdf
+
+  rigaku_att2:
+    detector: rigaku3M_epics
+    mode: EPICS
+    att_level: 2
+    acq_time: 0.01
+    num_frames: 1000
+    num_repeats: 5
+    wait_time: 0
+    sample_move: yes
+    position_reset: yes
+    analysis_type: Both
+    qmap_file: rigaku3m_qmap_A0057_r00001.hdf
+
+
+  rigaku_zdt:
+    detector: rigaku3M
+    mode: ZDT2bit
+    att_level: 2
+    acq_time: 0.00002
+    num_frames: 100000
+    num_repeats: 1
+    wait_time: 0
+    sample_move: no
+    position_reset: yes
+    analysis_type: Multitau
+    qmap_file: rigaku3m_qmap_A0057_r00001.hdf
+
+#  lambda_test:
+#     detector: lambda2M
+#     mode: Internal
+#     att_level: 25
+#     acq_time: .001
+#     num_frames: 1000
+#     num_repeats: 1
+#     wait_time: 0
+#     sample_move: yes
+#     position_reset: yes
+#     qmap_file: lambda2m_qmap_default.hdf
+
+
+
+###### Change here to change measurement conditions #######
+
+_instructions: |
+  This file defines detector acquisition protocols and assigns them to samples.
+
+  Main structure:
+    loop_order:
+      Optional top-level default loop order.
+      If a run block does not specify loop_order, this value is used.
+      Recommended default: sample_major.
+
+    runs:
+      Defines what samples are measured and which protocols are applied.
+      Keep only the run blocks you actually want to execute.
+
+    protocols:
+      Defines reusable acquisition settings.
+      A run block references protocols by name.
+
+  Run block options:
+    name:
+      Human-readable name for the run block.
+
+    sample_range:
+      Consecutive sample indices.
+      Example:
+        sample_range: [1, 26]
+      means samples 1 through 26.
+
+    samples:
+      Explicit list of sample indices.
+      Example:
+        samples: [1, 5, 10, 15]
+
+    protocols:
+      List of protocol names to apply to the selected samples.
+      Each listed protocol must exist under the protocols section.
+
+    repeats:
+      Number of times to repeat the entire run block.
+
+      This is different from num_repeats:
+        num_repeats:
+          Number of repeated acquisitions inside one det_acq_series() call.
+
+        runs[].repeats:
+          Number of times the sample/protocol assignment is repeated.
+          Each repeat creates new measurement folders.
+
+      For repeats > 1:
+        position_reset is only applied on repeat 1.
+        Repeat 2, 3, etc. continue from the current sample-position register.
+
+    loop_order:
+      Optional per-run override of the top-level loop_order.
+
+      sample_major:
+        For each sample, run all selected protocols before moving to the next sample.
+
+      protocol_major:
+        For each protocol, run all selected samples before moving to the next protocol.
+
+  Protocol options:
+    detector:
+      Supported values:
+        eiger4M
+        lambda2M
+        rigaku3M
+        rigaku3M_ftf
+        rigaku3M_epics
+
+    mode:
+      Supported detector/mode combinations:
+        eiger4M:
+          Internal Series
+          Internal Enable
+          External Series
+          External Enable
+
+        lambda2M:
+          Internal
+          External
+
+        rigaku3M:
+          ZDT2bit  (min acq_time: 20e-6 s)
+          ZDT4bit  (min acq_time: 40e-6 s)
+          ZDT8bit  (min acq_time: 80e-6 s)
+
+        rigaku3M_ftf:
+          ZDT2bit  (min acq_time: 20e-6 s)
+          ZDT4bit  (min acq_time: 40e-6 s)
+          ZDT8bit  (min acq_time: 80e-6 s)
+
+          Same physical detector and same three modes as rigaku3M, but
+          written by the detector's fast-transfer HDF5 output rather than
+          the sparsified .bin format. The detector name is what picks the
+          output format; the mode names are identical.
+
+        rigaku3M_epics:
+          EPICS    (min acq_time: 0.01 s)
+
+    att_level:
+      Attenuation level passed to att(att_level).
+
+    acq_time:
+      Detector acquisition time per frame.
+
+    acq_period:
+      Required only for modes that need external timing.
+      Currently required for:
+        eiger4M, Internal Enable
+        eiger4M, External Series
+        eiger4M, External Enable
+        lambda2M, External
+
+    num_frames:
+      Number of frames in one acquisition.
+
+      Exception: for eiger4M External Series this is the frames per segment,
+      and the total collected is num_frames * num_segments.
+
+    num_segments:
+      Optional, and used by eiger4M External Series only (setting it on any
+      other detector/mode is rejected). Number of softglue trigger pulses;
+      each pulse fires one segment of num_frames images, so the file gets
+      num_frames * num_segments frames. Defaults to 1 when omitted.
+
+    trigger_period:
+      Required by eiger4M External Series, and rejected on every other
+      detector/mode. Seconds between softglue trigger pulses, i.e. the gap
+      between segments -- separate from acq_period, which paces frames inside
+      a segment.
+
+      The one softglue pulse does two jobs: its rising edge starts a segment,
+      and its width holds the shutter open. So each segment is two shutter
+      movements, and BOTH must be at least 0.1 s (exactly 0.1 is fine):
+
+        shutter open   = num_frames * acq_period
+        shutter closed = trigger_period - num_frames * acq_period
+
+      The closed-time rule also means trigger_period must exceed one segment.
+      Otherwise a pulse arrives while the detector is still running the
+      previous segment, is silently dropped, and the acquisition hangs waiting
+      for a trigger that was already spent. All of this is checked before
+      anything moves.
+
+      Example: acq_period 2 s x num_frames 10 = a 20 s segment, so
+      trigger_period 30 leaves the shutter open 20 s and closed 10 s per
+      segment, and the whole 5-segment acquisition takes 5 * 30 = 150 s.
+
+    num_repeats:
+      Number of repeated acquisitions inside one det_acq_series() call.
+
+    wait_time:
+      Wait time before each repeated acquisition.
+
+    sample_move:
+      yes:
+        Move to a new mesh point before each repeated acquisition.
+
+      no:
+        Do not move the sample.
+
+    position_reset:
+      yes:
+        Reset this sample's mesh-position register to -1 before this protocol starts.
+        Because ad_acq.py uses next_position = last_position + 1, the first
+        measured mesh index is 0.
+
+      no:
+        Do not reset the mesh-position register.
+        The sample continues from its previous mesh position.
+
+      Important:
+        For runs[].repeats > 1, position_reset is applied only on repeat 1.
+        Repeat 2, 3, etc. continue from the previous mesh position.
+
+    horizontal, vertical, swing_angle_horizontal, swing_angle_vertical:
+      Optional. Move the selected detector's named axis to this position for this
+      protocol. Any subset of the four may be given.
+
+      horizontal / vertical (translation):
+        select_device() already moves these to the device_position.yaml preset
+        (the position where direct beam is measured) before this override is
+        applied. Give a value here only to move off that preset for this
+        protocol; omit it to stay at the preset.
+
+      swing_angle_horizontal / swing_angle_vertical:
+        select_device() never moves these, even though device_position.yaml may
+        configure a device for them -- the flight-path swing (eiger4M/rigaku3M)
+        and huber diffractometer (lambda2M) are shared/finicky motors that should
+        only move when a measurement actually needs them to. If you omit a swing
+        axis here, it is left wherever it currently is -- it is NOT reset to any
+        default or preset. Give a value here only when this protocol needs that
+        swing moved.
+
+      Not every detector has every axis (e.g. lambda2M has no horizontal/vertical
+      translation stage, and no detector has all four). Specifying an axis a
+      detector doesn't have raises an error before any motion happens.
+
+      If none of these four are given, select_device() has already put the
+      detector's translation at its device_position.yaml preset, and no swing
+      motor is touched.
+
+      Note that the per-detector placeholder hooks in master_plan.py
+      (placeholder_eiger4M / placeholder_rigaku3M / placeholder_lambda2M) run
+      for every protocol, after select_device() and before these overrides. If
+      a placeholder already drives an axis, don't also list it here.
+
+    analysis_type:
+      Optional. One of: Multitau, Twotime, Both.
+      Passed to the DM workflow as the analysis type for this protocol.
+      Default if omitted: Multitau.
+
+  Active example in this file:
+    The active runs block runs sample 1 through ten protocols in order
+    (repeats: 1), using the top-level loop_order sample_major: an eiger4M
+    acquisition followed by a rigaku3M_epics acquisition at each of att
+    20, 10, 5, 2, 1. Every acquisition is 1 s/frame x 1000 frames x 1 repeat,
+    so roughly 1000 s each and ~2.8 h total.
+
+  To test two protocols with protocol_major ordering, replace the runs block with:
+
+    runs:
+      - name: selected_samples_two_protocols
+        samples: [1, 5, 10]
+        protocols:
+          - eiger_test
+          - lambda_test
+        repeats: 1
+        loop_order: protocol_major
+
+  Example: a protocol using every non-axis option, plus a translation override
+  and analysis_type. horizontal/vertical is the safe pair to override routinely
+  -- it's just re-stating (or moving off) select_device()'s own preset:
+
+    full_example:
+       detector: eiger4M
+       mode: Internal Series
+       att_level: 104
+       acq_time: 0.001
+       acq_period: 0.001
+       num_frames: 1000
+       num_repeats: 1
+       wait_time: 0
+       sample_move: yes
+       position_reset: yes
+       qmap_file: eiger4m_qmap_default.hdf
+       analysis_type: Multitau
+       horizontal: 256.0
+       vertical: 77.0
+
+  Example: overriding a swing axis. No detector has all four axes available (see
+  above), so this uses lambda2M -- the only detector where both swing axes are
+  real, safe-to-move huber motors rather than the shared flight-path swing:
+
+    swing_example:
+       detector: lambda2M
+       mode: Internal
+       att_level: 25
+       acq_time: 0.001
+       acq_period: 0.001
+       num_frames: 1000
+       num_repeats: 1
+       wait_time: 0
+       sample_move: yes
+       position_reset: yes
+       qmap_file: lambda2m_qmap_default.hdf
+       analysis_type: Twotime
+       swing_angle_horizontal: 5.0
+       swing_angle_vertical: 0

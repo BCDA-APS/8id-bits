@@ -1,0 +1,313 @@
+
+{
+    "sample_1": {
+        "sample_name": "xxx",
+        "x_cen": 297.65,
+        "y_cen": 20.7,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "A",
+        "temp_zone": "qnw_env1"
+    },
+ 
+    "sample_2": {
+        "sample_name": "xxx",
+        "x_cen": 297.65,
+        "y_cen": 20.7,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "A",
+        "temp_zone": "qnw_env1"
+    },
+
+    "sample_3": {
+        "sample_name": "xxx",
+        "x_cen": 297.65,
+        "y_cen": 20.7,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "A",
+        "temp_zone": "qnw_env1"
+    },
+
+    "sample_4": {
+        "sample_name": "xxx",
+        "x_cen": 297.65,
+        "y_cen": 20.7,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "A",
+        "temp_zone": "qnw_env1"
+    },
+
+    "sample_5": {
+        "sample_name": "Polyolefin",
+        "x_cen": 270.8,
+        "y_cen": 21,
+        "x_radius": 0.5,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 5,
+        "header": "B",
+        "temp_zone": "qnw_env1"
+    },
+
+    "sample_6": {
+        "sample_name": "xxx",
+        "x_cen": 297.65,
+        "y_cen": 20.7,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "A",
+        "temp_zone": "qnw_env1"
+    },
+
+    "sample_7": {
+        "sample_name": "xxx",
+        "x_cen": 297.65,
+        "y_cen": 20.7,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "A",
+        "temp_zone": "qnw_env1"
+    },
+
+    "sample_8": {
+        "sample_name": "PC-film",
+        "x_cen": 237.4,
+        "y_cen": 21,
+        "x_radius": 0.5,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 5,
+        "header": "C",
+        "temp_zone": "qnw_env1"
+    },
+
+    "sample_9": {
+        "sample_name": "xxx",
+        "x_cen": 297.65,
+        "y_cen": 20.7,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "A",
+        "temp_zone": "qnw_env1"
+    },
+
+    "sample_10": {
+        "sample_name": "xxx",
+        "x_cen": 189.4,
+        "y_cen": 20.8,
+        "x_radius": 1,
+        "y_radius": 1,
+        "x_pts": 20,
+        "y_pts": 20,
+        "header": "D",
+        "temp_zone": "qnw_env2"
+    },
+
+    "sample_11": {
+        "sample_name": "Air",
+        "x_cen": 189.4,
+        "y_cen": 20.8,
+        "x_radius": 0.5,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 5,
+        "header": "D",
+        "temp_zone": "qnw_env2"
+    },
+  
+    "sample_12": {
+        "sample_name": "D100",
+        "x_cen": 189.4,
+        "y_cen": 20.8,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "D",
+        "temp_zone": "qnw_env2"
+    },
+
+    "sample_13": {
+        "sample_name": "Sanjeeva-old-a120",
+        "x_cen": 161.2,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "M",
+        "temp_zone": "qnw_env2"
+    },
+
+    "sample_14": {
+        "sample_name": "xxx",
+        "x_cen": 156.4,
+        "y_cen": 19,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "N",
+        "temp_zone": "qnw_env2"
+    },
+    "sample_15": {
+        "sample_name": "Sanjeeva-old-h120",
+        "x_cen": 151.2,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "O",
+        "temp_zone": "qnw_env2"
+    },
+    "sample_16": {
+        "sample_name": "Sanjeeva-a10",
+        "x_cen": 128.1,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "P",
+        "temp_zone": "qnw_env2"
+    },
+    "sample_17": {
+        "sample_name": "Sanjeeva-a20",
+        "x_cen": 123.1,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "Q",
+        "temp_zone": "qnw_env2"
+    },
+    "sample_18": {
+        "sample_name": "Sanjeeva-a40",
+        "x_cen": 118.0,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "R",
+        "temp_zone": "qnw_env2"
+    },
+    "sample_19": {
+        "sample_name": "Sanjeeva-a60",
+        "x_cen": 80.5,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "S",
+        "temp_zone": "qnw_env3"
+    },
+    "sample_20": {
+        "sample_name": "Sanjeeva-a120",
+        "x_cen": 75.5,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "T",
+        "temp_zone": "qnw_env3"
+    },
+    "sample_21": {
+        "sample_name": "Sanjeeva-abuf",
+        "x_cen": 70.6,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "U",
+        "temp_zone": "qnw_env3"
+    },
+    "sample_22": {
+        "sample_name": "Sanjeeva-h10",
+        "x_cen": 47.3,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "V",
+        "temp_zone": "qnw_env3"
+    },
+    "sample_23": {
+        "sample_name": "Sanjeeva-h20",
+        "x_cen": 42.5,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "W",
+        "temp_zone": "qnw_env3"
+    },
+    "sample_24": {
+        "sample_name": "Sanjeeva-h40",
+        "x_cen": 37.2,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "X",
+        "temp_zone": "qnw_env3"
+    },
+    "sample_25": {
+        "sample_name": "Sanjeeva-h60",
+        "x_cen": 14.15,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "Y",
+        "temp_zone": "qnw_env3"
+    },
+    "sample_26": {
+        "sample_name": "Sanjeeva-h120",
+        "x_cen": 9.3,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "Z",
+        "temp_zone": "qnw_env3"
+    },
+    "sample_27": {
+        "sample_name": "Sanjeeva-hbuf",
+        "x_cen": 4.0,
+        "y_cen": 22.5,
+        "x_radius": 0.05,
+        "y_radius": 0.5,
+        "x_pts": 5,
+        "y_pts": 20,
+        "header": "A",
+        "temp_zone": "qnw_env3"
+    }
+}

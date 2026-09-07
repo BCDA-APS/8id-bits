@@ -1,0 +1,9 @@
+{
+    "detector": "Rigaku3M",
+    "att_list": [1.0],
+    "acq_time_list": [[2e-5]],
+    "acq_period_list": [[2e-5]],
+    "num_frames_list": [[100000]],
+    "num_reps_list": [[51]],
+    "fly_scan_yes_list": [[0]]
+}

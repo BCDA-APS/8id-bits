@@ -1,0 +1,254 @@
+defaults:
+  inner_motor: sample.x
+  outer_motor: sample.y
+  inner_range: 1.0
+  outer_range: 1.0
+  inner_pts: 25
+  outer_pts: 25
+samples:
+
+  sample_1:
+    sample_name: Test
+    header: Aa
+    inner_center: 298.9
+    outer_center: 28.66
+
+  sample_2:
+    sample_name: LiC18TFSI_180C_0p7mm
+    header: Ab
+    inner_center: 299.3
+    outer_center: 31.5
+    inner_range: 1.0  
+    outer_range: 1.0
+    inner_pts: 50
+    outer_pts: 50
+
+  sample_3:
+    sample_name: Test
+    header: Ac
+    inner_center: 293.9
+    outer_center: 28.66
+    inner_range: 0.7  
+    outer_range: 0.0
+    inner_pts: 50
+    outer_pts: 1
+
+  sample_4:
+    sample_name: Test4
+    header: Ba
+    inner_center: 270.4
+    outer_center: 28.66
+
+  sample_5:
+    sample_name: V2O5_AB_pH2
+    header: Bb
+    inner_center: 265.75
+    outer_center: 29.87
+    inner_range: 1.0  
+    outer_range: 1.0
+    inner_pts: 50
+    outer_pts: 50
+
+  sample_6:
+    sample_name: Test6
+    header: Bc
+    inner_center: 260.59999999999997
+    outer_center: 28.66
+
+  sample_7:
+    sample_name: Test
+    header: Ca
+    inner_center: 237.2
+    outer_center: 28.66
+
+  sample_8:
+    sample_name: G10
+    header: Cb
+    inner_center: 231.5
+    outer_center: 28.9
+    inner_range: 0.25  
+    outer_range: 0.25
+    inner_pts: 50
+    outer_pts: 50
+
+  sample_9:
+    sample_name: Test
+    header: Cc
+    inner_center: 227.2
+    outer_center: 28.66
+
+  sample_10:
+    sample_name: PEG_Au_HGG0p5
+    header: Da
+    inner_center: 190.05
+    outer_center: 28.9
+    inner_range: 0.1  
+    outer_range: 0.5
+    inner_pts: 5
+    outer_pts: 20
+    
+  sample_11:
+    sample_name: PEG_Au_HGG0p5_DEX0p05
+    header: Db
+    inner_center: 184.95
+    outer_center: 28.9
+    inner_range: 0.1  
+    outer_range: 0.5
+    inner_pts: 5
+    outer_pts: 20
+
+  sample_12:
+    sample_name: PEG_Au_HGG0p5_DEX0p1
+    header: Dc
+    inner_center: 179.96
+    outer_center: 28.9
+    inner_range: 0.1  
+    outer_range: 0.5
+    inner_pts: 5
+    outer_pts: 20
+
+  sample_13:
+    sample_name: PEG_Au_HGG0p5_DEX0p5
+    header: Ea
+    inner_center: 156.60
+    outer_center: 28.9
+    inner_range: 0.1
+    outer_range: 0.5
+    inner_pts: 5
+    outer_pts: 20
+
+  sample_14:
+    sample_name: PEG_Au_HGG0p5_DEX1
+    header: Eb
+    inner_center: 151.61
+    outer_center: 28.9
+    inner_range: 0.1  
+    outer_range: 0.5
+    inner_pts: 5
+    outer_pts: 20
+
+  sample_15:
+    sample_name: PEG_Au_HGG0p5_DEX1p5
+    header: Ec
+    inner_center: 146.55
+    outer_center: 28.9
+    inner_range: 0.1 
+    outer_range: 0.5
+    inner_pts: 5
+    outer_pts: 20
+
+  sample_16:
+    sample_name: PEG_Au_HGG0p5_DEX2p5
+    header: Fa
+    inner_center: 123.45
+    outer_center: 28.9
+    inner_range: 0.1  
+    outer_range: 0.5
+    inner_pts: 5
+    outer_pts: 20
+
+  sample_17:
+    sample_name: PEG_Au_HGG0p5_DEX5
+    header: Fb
+    inner_center: 118.25
+    outer_center: 28.9
+    inner_range: 0.1  
+    outer_range: 0.5
+    inner_pts: 5
+    outer_pts: 20
+
+  sample_18:
+    sample_name: PEG_Au_HGG0p5_DEX0p05_2
+    header: Fc
+    inner_center: 113.48
+    outer_center: 28.9
+    inner_range: 0.1  
+    outer_range: 0.5
+    inner_pts: 5
+    outer_pts: 20
+
+  sample_19:
+    sample_name: PEG_Au_HGG0p5_DEX0p1_2
+    header: Ga
+    inner_center: 75.75
+    outer_center: 28.9
+    inner_range: 0.1
+    outer_range: 0.5
+    inner_pts: 5
+    outer_pts: 20
+  
+  sample_20:
+    sample_name: PEG_Au_HGG0p5_DEX0p5_2
+    header: Gb
+    inner_center: 70.95
+    outer_center: 28.9
+    inner_range: 0.1  
+    outer_range: 0.5
+    inner_pts: 5
+    outer_pts: 20
+
+  sample_21:
+    sample_name: PEG_Au_HGG0p5_DEX1_2
+    header: Gc
+    inner_center: 65.84
+    outer_center: 28.9
+    inner_range: 0.1  
+    outer_range: 0.5
+    inner_pts: 5
+    outer_pts: 20
+  
+  sample_22:
+    sample_name: PEG_Au_HGG0p5_DEX1p5_2
+    header: Ha
+    inner_center: 42.40
+    outer_center: 28.9
+    inner_range: 0.1  
+    outer_range: 0.5
+    inner_pts: 5
+    outer_pts: 20
+
+  sample_23:
+    sample_name: PEG_Au_HGG0p5_DEX2p5_2
+    header: Hb
+    inner_center: 37.68
+    outer_center: 28.9
+    inner_range: 0.1  
+    outer_range: 0.5
+    inner_pts: 5
+    outer_pts: 20
+
+  sample_24:
+    sample_name: PEG_Au_HGG0p5_DEX5_2
+    header: Hc
+    inner_center: 32.65
+    outer_center: 28.9
+    inner_range: 0.1  
+    outer_range: 0.5
+    inner_pts: 5
+    outer_pts: 20
+
+  sample_25:
+    sample_name: PEG_Au
+    header: Ia
+    inner_center: 9.39
+    outer_center: 28.9
+    inner_range: 0.1 
+    outer_range: 0.5
+    inner_pts: 5
+    outer_pts: 20
+
+  sample_26:
+    sample_name: NK-2-A-100mg-np-50mg
+    header: Ib
+    inner_center: 4.1
+    outer_center: 28.36
+    inner_range: 0.2  
+    outer_range: 0.2
+    inner_pts: 10
+    outer_pts: 10
+
+  sample_27:
+    sample_name: Test27
+    header: Ic
+    inner_center: -1.1
+    outer_center: 28.66

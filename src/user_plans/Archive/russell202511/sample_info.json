@@ -1,0 +1,475 @@
+{
+    
+    "sample_11": {
+        "sample_name": "PDK_acid_decomp",
+        "x_cen": 184.92,
+        "y_cen": 21.21,
+        "x_radius": 0,
+        "y_radius": 0.3,
+        "x_pts": 1,
+        "y_pts": 2,
+        "header": "Db",
+        "temp_zone": "qnw_env2"
+    },
+    
+    "sample_17": {
+        "sample_name": "P-1%",
+        "x_cen": 118.45,
+        "y_cen": 20.5,
+        "x_radius": 0,
+        "y_radius": 1,
+        "x_pts": 1,
+        "y_pts": 15,
+        "header": "Pre",
+        "temp_zone": "qnw_env2"
+    },
+    
+    "sample_20": {
+        "sample_name": "P-5%",
+        "x_cen": 71.01,
+        "y_cen": 20.91,
+        "x_radius": 0,
+        "y_radius": 1,
+        "x_pts": 1,
+        "y_pts": 25,
+        "header": "Pre",
+        "temp_zone": "qnw_env3"
+    },
+    
+    "sample_23": {
+        "sample_name": "23-4-Au-psnh2-ph2p3",
+        "x_cen": 37.46,
+        "y_cen": 19.5,
+        "x_radius": 0,
+        "y_radius": 0.5,
+        "x_pts": 1,
+        "y_pts": 25,
+        "header": "Ps",
+        "temp_zone": "qnw_env3"
+    },
+    
+    "sample_26": {
+        "sample_name": "23-3-Au-siloil-pH6",
+        "x_cen": 4.16,
+        "y_cen": 20.5,
+        "x_radius": 0,
+        "y_radius": 0.5,
+        "x_pts": 1,
+        "y_pts": 25,
+        "header": "PhBi",
+        "temp_zone": "qnw_env3"
+    },
+      "sample_11_2": {
+        "sample_name": "PDK_acid_decomp",
+        "x_cen": 184.92,
+        "y_cen": 21.21,
+        "x_radius": 0,
+        "y_radius": 0.3,
+        "x_pts": 0,
+        "y_pts": 2,
+        "header": "Db-2",
+        "temp_zone": "qnw_env2"
+    },
+    
+    "sample_17_2": {
+        "sample_name": "P-1%",
+        "x_cen": 118.45,
+        "y_cen": 20.5,
+        "x_radius": 0,
+        "y_radius": 1,
+        "x_pts": 1,
+        "y_pts": 15,
+        "header": "Pre-2",
+        "temp_zone": "qnw_env2"
+    },
+    
+    "sample_20_2": {
+        "sample_name": "P-5%",
+        "x_cen": 71.01,
+        "y_cen": 20.91,
+        "x_radius": 0,
+        "y_radius": 1,
+        "x_pts": 1,
+        "y_pts": 25,
+        "header": "Pre-2",
+        "temp_zone": "qnw_env3"
+    },
+    
+    "sample_23_2": {
+        "sample_name": "23-4-Au-psnh2-ph2p3",
+        "x_cen": 37.46,
+        "y_cen": 19.5,
+        "x_radius": 0,
+        "y_radius": 0.5,
+        "x_pts": 1,
+        "y_pts": 25,
+        "header": "Ps-2",
+        "temp_zone": "qnw_env3"
+    },
+    
+    "sample_26_2": {
+        "sample_name": "23-3-Au-siloil-pH6",
+        "x_cen": 4.16,
+        "y_cen": 20.5,
+        "x_radius": 0,
+        "y_radius": 0.5,
+        "x_pts": 1,
+        "y_pts": 25,
+        "header": "PhBi-2",
+        "temp_zone": "qnw_env3"
+    },
+    "sample_11_3": {
+        "sample_name": "PDK_acid_decomp",
+        "x_cen": 184.92,
+        "y_cen": 21.21,
+        "x_radius": 0,
+        "y_radius": 0.3,
+        "x_pts": 0,
+        "y_pts": 2,
+        "header": "Db-3",
+        "temp_zone": "qnw_env2"
+    },
+    
+    "sample_17_3": {
+        "sample_name": "P-1%",
+        "x_cen": 118.45,
+        "y_cen": 20.5,
+        "x_radius": 0,
+        "y_radius": 1,
+        "x_pts": 1,
+        "y_pts": 15,
+        "header": "Pre-3",
+        "temp_zone": "qnw_env2"
+    },
+    
+    "sample_20_3": {
+        "sample_name": "P-5%",
+        "x_cen": 71.01,
+        "y_cen": 20.91,
+        "x_radius": 0,
+        "y_radius": 1,
+        "x_pts": 1,
+        "y_pts": 25,
+        "header": "Pre-3",
+        "temp_zone": "qnw_env3"
+    },
+    
+    "sample_23_3": {
+        "sample_name": "23-4-Au-psnh2-ph2p3",
+        "x_cen": 37.46,
+        "y_cen": 19.5,
+        "x_radius": 0,
+        "y_radius": 0.5,
+        "x_pts": 1,
+        "y_pts": 25,
+        "header": "Ps-3",
+        "temp_zone": "qnw_env3"
+    },
+    
+    "sample_26_3": {
+        "sample_name": "23-3-Au-siloil-pH6",
+        "x_cen": 4.16,
+        "y_cen": 20.5,
+        "x_radius": 0,
+        "y_radius": 0.5,
+        "x_pts": 1,
+        "y_pts": 25,
+        "header": "PhBi-3",
+        "temp_zone": "qnw_env3"
+    },
+    "sample_11_4": {
+        "sample_name": "PDK_acid_decomp",
+        "x_cen": 184.92,
+        "y_cen": 21.21,
+        "x_radius": 0,
+        "y_radius": 0.3,
+        "x_pts": 0,
+        "y_pts": 2,
+        "header": "Db-4",
+        "temp_zone": "qnw_env2"
+    },
+    
+    "sample_17_4": {
+        "sample_name": "P-1%",
+        "x_cen": 118.45,
+        "y_cen": 20.5,
+        "x_radius": 0,
+        "y_radius": 1,
+        "x_pts": 1,
+        "y_pts": 15,
+        "header": "Pre-4",
+        "temp_zone": "qnw_env2"
+    },
+    
+    "sample_20_4": {
+        "sample_name": "P-5%",
+        "x_cen": 71.01,
+        "y_cen": 20.91,
+        "x_radius": 0,
+        "y_radius": 1,
+        "x_pts": 1,
+        "y_pts": 25,
+        "header": "Pre-4",
+        "temp_zone": "qnw_env3"
+    },
+    
+    "sample_23_4": {
+        "sample_name": "23-4-Au-psnh2-ph2p3",
+        "x_cen": 37.46,
+        "y_cen": 19.5,
+        "x_radius": 0,
+        "y_radius": 0.5,
+        "x_pts": 1,
+        "y_pts": 25,
+        "header": "Ps-4",
+        "temp_zone": "qnw_env3"
+    },
+    
+    "sample_26_4": {
+        "sample_name": "23-3-Au-siloil-pH6",
+        "x_cen": 4.16,
+        "y_cen": 20.5,
+        "x_radius": 0,
+        "y_radius": 0.5,
+        "x_pts": 1,
+        "y_pts": 25,
+        "header": "PhBi-4",
+        "temp_zone": "qnw_env3"
+    },
+    "sample_11_5": {
+        "sample_name": "PDK_acid_decomp",
+        "x_cen": 184.92,
+        "y_cen": 21.21,
+        "x_radius": 0,
+        "y_radius": 0.3,
+        "x_pts": 0,
+        "y_pts": 2,
+        "header": "Db-5",
+        "temp_zone": "qnw_env2"
+    },
+    
+    "sample_17_5": {
+        "sample_name": "P-1%",
+        "x_cen": 118.45,
+        "y_cen": 20.5,
+        "x_radius": 0,
+        "y_radius": 1,
+        "x_pts": 1,
+        "y_pts": 15,
+        "header": "Pre-5",
+        "temp_zone": "qnw_env2"
+    },
+    
+    "sample_20_5": {
+        "sample_name": "P-5%",
+        "x_cen": 71.01,
+        "y_cen": 20.91,
+        "x_radius": 0,
+        "y_radius": 1,
+        "x_pts": 1,
+        "y_pts": 25,
+        "header": "Pre-5",
+        "temp_zone": "qnw_env3"
+    },
+    
+    "sample_23_5": {
+        "sample_name": "23-4-Au-psnh2-ph2p3",
+        "x_cen": 37.46,
+        "y_cen": 19.5,
+        "x_radius": 0,
+        "y_radius": 0.5,
+        "x_pts": 1,
+        "y_pts": 25,
+        "header": "Ps-5",
+        "temp_zone": "qnw_env3"
+    },
+    
+    "sample_26_5": {
+        "sample_name": "23-3-Au-siloil-pH6",
+        "x_cen": 4.16,
+        "y_cen": 20.5,
+        "x_radius": 0,
+        "y_radius": 0.5,
+        "x_pts": 1,
+        "y_pts": 25,
+        "header": "PhBi-5",
+        "temp_zone": "qnw_env3"
+    },
+    "sample_11_6": {
+        "sample_name": "PDK_acid_decomp",
+        "x_cen": 184.92,
+        "y_cen": 21.21,
+        "x_radius": 0,
+        "y_radius": 0.3,
+        "x_pts": 0,
+        "y_pts": 2,
+        "header": "Db-6",
+        "temp_zone": "qnw_env2"
+    },
+    
+    "sample_17_6": {
+        "sample_name": "P-1%",
+        "x_cen": 118.45,
+        "y_cen": 20.5,
+        "x_radius": 0,
+        "y_radius": 1,
+        "x_pts": 1,
+        "y_pts": 15,
+        "header": "Pre-6",
+        "temp_zone": "qnw_env2"
+    },
+    
+    "sample_20_6": {
+        "sample_name": "P-5%",
+        "x_cen": 71.01,
+        "y_cen": 20.91,
+        "x_radius": 0,
+        "y_radius": 1,
+        "x_pts": 1,
+        "y_pts": 25,
+        "header": "Pre-6",
+        "temp_zone": "qnw_env3"
+    },
+    
+    "sample_23_6": {
+        "sample_name": "23-4-Au-psnh2-ph2p3",
+        "x_cen": 37.46,
+        "y_cen": 19.5,
+        "x_radius": 0,
+        "y_radius": 0.5,
+        "x_pts": 1,
+        "y_pts": 25,
+        "header": "Ps-6",
+        "temp_zone": "qnw_env3"
+    },
+    
+    "sample_26_6": {
+        "sample_name": "23-3-Au-siloil-pH6",
+        "x_cen": 4.16,
+        "y_cen": 20.5,
+        "x_radius": 0,
+        "y_radius": 0.5,
+        "x_pts": 1,
+        "y_pts": 25,
+        "header": "PhBi-6",
+        "temp_zone": "qnw_env3"
+    },
+    "sample_11_7": {
+        "sample_name": "PDK_acid_decomp",
+        "x_cen": 184.92,
+        "y_cen": 21.21,
+        "x_radius": 0,
+        "y_radius": 0.3,
+        "x_pts": 0,
+        "y_pts": 2,
+        "header": "Db-7",
+        "temp_zone": "qnw_env2"
+    },
+    
+    "sample_17_7": {
+        "sample_name": "P-1%",
+        "x_cen": 118.45,
+        "y_cen": 20.5,
+        "x_radius": 0,
+        "y_radius": 1,
+        "x_pts": 1,
+        "y_pts": 15,
+        "header": "Pre-7",
+        "temp_zone": "qnw_env2"
+    },
+    
+    "sample_20_7": {
+        "sample_name": "P-5%",
+        "x_cen": 71.01,
+        "y_cen": 20.91,
+        "x_radius": 0,
+        "y_radius": 1,
+        "x_pts": 1,
+        "y_pts": 25,
+        "header": "Pre-7",
+        "temp_zone": "qnw_env3"
+    },
+    
+    "sample_23_7": {
+        "sample_name": "23-4-Au-psnh2-ph2p3",
+        "x_cen": 37.46,
+        "y_cen": 19.5,
+        "x_radius": 0,
+        "y_radius": 0.5,
+        "x_pts": 1,
+        "y_pts": 25,
+        "header": "Ps-7",
+        "temp_zone": "qnw_env3"
+    },
+    
+    "sample_26_7": {
+        "sample_name": "23-3-Au-siloil-pH6",
+        "x_cen": 4.16,
+        "y_cen": 20.5,
+        "x_radius": 0,
+        "y_radius": 0.5,
+        "x_pts": 1,
+        "y_pts": 25,
+        "header": "PhBi-7",
+        "temp_zone": "qnw_env3"
+    },
+    "sample_11_8": {
+        "sample_name": "PDK_acid_decomp",
+        "x_cen": 184.92,
+        "y_cen": 21.21,
+        "x_radius": 0,
+        "y_radius": 0.3,
+        "x_pts": 0,
+        "y_pts": 2,
+        "header": "Db-8",
+        "temp_zone": "qnw_env2"
+    },
+    
+    "sample_17_8": {
+        "sample_name": "P-1%",
+        "x_cen": 118.45,
+        "y_cen": 20.5,
+        "x_radius": 0,
+        "y_radius": 1,
+        "x_pts": 1,
+        "y_pts": 15,
+        "header": "Pre-8",
+        "temp_zone": "qnw_env2"
+    },
+    
+    "sample_20_8": {
+        "sample_name": "P-5%",
+        "x_cen": 71.01,
+        "y_cen": 20.91,
+        "x_radius": 0,
+        "y_radius": 1,
+        "x_pts": 1,
+        "y_pts": 25,
+        "header": "Pre-8",
+        "temp_zone": "qnw_env3"
+    },
+    
+    "sample_23_8": {
+        "sample_name": "23-4-Au-psnh2-ph2p3",
+        "x_cen": 37.46,
+        "y_cen": 19.5,
+        "x_radius": 0,
+        "y_radius": 0.5,
+        "x_pts": 1,
+        "y_pts": 25,
+        "header": "Ps-8",
+        "temp_zone": "qnw_env3"
+    },
+    
+    "sample_26_8": {
+        "sample_name": "23-3-Au-siloil-pH6",
+        "x_cen": 4.16,
+        "y_cen": 20.5,
+        "x_radius": 0,
+        "y_radius": 0.5,
+        "x_pts": 1,
+        "y_pts": 25,
+        "header": "PhBi-8",
+        "temp_zone": "qnw_env3"
+    }
+}

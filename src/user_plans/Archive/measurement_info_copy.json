@@ -1,0 +1,26 @@
+{
+  "sample_5": {
+    "detector": "eiger4M",
+    "att_list": [4],
+    "acq_time_list": [[2.5e-4]],
+    "acq_period_list": [[2.5e-4]],
+    "num_frames_list": [[8000]],
+    "num_reps_list": [[1]],
+    "sample_move_yes_list": [[1]]
+  },
+
+
+
+  "sample_19": {
+    "detector": "eiger4M",
+    "att_list": [8],
+    "acq_time_list": [[2.5e-4]],
+    "acq_period_list": [[2.5e-4]],
+    "num_frames_list": [[4000]],
+    "num_reps_list": [[1700]],
+    "sample_move_yes_list": [[1]]
+  }
+
+
+
+}

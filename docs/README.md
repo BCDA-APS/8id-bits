@@ -12,6 +12,9 @@ GitHub, in an editor, or with `less`.
 | start a session at the beamline | [Starting a session](starting-a-session.md) |
 | understand what got loaded, or add/remove a device | [Devices](devices.md) |
 | know where a setting lives, or change the experiment | [Configuration](configuration.md) |
+| read or set `expt` at the prompt, or work out why a field raised | [Using `expt`](using-expt.md) |
+| add a new device's reading to the NeXus metadata file | [Adding metadata fields](adding-metadata.md) |
+| check, debug or re-run a DM analysis job | [Data Management](reference/data-management.md) |
 | find where session state is kept | [Configuration → `state/run_state.yml`](configuration.md#staterun_stateyml) |
 | know why the counter lives in EPICS | [Configuration → the measurement counter](configuration.md#the-measurement-counter-stays-in-epics) |
 | define a protocol and run a measurement | [Running measurements](running-measurements.md) |

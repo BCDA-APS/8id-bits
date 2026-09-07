@@ -1,0 +1,29 @@
+{ 
+  "sample_19": {
+    "detector": "rigaku3M",
+    "att_list": [1],
+    "acq_time_list": [[20e-6]],
+    "acq_period_list": [[20e-6]],
+    "num_frames_list": [[100000]],
+    "num_reps_list": [[10]],                                                                 
+    "sample_move_yes_list": [[1]]
+  },
+  "sample_20": {
+    "detector": "rigaku3M",
+    "att_list": [50],
+    "acq_time_list": [[20e-6]],
+    "acq_period_list": [[20e-6]],
+    "num_frames_list": [[100000]],
+    "num_reps_list": [[10]],                                                                 
+    "sample_move_yes_list": [[1]]
+  },
+  "sample_21": {
+    "detector": "rigaku3M",
+    "att_list": [1],
+    "acq_time_list": [[20e-6]],
+    "acq_period_list": [[20e-6]],
+    "num_frames_list": [[100000]],
+    "num_reps_list": [[10]],                                                                 
+    "sample_move_yes_list": [[1]]
+  }
+}

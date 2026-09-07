@@ -3,6 +3,9 @@ DM code from Hannah Parraga.
 Set up DM and submit jobs
 """
 
+import datetime
+from pathlib import Path
+
 from dm.common.utility.configurationManager import ConfigurationManager
 from dm.proc_web_service.api.workflowProcApi import WorkflowProcApi
 
@@ -26,6 +29,55 @@ def dm_setup() -> tuple:
     workflowProcApi = WorkflowProcApi(dmuser, password, serviceUrl)
 
     return workflowProcApi, dmuser
+
+
+def dm_job_log_path() -> Path:
+    """<mount_point>/<cycle>/<experiment>/dm_jobs.log -- one line per submitted job.
+
+    At the experiment root, beside data/ and analysis/, rather than inside either:
+    both of those are DM-managed trees and this file is ours.
+    """
+    return Path(f"{expt.mount_point}{expt.cycle_name}/{expt.experiment_name}/dm_jobs.log")
+
+
+def log_dm_job(job_id: str, file_name: str, filepath: str, machine_name: str, workflow_name: str):
+    """Append one line recording a submitted job, so the uuid outlives the terminal.
+
+    The uuid is the only handle on a DM job -- `dmjob.sh <uuid>` is how you ask
+    what happened to it -- and until 2026-09-07 it was printed to the session and
+    nothing more, so it was gone as soon as the scrollback was.
+
+    A plain text log rather than a field in the NeXus metadata file, for two
+    reasons: the metadata file is written BEFORE the job is submitted, so the uuid
+    does not exist yet and adding it would mean reopening a file DM has already
+    been pointed at; and one greppable file answers "which job was that?" without
+    opening sixty HDFs.
+
+        grep A0101 dm_jobs.log                 # the job for one measurement
+        awk '!/^#/{print $3}' dm_jobs.log      # every uuid
+        dmjob.sh $(tail -1 dm_jobs.log | awk '{print $3}')   # status of the last one
+
+    Never raises. A full disk or a read-only mount must not take down an
+    acquisition that has already written its data -- the line is lost, the run
+    continues, and the uuid is still on screen.
+    """
+    path = dm_job_log_path()
+    stamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        new = not path.exists()
+        with open(path, "a") as handle:
+            if new:
+                handle.write(
+                    "# Submitted DM analysis jobs, appended by id8_common.utils.dm_util.\n"
+                    "# date       time      job_uuid  measurement  machine  workflow  data_file\n"
+                )
+            handle.write(
+                f"{stamp}  {job_id}  {file_name}  {machine_name}  {workflow_name}  {filepath}\n"
+            )
+    except OSError as exc:
+        print(f"[dm_util] could not append to {path}: {exc}")
 
 
 def dm_run_job(workflowProcApi: WorkflowProcApi, dmuser: str, file_name: str):
@@ -111,4 +163,9 @@ def dm_run_job(workflowProcApi: WorkflowProcApi, dmuser: str, file_name: str):
         }
         
         job = workflowProcApi.startProcessingJob(dmuser, f"{workflow_name}", argsDict=argsDict)
-        print(f"Job {job['id']}")
+        job_id = job["id"]
+        print(f"Job {job_id}")
+
+        log_dm_job(job_id, file_name, filepath, machine_name, workflow_name)
+
+        return job_id
