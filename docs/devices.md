@@ -1,6 +1,6 @@
 # Devices
 
-[← index](README.md)
+[← index](../README.md)
 
 How devices get into the session, and how to add or remove one.
 

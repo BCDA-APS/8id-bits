@@ -83,6 +83,11 @@
 #   {num1},{num2}  raster shape -- points along motor1 and motor2.
 #                  EMPTY unless this is a dmesh/mesh.
 #   {shape}        the same as "11x11".  EMPTY unless this is a dmesh/mesh.
+#   {motor1_start} the COMMANDED first and last position of each raster axis,
+#   {motor1_stop}  so a 2D viewer can rebuild the grid exactly instead of
+#   {motor2_start} inferring it from the readbacks (a real stage repeats only to
+#   {motor2_stop}  its deadband, and an aborted mesh spans less than it was told
+#                  to).  EMPTY unless this is a dmesh/mesh.
 #   {count_time}   seconds per point
 #
 # =============================================================================

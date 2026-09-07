@@ -1,6 +1,6 @@
 # Detector modes reference
 
-[← index](../README.md) · [Running measurements](../running-measurements.md)
+[← index](../../README.md) · [Running measurements](../running-measurements.md)
 
 Thirteen `(detector, mode)` pairs, in nine rows below — each Rigaku ZDT triple
 is one row. `detector:` in a protocol must be a key here and `mode:` one of its

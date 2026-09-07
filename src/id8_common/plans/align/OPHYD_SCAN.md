@@ -44,8 +44,8 @@ dscan_ophyd(huber.delta, -0.5, 0.5, 41, 1.0, det=lambda2M)
 ```
 
 See [Two sessions, two sets of names](#two-sessions-two-sets-of-names) for why.
-Everything else on this page is identical in both; the plain names are used from
-here on.
+Everything else on this page is identical in both — except the lups, which only
+the Ophyd-only session has. The plain names are used from here on.
 
 > NB **not** `start_bluesky_8ide.sh` — that one is stale. It still does
 > `from id8_e.startup import *`, and `id8_e` was merged into `id8_common`.
@@ -149,8 +149,13 @@ rheo_y_lup (rel_begin=-3,   rel_end=3,   num_pts=60, att_ratio=7, det=None, coun
 detector — which is why the template's `tetramm1_*` columns matter (see the note
 in [scan_csv_template.yml](../../configs/scan_csv_template.yml)).
 
-The lups keep their plain names in both sessions: there is no `_lup` in
-`scan_8id.py`'s star-import to collide with.
+**The lups above exist only in the Ophyd-only session.** `scan_8id.py` defines
+`x_lup`, `y_lup`, `huber_x_lup`, `huber_y_lup`, `rheo_x_lup` and `rheo_y_lup`
+too, as Bluesky generators, and `startup.py` star-imports them — so in the
+Bluesky session those plain names are Sam's generators, to be run as
+`RE(x_lup())`. There is no `x_lup_ophyd`: `startup.py` imports none of the lups
+from `ophyd_scan.py`. To use these, start the Ophyd-only session, or call
+`dscan_ophyd(sample.x, -3, 3, 60, 0.1, det=tetramm1, save_img=0)` directly.
 
 ### `auto_att()`
 
@@ -165,14 +170,15 @@ the peak count rate lands in `[rate_limit * grace_factor, rate_limit]`. The beam
 is opened, so it runs under the same interrupt guard as a scan: a Ctrl+C blocks
 the beam and restores `acquire_time`/`acquire_period` before returning.
 
-In the Bluesky session it is `auto_att_ophyd`.
+In the Bluesky session it is `auto_att_ophyd`. Plain `auto_att` exists there
+too, but it is `scan_8id.py`'s own copy — same signature, no interrupt guard.
 
 ## Two sessions, two sets of names
 
 | session | started by | scan names |
 |---|---|---|
 | Ophyd only | `~/bin/start_ophyd.sh` | `dscan`, `ascan`, `d2scan`, `a2scan`, `dmesh`, `mesh`, `auto_att`, the lups |
-| Bluesky | `~/bin/start_bluesky.sh` | `dscan_ophyd`, `ascan_ophyd`, `d2scan_ophyd`, `a2scan_ophyd`, `dmesh_ophyd`, `mesh_ophyd`, `auto_att_ophyd`, the lups |
+| Bluesky | `~/bin/start_bluesky.sh` | `dscan_ophyd`, `ascan_ophyd`, `d2scan_ophyd`, `a2scan_ophyd`, `dmesh_ophyd`, `mesh_ophyd`, `auto_att_ophyd` — **no lups**, see [The lups](#the-lups) |
 
 Both names are the **same function object**; the aliases are assigned at the
 bottom of [ophyd_scan.py](ophyd_scan.py).
@@ -318,7 +324,7 @@ wrong — one stray press should arm nothing. When it does fire it abandons only
 the **return move**, and it prints where each motor was left:
 
 ```
-^C^C^C  leaving huber_nu at 0.4998 (start 0.1999). The beam is off. Move it back at the prompt.
+^C^C^C  leaving huber_nu at 0.4998 (start was 0.1999). The beam is off. Move it back at the prompt.
 ```
 
 Nothing else is skippable: the beam is already off by the time the hatch can arm,

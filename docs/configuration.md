@@ -1,6 +1,6 @@
 # Configuration: where every setting lives
 
-[← index](README.md)
+[← index](../README.md)
 
 A handful of YAML files describe an experiment. One object, `expt`, is what the
 code actually reads. This page explains the path from one to the other.

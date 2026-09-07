@@ -1,6 +1,6 @@
 # Running measurements
 
-[← index](README.md)
+[← index](../README.md)
 
 Two ways in. Almost always use the first.
 

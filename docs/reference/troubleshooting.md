@@ -1,6 +1,6 @@
 # Troubleshooting
 
-[← index](../README.md)
+[← index](../../README.md)
 
 Known failure modes, what they look like, and what to do.
 

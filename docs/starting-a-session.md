@@ -1,6 +1,6 @@
 # Starting a session
 
-[← index](README.md)
+[← index](../README.md)
 
 ## Start it
 
@@ -83,6 +83,8 @@ instead and tells you to set `expt.measurement_num` yourself.) See
 len(oregistry)                  # how many devices came up
 oregistry.device_names          # what is actually here
 eiger4M.connected               # is it connected right now
+eiger4M.component_names         # what parts does it have (motors, plugins, signals)
+eiger4M.summary()               # every signal on it, with its PV and read/write mode
 expt                            # which experiment am I in
 ```
 

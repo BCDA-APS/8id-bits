@@ -1291,7 +1291,7 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time, det=None, att_ratio=1e
         ``.data`` is ``{column_label: [values]}``.
 
     On Ctrl+C the motor stops and returns to where it started, acquisition
-    halts, the beam is blocked, and the .csv closes with ``#END,aborted``.
+    halts, the beam is blocked, and the .csv closes with ``#exit_status,aborted``.
     Repeated Ctrl+C during that cleanup is absorbed, not obeyed.
     """
     if det is None:
@@ -1670,7 +1670,7 @@ def ascan(motor, abs_begin, abs_end, num_pts, count_time, det=None, att_ratio=7,
         ``.data`` is ``{column_label: [values]}``.
 
     On Ctrl+C the motor stops and returns to where it started, acquisition
-    halts, the beam is blocked, and the .csv closes with ``#END,aborted``.
+    halts, the beam is blocked, and the .csv closes with ``#exit_status,aborted``.
     Repeated Ctrl+C during that cleanup is absorbed, not obeyed.
     """
     if det is None:
