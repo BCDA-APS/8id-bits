@@ -148,13 +148,24 @@ _detector_1 = _rename(
 )
 
 # LOCAL PATCH: upstream calls these two "Position of beam center, x/y axis, in
-# physical units". At 8-ID the field holds the detector TRANSLATION PRESET read
-# from device_position.yaml, not the beam centre, so his text describes the
-# wrong quantity. Reported 2026-09-08; drop this call when it lands upstream.
+# physical units", which reads as the beam centre converted from pixels to
+# metres. It is not that. It is the detector translation position at which the
+# DIRECT BEAM was measured -- the reference the qmap needs when a measurement is
+# taken with the detector somewhere other than where the direct beam was
+# calibrated. Compare with position_x/y, which is the live position during this
+# measurement; the difference between the two is the offset the qmap applies.
+#
+# Reported upstream 2026-09-08 (AZjk/nexus_xpcs_aps#1); drop this when it lands.
 _detector_1 = _redescribe(
     _detector_1,
-    beam_center_position_x="Position of the detector, x axis, during data collection",
-    beam_center_position_y="Position of the detector, y axis, during data collection",
+    beam_center_position_x=(
+        "Detector position, x axis, at which the direct beam was measured "
+        "(qmap reference; compare with position_x for this measurement)"
+    ),
+    beam_center_position_y=(
+        "Detector position, y axis, at which the direct beam was measured "
+        "(qmap reference; compare with position_y for this measurement)"
+    ),
 )
 
 instrument = {

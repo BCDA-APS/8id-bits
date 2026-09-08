@@ -59,7 +59,7 @@ KeyError: 'lambda2M' is not in the device registry -- skipped at startup
 ```
 
 The older modules that bind at module scope instead
-(`plans/align/scan_8id.py`, `utils/nexus_utils.py`) hold `None` and fail with an
+(`plans/align/scan_8id.py`, `utils/nexus_runtime.py`) hold `None` and fail with an
 `AttributeError` on `None`, which names neither the device nor the registry.
 
 That is the intended behaviour, not a bug. Read

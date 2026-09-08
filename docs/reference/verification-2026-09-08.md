@@ -2,6 +2,12 @@
 
 # Verification run, 2026-09-08
 
+> **Historical.** This run used the writer we retired later the same day. It is
+> kept because it is the baseline the current writer was compared against — the
+> two produce path-for-path identical files. For how metadata is written now, see
+> [How the NeXus file is written](nexus-writer.md); for the equivalent run on the
+> current writer, measurements **A0139–A0144** in the same experiment folder.
+
 Six detector modes acquired, metadata checked, analysis run. Everything below is
 reproducible from the file paths given — the point of this page is that you can
 check it yourself rather than take the summary on trust.
@@ -159,6 +165,6 @@ a string. Both it and `dry_run_dual_measurement_info()` now coerce with `Path()`
 
 ## Related
 
-* [Two NeXus writers](nexus-writers.md) — why we still use ours, and what switching costs
+* [How the NeXus file is written](nexus-writer.md) — why we still use ours, and what switching costs
 * [Adding metadata fields](../adding-metadata.md)
 * [Data Management](data-management.md)

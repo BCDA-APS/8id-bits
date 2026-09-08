@@ -74,7 +74,7 @@ private `_resolve()`, which does not check `.connected`.
    was skipped at startup gives a `KeyError` naming the banner, and one that
    registered but has since dropped gives a `RuntimeError`. Use
    `get_ophyd_object("my_device.x")` for the dotted form.
-   Older modules (`plans/align/scan_8id.py`, `utils/nexus_utils.py`) still bind
+   Older modules (`plans/align/scan_8id.py`, `utils/nexus_runtime.py`) still bind
    devices at module scope with `oregistry.get("my_device")` — `.get()`, not
    `[...]`, so a missing device leaves `None` rather than aborting the import.
    That defers the failure to an `AttributeError` on `None` far from its cause;
@@ -125,7 +125,7 @@ reaches the code in four shapes, and only the first shows up in an `oregistry`
 grep:
 
 * bound at import time in the older plan modules (`scan_8id.py`,
-  `nexus_utils.py`), which then hold `None` and fail at the call site rather
+  `nexus_runtime.py`), which then hold `None` and fail at the call site rather
   than at startup;
 * passed as a bare string to `get_connected_device()` / `get_ophyd_object()`;
 * as a string in a Python table — a mode's `required_devices` /

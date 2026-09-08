@@ -174,8 +174,20 @@ reported upstream. Delete them as his fixes land:
 | `_redescribe()` on `beam_center_position_x/y` | his text says "beam center"; the field holds the detector translation preset. |
 | `EXTRA_UNITS` | the three missing unit categories above. |
 
+## When this needs Miaoqi rather than you
+
+Short version: **if a value is wrong, it is ours; if a field cannot exist, it is
+his.** The full decision table is in
+[How the NeXus file is written](reference/nexus-writer.md#-when-to-contact-miaoqi).
+
+The one case that comes up in practice: a new **sample-environment** device.
+`make_sample()` takes six fixed flags, so unlike `make_slits(9)` you cannot add a
+seventh from outside his package. Patch the composed dict as in Case 2 above to
+keep running, and open a PR against
+[AZjk/nexus_xpcs_aps](https://github.com/AZjk/nexus_xpcs_aps) for the real fix.
+
 ## Related
 
-* [Two NeXus writers](reference/nexus-writers.md) — how we got here, and the comparison
+* [How the NeXus file is written](reference/nexus-writer.md) — how we got here, and the comparison
 * [Verification 2026-09-08](reference/verification-2026-09-08.md) — the six-mode proof run
 * [Devices](devices.md) — adding the EPICS device in the first place
