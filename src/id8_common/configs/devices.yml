@@ -153,6 +153,15 @@ id8_common.devices.qnw_vac_device.QnwDevice:
   prefix: "8idiSoft:QNWvac_3:"
   readback_pv: null 
 
+# Alicat PCD pressure controllers. IOC: start_Alicat.sh start
+# (/net/s8iddserv/.../ioc8idAlicat). If the IOC is down these are skipped at
+# startup with a warning, which is the intended behaviour -- see docs/devices.md.
+id8_common.devices.alicat_pressure.AlicatPressureController:
+- name: pcd1
+  prefix: "8idAlicat:PCD1:"
+- name: pcd2
+  prefix: "8idAlicat:PCD2:"
+
 id8_common.devices.registers_device.EpicsPvStorageRegisters:
 - name: pv_registers
   prefix: "8ideSoft:" # could be "8idiSoft" too
