@@ -36,6 +36,7 @@ read the output.
 | know why the counter lives in EPICS | [Configuration → the measurement counter](docs/configuration.md#the-measurement-counter-stays-in-epics) |
 | define a protocol and run a measurement | [Running measurements](docs/running-measurements.md) |
 | plot a scan, live or afterwards — and know when to ask Peco | [Viewing scans](docs/viewing-scans.md) |
+| set up or debug the scan viewer itself — checkout, conda env, what we changed | [The scan viewer](docs/reference/scan-viewer.md) |
 | look up a detector mode or its timing rules | [Detector modes](docs/reference/detector-modes.md) |
 | work out why something failed | [Troubleshooting](docs/reference/troubleshooting.md) |
 
