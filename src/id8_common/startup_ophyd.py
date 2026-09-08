@@ -185,6 +185,7 @@ print(f"[expt_config] {expt}")
 # hklpy2 setup -- see module docstring for why this is the one place
 # Bluesky becomes importable in this process.
 from hklpy2.user import *  # noqa: F401, F403
+
 from .utils.hklpy2_setup import configure_hklpy2
 
 # Guard: configure_hklpy2() immediately calls set_diffractometer(psic) and
@@ -219,9 +220,9 @@ print("[startup_ophyd] Importing plans ...")
 
 # import acquire plans
 from .plans.acquire.ad_acq import *  # noqa: F401, F403
-from .plans.acquire.tetramm_acq import *  # noqa: F401, F403
-from .plans.acquire.master_plan import *  # noqa: F401, F403
 from .plans.acquire.dual_master_plan_eiger4m_rigaku3m import *  # noqa: F401, F403
+from .plans.acquire.master_plan import *  # noqa: F401, F403
+from .plans.acquire.tetramm_acq import *  # noqa: F401, F403
 
 # import align plans -- ophyd_scan, not scan_8id (see module docstring).
 #
@@ -229,27 +230,19 @@ from .plans.acquire.dual_master_plan_eiger4m_rigaku3m import *  # noqa: F401, F4
 # there is nothing to collide with and `dscan(...)` is what people type. The
 # suffixed aliases exist for the Bluesky session, which does star-import
 # scan_8id -- see the alias block at the bottom of ophyd_scan.py.
-from .plans.align.ophyd_scan import (  # noqa: F401
-    a2scan,
-    ascan,
-    auto_att,
-    d2scan,
-    dmesh,
-    dscan,
-    dscan_ophyd,
-    huber_x_lup,
-    huber_y_lup,
-    mesh,
-    rheo_x_lup,
-    rheo_y_lup,
-    save_images,
-    x_lup,
-    y_lup,
-)
+from .plans.align.ophyd_scan import a2scan  # noqa: F401
+from .plans.align.ophyd_scan import ascan  # noqa: F401
+from .plans.align.ophyd_scan import auto_att  # noqa: F401
+from .plans.align.ophyd_scan import d2scan  # noqa: F401
+from .plans.align.ophyd_scan import dmesh  # noqa: F401
+from .plans.align.ophyd_scan import dscan  # noqa: F401
+from .plans.align.ophyd_scan import dscan_ophyd  # noqa: F401
+from .plans.align.ophyd_scan import mesh  # noqa: F401
+from .plans.align.ophyd_scan import save_images  # noqa: F401
 
 # import set plans
-from .plans.set.select_sample import select_sample  # noqa: F401
-from .plans.set.select_device import *  # noqa: F401, F403
 from .plans.set.qnw_plans import *  # noqa: F401, F403
+from .plans.set.select_device import *  # noqa: F401, F403
+from .plans.set.select_sample import select_sample  # noqa: F401
 
 print(f"[startup_ophyd] Ready -- {len(oregistry)} device(s) connected, plans imported.")

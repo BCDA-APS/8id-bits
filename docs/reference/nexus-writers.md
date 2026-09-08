@@ -57,48 +57,60 @@ package models.
 at `73d0be4` (Aug 2025) and stale; `nexus_xpcs_aps_95ab368` is the `mc_refact`
 commit the adapter was written against. Point `PYTHONPATH` at the second.
 
-## Adding a field: the same job, both ways
+## Adding something: three cases, and they differ a lot
 
-### A field his factories already model
+### Case 1 — a whole new device that reuses one of his factories
 
-| | ours | his |
-|---|---|---|
-| get the field | write the literal node by hand | free — it arrives in the factory output |
-| keep it current | nobody | his upstream change flows in on a `git pull` |
-| steps | 2 (schema node + runtime line) | 1 (runtime line) |
-
-His wins here, clearly.
-
-### A new EPICS device you just added — the case that actually comes up
-
-**Ours** — a literal node in `xpcs_schema.py`:
+**His wins outright, and needs nothing from him.** The factories are plain
+functions that take an index and return a fresh dict — no registration, no
+central list. The index is only interpolated into the description, so it can even
+be a string:
 
 ```python
-"temperature_set": {
-    "type": "NX_FLOAT",
-    "required": True,
-    "units": "NX_TEMPERATURE",
-    "description": "Sample temperature setpoint",
-    "data": 0,
-},
+make_slits(9)              ->  4 fields, NXslit
+make_slits("my_new_slit")  ->  4 fields, NXslit
+make_attenuator(9)         ->  2 fields, NXattenuator
+make_undulator(9)          ->  3 fields, NXinsertion_device
+make_detector(9)           -> 19 fields, NXdetector
+make_diffractometer("kappa") -> 6 fields, NXpositioner
 ```
 
-**His** — there is no "add an arbitrary leaf" helper. `core/` exposes
-per-group factories (`make_detector`, `make_undulator`, `make_slits`,
-`make_attenuator`, `make_diffractometer`, `make_sample`, `make_entry`) that
-return fixed dicts. So a field he does not model means either:
+You place the result under whatever key you like, in **our**
+`xpcs_schema_mc.py` — his code is not touched. The current schema already does
+this four times for slits, twice with non-numeric indices:
 
-* ask him to add it upstream and wait for a release — he controls the schema,
-  which is the flip side of him maintaining it; or
-* patch the composed dict locally in `xpcs_schema_mc.py`, the same way the
-  existing `_rename()` call patches `flightpath_swing_horizontal`.
+```python
+"sl4":       _tag(make_slits(4, description="Slits 4"),          "/entry/instrument/sl4",       "his:make_slits"),
+"wb_slit":   _tag(make_slits("wb", description="white beam slit"), "/entry/instrument/wb_slit",   "his:make_slits"),
+"mono_slit": _tag(make_slits("mono", description="mono beam slit"), "/entry/instrument/mono_slit", "his:make_slits"),
+```
 
-Then the runtime line, identically, in **our** `create_runtime_metadata_dict()`.
+One line for a complete, correctly-classed NeXus group. Under our writer the
+same group is ~30 lines of literal dict, hand-written and hand-maintained.
 
-**So for a beamline-specific field, his is not fewer steps — it is the same
-number plus a layer of indirection**, or the same number plus a round trip
-through someone else's release cycle. The saving is real only for fields that
-are already in his model.
+**⚠ There is no `make_stage` and no `make_motor`.** The complete list is
+`make_undulator`, `make_detector`, `make_slits`, `make_attenuator`,
+`make_diffractometer`, `make_sample`, `make_entry`. A motor stage is Case 3.
+
+### Case 2 — one more field inside a group he already models
+
+Free with his: the leaf arrives in the factory output, and an upstream fix or
+addition reaches you on a `git pull`. Two steps with ours (schema node + runtime
+line) versus one with his (runtime line only).
+
+### Case 3 — a field or group he does not model at all
+
+Neither writer helps. His factories return fixed leaf sets — `make_slits` gives
+exactly four fields, and there is no arbitrary-leaf helper — so you either ask
+him to add it upstream and wait for a release, or patch the composed dict
+locally the way `_rename()` already patches `flightpath_swing_horizontal`. That
+local patch is about the same work as adding the literal node to ours.
+
+### Either way
+
+The runtime half never changes hands: the line that reads the device and puts
+its value at a path lives in **our** `create_runtime_metadata_dict()` in both
+writers. His package does not model "which EPICS signal feeds this field".
 
 ## What each costs
 
@@ -106,7 +118,8 @@ are already in his model.
 |---|---|---|
 | schema | 993 lines of literals, all ours to maintain | 244 lines of composition; the leaves are his |
 | who fixes a NeXus-standard bug | us | him, and it arrives on a pull |
-| who can add a beamline-specific field today | us, alone | us locally, or him upstream |
+| adding a device that reuses an existing factory | ~30 lines of literal dict | one line, no upstream change |
+| adding something he does not model | a literal node | a local patch, or wait for his release |
 | dependency risk | none | none in practice: `h5py` + `numpy` |
 | coupling to `apsbits` | none | none, **provided only `core/` is used** — his `deployment/id8_{e,i}` needs apsbits and is obsolete |
 | behaviour if it breaks mid-beamtime | ours to fix | ours to work around |
@@ -127,6 +140,11 @@ took over. Two reasons were live at the time, and only one still is:
 The remaining reason to wait is timing, not technology: swapping the writer
 changes the bytes of every metadata file, and `*_results.hdf` is a copy of that
 file. That is not a change to make two days before a run.
+
+**On the merits, though, Case 1 is the strongest argument for switching** — most
+new hardware at this beamline is another slit, attenuator, undulator or
+detector, and each of those is one line with his factories against ~30 lines of
+literal dict with ours.
 
 ## What switching would take
 

@@ -14,7 +14,7 @@ Two audiences:
 
 | file | what it is | edit it when |
 |---|---|---|
-| [ophyd_scan.py](ophyd_scan.py) | the scan itself — moves the motor, arms the detector, reads counters | you are adding a new scan (it already has `dscan`, `ascan`, `d2scan`, `a2scan`, `dmesh`, `mesh` and the lups) |
+| [ophyd_scan.py](ophyd_scan.py) | the scan itself — moves the motor, arms the detector, reads counters | you are adding a new scan (it already has `dscan`, `ascan`, `d2scan`, `a2scan`, `dmesh` and `mesh`) |
 | [scan_csv.py](scan_csv.py) | the CSV writer and a reader. Knows the file *format*, moves no hardware | almost never |
 | [../../configs/scan_csv_template.yml](../../configs/scan_csv_template.yml) | what goes in the file | you want a different column or another PV in the header |
 
@@ -45,7 +45,9 @@ dscan_ophyd(huber.delta, -0.5, 0.5, 41, 1.0, det=lambda2M)
 
 See [Two sessions, two sets of names](#two-sessions-two-sets-of-names) for why.
 Everything else on this page is identical in both — except the lups, which only
-the Ophyd-only session has. The plain names are used from here on.
+the **Bluesky** session has, from `scan_8id.py`; see
+[The lups are not here](#the-lups-are-not-here). The plain names are used from
+here on.
 
 > NB **not** `start_bluesky_8ide.sh` — that one is stale. It still does
 > `from id8_e.startup import *`, and `id8_e` was merged into `id8_common`.
@@ -129,33 +131,40 @@ the template's motor list only says whose *start position* gets recorded in the
 header. It does have to have a **column** — see
 [Two-motor and raster scans](#two-motor-and-raster-scans).
 
-### The lups
+### The lups are not here
 
-Six one-line wrappers around `dscan` for the axes people align most often. They
-resolve the stage from the oregistry at call time and always pass `save_img=0`,
-so they write a `.csv` and no `.h5`:
+`scan_8id.py` has six alignment shortcuts — `x_lup`, `y_lup`, `huber_x_lup`,
+`huber_y_lup`, `rheo_x_lup`, `rheo_y_lup` — and none of them was ported.
+
+Each is a `yield from bp.rel_scan([det], motor, ...)`: a whole Bluesky plan run
+by the RunEngine, not a sequence of device calls, so there is no line-by-line
+Ophyd translation of it the way there is for the six scans above. What a lup
+*does* is a relative scan of one axis against one detector, which is exactly
+what `dscan` does:
 
 ```python
-x_lup      (rel_begin=-3,   rel_end=3,   num_pts=60, att_ratio=7, det=None, count_time=0.1, comment="")
-y_lup      (rel_begin=-3,   rel_end=3,   num_pts=60, att_ratio=7, det=None, count_time=0.1, comment="")
-huber_x_lup(rel_begin=-0.3, rel_end=0.3, num_pts=60, att_ratio=1, det=None, count_time=0.1, comment="")
-huber_y_lup(rel_begin=-0.3, rel_end=0.3, num_pts=60, att_ratio=1, det=None, count_time=0.1, comment="")
-rheo_x_lup (rel_begin=-3,   rel_end=3,   num_pts=60, att_ratio=7, det=None, count_time=0.1, comment="")
-rheo_y_lup (rel_begin=-3,   rel_end=3,   num_pts=60, att_ratio=7, det=None, count_time=0.1, comment="")
+x_lup(-3, 3, 60)                       # scan_8id.py, Bluesky session
+dscan(sample.x, -3, 3, 60, 0.1, det=tetramm1, save_img=0)   # the same thing here
 ```
 
-`x_lup`/`y_lup` scan `sample.x`/`sample.y`, `huber_*_lup` the huber axes, and
-`rheo_*_lup` the rheometer. All six default to **`tetramm1`**, not an area
-detector — which is why the template's `tetramm1_*` columns matter (see the note
-in [scan_csv_template.yml](../../configs/scan_csv_template.yml)).
+| instead of | use |
+|---|---|
+| `x_lup` / `y_lup` | `dscan(sample.x, ...)` / `dscan(sample.y, ...)` |
+| `huber_x_lup` / `huber_y_lup` | `dscan(huber.x, ...)` / `dscan(huber.y, ...)` |
+| `rheo_x_lup` / `rheo_y_lup` | `dscan(rheometer.x, ...)` / `dscan(rheometer.y, ...)` |
 
-**The lups above exist only in the Ophyd-only session.** `scan_8id.py` defines
-`x_lup`, `y_lup`, `huber_x_lup`, `huber_y_lup`, `rheo_x_lup` and `rheo_y_lup`
-too, as Bluesky generators, and `startup.py` star-imports them — so in the
-Bluesky session those plain names are Sam's generators, to be run as
-`RE(x_lup())`. There is no `x_lup_ophyd`: `startup.py` imports none of the lups
-from `ophyd_scan.py`. To use these, start the Ophyd-only session, or call
-`dscan_ophyd(sample.x, -3, 3, 60, 0.1, det=tetramm1, save_img=0)` directly.
+Porting them briefly looked attractive and turned out worse than the explicit
+call. `bp.rel_scan` takes no dwell time, so a ported lup had to invent one
+(`count_time=0.1` was a guess, and the effective dwell before was ~0). And every
+scan here writes a uniquely-named `.csv`, whose name comes from
+`gen_folder_prefix()`, which advances the shared measurement counter — so an
+alignment lup run thirty times in a shift moved that counter thirty times,
+where `bp.rel_scan` moved it none. Writing `dscan(...)` out in full costs one
+line and hides neither.
+
+They remain available, unchanged, in a **Bluesky** session: `scan_8id.py` still
+defines them and `startup.py` star-imports it, so `RE(x_lup())` works there
+exactly as it always has.
 
 ### `auto_att()`
 
@@ -177,8 +186,8 @@ too, but it is `scan_8id.py`'s own copy — same signature, no interrupt guard.
 
 | session | started by | scan names |
 |---|---|---|
-| Ophyd only | `~/bin/start_ophyd.sh` | `dscan`, `ascan`, `d2scan`, `a2scan`, `dmesh`, `mesh`, `auto_att`, the lups |
-| Bluesky | `~/bin/start_bluesky.sh` | `dscan_ophyd`, `ascan_ophyd`, `d2scan_ophyd`, `a2scan_ophyd`, `dmesh_ophyd`, `mesh_ophyd`, `auto_att_ophyd` — **no lups**, see [The lups](#the-lups) |
+| Ophyd only | `~/bin/start_ophyd.sh` | `dscan`, `ascan`, `d2scan`, `a2scan`, `dmesh`, `mesh`, `auto_att` |
+| Bluesky | `~/bin/start_bluesky.sh` | `dscan_ophyd`, `ascan_ophyd`, `d2scan_ophyd`, `a2scan_ophyd`, `dmesh_ophyd`, `mesh_ophyd`, `auto_att_ophyd`, plus everything `scan_8id.py` defines — including the lups, see [The lups are not here](#the-lups-are-not-here) |
 
 Both names are the **same function object**; the aliases are assigned at the
 bottom of [ophyd_scan.py](ophyd_scan.py).
@@ -386,7 +395,7 @@ A **raster** (`dmesh`/`mesh`) additionally writes the grid, which a trajectory
 ### Viewing one
 
 ```bash
-start_scanviewer.sh              # 1D  (dscan, ascan, d2scan, a2scan, the lups)
+start_scanviewer.sh              # 1D  (dscan, ascan, d2scan, a2scan)
 start_scanviewer.sh --mesh       # 2D  (dmesh, mesh)
 start_scanviewer.sh --dir <folder>
 ```
@@ -897,7 +906,7 @@ scan can publish its own metadata without a change to `scan_csv.py`.
 A template that has no column for a motor the scan actually moved is rejected
 before the scan starts, so a new scan cannot quietly write an unplottable file.
 
-Wrap the loop in `_scan_guard()` and end the cleanup with `_blockbeam_verified()`
+Call `_install_guard()` before the loop, `_restore_guard()` in a `finally:`, and end the cleanup with `_blockbeam_verified()`
 and `_return_motors([...])` rather than open-coding a `finally:` — that is what
 makes a new scan behave like the six under Ctrl+C.
 

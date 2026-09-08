@@ -92,7 +92,16 @@ NOT PORTED, and why (all still present and working in ``scan_8id.py``):
   * ``dscan_auto`` :1807 -- ``rate_limit`` is bound nowhere, so it raises
     ``NameError`` right after ``showbeam()``; its eiger branch never blocks the
     beam. Keep the idea (per-point attenuation) as a future ``att_map=`` kwarg.
-  * ``rheo_set_x_lup`` :1643 -- two positions hardcoded from one 2025 mount.
+  * the lup family (``x_lup``, ``y_lup``, ``huber_x_lup``, ``huber_y_lup``,
+    ``rheo_x_lup``, ``rheo_y_lup``, ``rheo_set_x_lup``) :1500-1670 -- every one
+    is a ``yield from bp.rel_scan(...)`` wrapper, i.e. a whole Bluesky plan
+    driven by the RunEngine, with no line-by-line Ophyd equivalent. What they
+    do is a relative scan of one axis, which is exactly ``dscan``:
+    ``x_lup(-3, 3, 60)`` is ``dscan(sample.x, -3, 3, 60, <dwell>)``. Porting
+    them meant inventing a dwell time ``bp.rel_scan`` never had, and made every
+    alignment scan advance the shared measurement counter. Use ``dscan`` (or
+    ``ascan``) directly. They remain available in a Bluesky session, where
+    ``scan_8id.py`` still defines them.
   * the local ``att()`` :43 -- shadows ``shutter_att.att`` and raises
     ``TypeError`` when called with no argument.
   * ``from matplotlib.pylab import det`` :10 -- that binds ``numpy.linalg.det``
@@ -129,7 +138,6 @@ This module resolves ``softglue`` and ``softglue_8id_acq`` from the
 loaded. The detectors are not -- they are looked up per call, see CHANGED (14).
 """
 
-import contextlib
 import os
 import signal
 import time
@@ -159,10 +167,9 @@ softglue_8id_acq = oregistry.get("softglue_8id_acq")
 
 #: Which detector each scan reaches for when the caller names none. These are
 #: Sam's defaults: his dscan/d2scan/ascan/a2scan default to eiger4M, his
-#: dmesh/mesh to lambda2M, and his lups to tetramm1.
+#: dmesh/mesh to lambda2M.
 DEFAULT_DETECTOR = "eiger4M"
 DEFAULT_MESH_DETECTOR = "lambda2M"
-DEFAULT_LUP_DETECTOR = "tetramm1"
 
 #: Ceiling on a single return move, in seconds. Not optional: PositionerBase
 #: builds its MoveStatus with self._timeout, which is None unless somebody set
@@ -391,12 +398,9 @@ def _stop_lambda(det):
     next pulse.
     """
     _enter_cleanup()
-    with _safe("stop softglue pulses"):
-        softglue.stop_pulses.put("1!")
-    with _safe("stop lambda acquire"):
-        det.cam.acquire.put(0)
-    with _safe("stop lambda capture"):
-        det.hdf1.capture.put(0)
+    _safe("stop softglue pulses", softglue.stop_pulses.put, "1!")
+    _safe("stop lambda acquire", det.cam.acquire.put, 0)
+    _safe("stop lambda capture", det.hdf1.capture.put, 0)
 
 
 def _drain_eiger(det, num_pts, count_time, triggered=None):
@@ -414,7 +418,8 @@ def _drain_eiger(det, num_pts, count_time, triggered=None):
     """
     _enter_cleanup()
     target = num_pts if triggered is None else triggered
-    with _safe("drain eiger HDF"):
+
+    def wait_for_frames():
         t0 = time.time()
         timeout = num_pts * count_time + 10
         while det.hdf1.num_captured.get() < target:
@@ -422,8 +427,9 @@ def _drain_eiger(det, num_pts, count_time, triggered=None):
             if time.time() - t0 > timeout:
                 print("WARNING: HDF write timeout -- not all frames saved.")
                 break
-    with _safe("stop eiger acquire"):
-        det.cam.acquire.put(0)
+
+    _safe("drain eiger HDF", wait_for_frames)
+    _safe("stop eiger acquire", det.cam.acquire.put, 0)
 
 
 # ===========================================================================
@@ -435,9 +441,8 @@ def _disarm_tetramm(det, save_img):
     """His `det.hdf1.capture.put(0)` plus the message. CHANGED (12)."""
     _enter_cleanup()
     if save_img == 1:
-        with _safe("stop tetramm capture"):
-            det.hdf1.capture.put(0)
-            print("TetrAMM HDF capture stopped.")
+        _safe("stop tetramm capture", det.hdf1.capture.put, 0)
+        print("TetrAMM HDF capture stopped.")
     # CHANGED (15): his tetramm branch left the shutter wherever it was. It
     # never opens it either, so this only ever closes something someone else
     # opened -- safe-direction, and it makes all three branches agree.
@@ -447,29 +452,21 @@ def _disarm_tetramm(det, save_img):
 def _disarm_lambda(det):
     """His outer lambda finally: mode, trigger, preset, beam off, logic off, count."""
     _enter_cleanup()
-    with _safe("restore lambda operating_mode"):
-        det.cam.operating_mode.put(3)
-    with _safe("restore lambda trigger_mode"):
-        det.cam.trigger_mode.put(0)
-    with _safe("restore softglue preset"):
-        softglue_8id_acq.preset.put(50)
+    _safe("restore lambda operating_mode", det.cam.operating_mode.put, 3)
+    _safe("restore lambda trigger_mode", det.cam.trigger_mode.put, 0)
+    _safe("restore softglue preset", softglue_8id_acq.preset.put, 50)
     _blockbeam_verified()
-    with _safe("shutteroff"):
-        shutteroff()
-    with _safe("report frames"):
-        print("# images captured: ", det.hdf1.num_captured.get())
+    _safe("shutteroff", shutteroff)
+    _safe("report frames", print, "# images captured: ", det.hdf1.num_captured.get())
 
 
 def _disarm_eiger(det):
     """His outer eiger finally: back to Internal Enable, manual trigger off, beam off."""
     _enter_cleanup()
-    with _safe("restore eiger trigger_mode"):
-        det.cam.trigger_mode.put("Internal Enable")
-    with _safe("restore eiger manual_trigger"):
-        det.cam.manual_trigger.put("Disable")
+    _safe("restore eiger trigger_mode", det.cam.trigger_mode.put, "Internal Enable")
+    _safe("restore eiger manual_trigger", det.cam.manual_trigger.put, "Disable")
     _blockbeam_verified()
-    with _safe("report frames"):
-        print("# images captured: ", det.hdf1.num_captured.get())
+    _safe("report frames", print, "# images captured: ", det.hdf1.num_captured.get())
 
 
 # ===========================================================================
@@ -497,151 +494,164 @@ def _disarm_eiger(det):
 # interruptible.
 # ===========================================================================
 
-_ACTIVE_GUARD = None  # the scan currently running; scans are serial at the prompt
+# How the guard behaves is kept in plain module-level variables rather than in
+# an object: exactly one scan runs at a time at the prompt, and every variable
+# here is read and written only by the handful of small functions below.
+
+#: How many scans have installed the guard. Normally 0 or 1. The counter only
+#: matters if a scan is ever started from inside another one, so that the inner
+#: one does not hand SIGINT back while the outer one is still running.
+_guard_depth = 0
+
+#: True once we have actually taken SIGINT over (see _install_guard).
+_guard_installed = False
+
+#: What SIGINT did before we took it over, so it can be put back exactly.
+_guard_previous_handler = None
+
+#: False while the scan is running -- a ^C raises KeyboardInterrupt, exactly as
+#: it always has. True once hardware cleanup has started -- a ^C is then counted
+#: and reported instead of obeyed.
+_guard_in_cleanup = False
+
+#: How many times ^C has been pressed since cleanup started, and when the first
+#: of those presses arrived.
+_guard_ctrl_c_count = 0
+_guard_first_ctrl_c_time = 0.0
+
+#: The escape hatch needs BOTH of these: three presses AND five seconds.
+#: A count on its own is wrong -- a held-down ^C repeats about thirty times a
+#: second, so three presses arrive within a tenth of a second and would abandon
+#: a cleanup that was about to succeed. A timer on its own is wrong -- one
+#: stray press should arm nothing.
+_GUARD_PRESSES_TO_GIVE_UP = 3
+_GUARD_SECONDS_TO_GIVE_UP = 5.0
+
+#: Written with os.write, never print(). ScanCsv.add_point() print()s on EVERY
+#: scan point, and a signal handler that re-enters the buffered-writer lock held
+#: by the line it interrupted deadlocks -- in the one code path whose job is to
+#: shut the shutter. A plain bytes constant, so there is no f-string to build,
+#: no logging lock to take and no EPICS call to make from inside a handler.
+_GUARD_MESSAGE = (
+    b"\n^C  cleaning up: beam off, motors home. Hold on.\n"
+    b"    (^C 3 more times over 5 s abandons the return move -- "
+    b"the beam is already off by then.)\n"
+)
 
 
-class _ScanGuard:
-    """Two phases.
+def _handle_ctrl_c(signum, frame):
+    """What Ctrl+C does while a scan owns it."""
+    global _guard_ctrl_c_count, _guard_first_ctrl_c_time
 
-    In "scan" the handler IS signal.default_int_handler, so a ^C raises
-    KeyboardInterrupt exactly as it always has and every `except
-    KeyboardInterrupt:` below keeps working unchanged. The instant hardware
-    cleanup starts, _enter_cleanup() flips the phase to "cleanup" and the
-    handler stops raising: it counts the press and says so.
-
-    Installed by _scan_guard() BEFORE the branch dispatch, not inside the except
-    block. Installing in the except block still leaves a window -- between the
-    interpreter unwinding into that block and signal.signal() returning, a
-    second ^C is delivered under the OLD handler and propagates straight out.
-    It is microseconds wide; a held key samples it about thirty times a second.
-    """
-
-    GRACE = 5.0  # seconds of cleanup before the escape hatch can arm
-    HITS = 3  # deliberate presses needed to arm it
-
-    #: os.write, never print(): ScanCsv.add_point() print()s on EVERY point, and
-    #: a signal handler that re-enters the buffered-writer lock held by the
-    #: frame it interrupted deadlocks -- in the one code path whose job is to
-    #: shut the shutter. Fixed bytes literal: no f-string (allocates), no
-    #: logging (locks), no Channel Access.
-    _MSG = (
-        b"\n^C  cleaning up: beam off, motors home. Hold on.\n"
-        b"    (^C 3 more times over 5 s abandons the return move -- "
-        b"the beam is already off by then.)\n"
-    )
-
-    def __init__(self):
-        self.phase = "scan"
-        self.count = 0
-        self.t_first = None
-        self.active = False
-        self._prev = None
-
-    def _handler(self, signum, frame):
-        if self.phase == "scan":
-            signal.default_int_handler(signum, frame)  # raises, exactly as always
-            return
-        self.count += 1
-        if self.t_first is None:
-            self.t_first = time.time()
-        os.write(2, self._MSG)
-
-    def install(self):
-        """Take over SIGINT for this scan. Returns False if we could not.
-
-        False means the scan runs with no interrupt guard at all, and restore()
-        then has nothing to put back.
-        """
-        self._prev = signal.getsignal(signal.SIGINT)
-        try:
-            signal.signal(signal.SIGINT, self._handler)
-            self.active = True
-        except ValueError:
-            # Not the main thread (a queueserver worker, say). CPython only
-            # delivers ^C to the main thread anyway, so such a scan simply runs
-            # to completion; _safe() still applies. See the limits note below.
-            self.active = False
-        return self.active
-
-    def restore(self):
-        if not self.active:
-            return
-        # getsignal() returns None when the previous handler was installed from
-        # C, and None is NOT a legal argument to signal.signal() -- do not die
-        # on the last line of cleanup over that. Test `is None`, never
-        # callable(): SIG_IGN/SIG_DFL are IntEnum members, not callables, but
-        # are perfectly legal here.
-        prev = self._prev if self._prev is not None else signal.default_int_handler
-        try:
-            signal.signal(signal.SIGINT, prev)
-        except ValueError:
-            pass
-
-    @property
-    def escaped(self):
-        """True once the user has clearly asked out, not just twitched.
-
-        Count alone is wrong: a held ^C at a ~30 Hz key repeat reaches three
-        presses in ~100 ms, so a count-only hatch fires on a key bounce during a
-        cleanup that was about to succeed. Time alone is wrong: one stray press
-        should arm nothing. Both, with time dominant.
-        """
-        return self.count >= self.HITS and self.t_first is not None and time.time() - self.t_first >= self.GRACE
-
-
-@contextlib.contextmanager
-def _scan_guard():
-    """Own SIGINT for the duration of one scan, and always give it back.
-
-    A context manager rather than install()/restore() threaded through each
-    branch: the arming block, save_images() and scan.write_header() can all
-    raise between an install() and the branch's try, and the handler would then
-    be left installed for the rest of the session. This costs each branch body
-    one indent level and Sam's finally blocks nothing at all.
-    """
-    global _ACTIVE_GUARD
-    if _ACTIVE_GUARD is not None:
-        # A scan started from inside another scan. Do not stomp the outer
-        # guard's saved handler; the outer one is already protecting us.
-        yield _ACTIVE_GUARD
+    if not _guard_in_cleanup:
+        # Still scanning. Do exactly what Python normally does, so that every
+        # `except KeyboardInterrupt:` in this file keeps working unchanged.
+        signal.default_int_handler(signum, frame)
         return
-    guard = _ScanGuard()
-    guard.install()
-    _ACTIVE_GUARD = guard
+
+    # Cleaning up. Count the press, say so on screen, and carry on.
+    _guard_ctrl_c_count += 1
+    if _guard_ctrl_c_count == 1:
+        _guard_first_ctrl_c_time = time.time()
+    os.write(2, _GUARD_MESSAGE)
+
+
+def _install_guard():
+    """Take Ctrl+C over for one scan. ALWAYS pair with _restore_guard().
+
+    Called before the scan touches any hardware, and put back in a `finally:`
+    so that it is handed back even when the scan raises. Installing it later --
+    inside the `except KeyboardInterrupt:` block, say -- would leave a window in
+    which a second ^C is still delivered to the old handler and escapes.
+    """
+    global _guard_depth, _guard_installed, _guard_previous_handler
+    global _guard_in_cleanup, _guard_ctrl_c_count, _guard_first_ctrl_c_time
+
+    _guard_depth += 1
+    if _guard_depth > 1:
+        return  # an outer scan already owns SIGINT; leave its handler alone
+
+    _guard_in_cleanup = False
+    _guard_ctrl_c_count = 0
+    _guard_first_ctrl_c_time = 0.0
+    _guard_previous_handler = signal.getsignal(signal.SIGINT)
     try:
-        yield guard
-    finally:
-        _ACTIVE_GUARD = None
-        guard.restore()
+        signal.signal(signal.SIGINT, _handle_ctrl_c)
+        _guard_installed = True
+    except ValueError:
+        # Not the main thread -- a queueserver worker, say. Python only delivers
+        # ^C to the main thread at all, so such a scan simply runs to
+        # completion; _safe() below still protects each cleanup step.
+        _guard_installed = False
+
+
+def _restore_guard():
+    """Give Ctrl+C back to whoever had it. Safe even if we never took it."""
+    global _guard_depth, _guard_installed, _guard_in_cleanup
+
+    _guard_depth -= 1
+    if _guard_depth > 0:
+        return  # an outer scan still owns it
+    _guard_depth = 0
+    _guard_in_cleanup = False
+
+    if not _guard_installed:
+        return
+    _guard_installed = False
+
+    previous = _guard_previous_handler
+    if previous is None:
+        # getsignal() returns None when the handler it replaced came from C, and
+        # None is not a legal argument to signal.signal(). Fall back to Python's
+        # own handler rather than die on the last line of cleanup.
+        previous = signal.default_int_handler
+    try:
+        signal.signal(signal.SIGINT, previous)
+    except ValueError:
+        pass
 
 
 def _enter_cleanup():
-    """Hardware cleanup starts here: stop raising KeyboardInterrupt, start counting."""
-    if _ACTIVE_GUARD is not None:
-        _ACTIVE_GUARD.phase = "cleanup"  # one attribute store; atomic under the GIL
+    """Hardware cleanup starts here: stop raising on ^C, start counting instead.
 
-
-def _escaped():
-    """True once the user has pressed ^C enough times, over enough seconds, to mean it.
-
-    Only _return_motors() honours this -- every other cleanup step is a fast
-    .put() that is not worth abandoning. See _ScanGuard.escaped for why both a
-    count and a grace period are needed.
+    Called at the top of every teardown helper, so that the scan functions
+    themselves carry no interrupt bookkeeping.
     """
-    return _ACTIVE_GUARD is not None and _ACTIVE_GUARD.escaped
+    global _guard_in_cleanup
+    _guard_in_cleanup = True
 
 
-@contextlib.contextmanager
-def _safe(what):
-    """Run one cleanup step. Never let it stop the steps after it."""
+def _user_gave_up():
+    """True once ^C has been pressed enough times, over enough seconds, to mean it.
+
+    Only _return_motors() asks. Every other cleanup step is a quick .put() that
+    is not worth abandoning; the return move is the one slow step, and by the
+    time it runs the beam is already off.
+    """
+    if _guard_ctrl_c_count < _GUARD_PRESSES_TO_GIVE_UP:
+        return False
+    return time.time() - _guard_first_ctrl_c_time >= _GUARD_SECONDS_TO_GIVE_UP
+
+
+def _safe(what, action, *args, **kwargs):
+    """Run one cleanup step. Never let it stop the steps that follow.
+
+    `what` is a short description used only in the warning if it fails::
+
+        _safe("stop lambda acquire", det.cam.acquire.put, 0)
+
+    calls ``det.cam.acquire.put(0)``. A step that raises is reported and skipped,
+    so one dead PV cannot leave the shutter open or the motor stranded.
+    """
     try:
-        yield
+        action(*args, **kwargs)
     except KeyboardInterrupt:
-        # Only reachable when install() failed (a worker thread). The scan's own
-        # `except KeyboardInterrupt` has already recorded the abort.
+        # Only reachable when _install_guard() could not install (a worker
+        # thread). The scan's own `except KeyboardInterrupt` already recorded
+        # the abort, so just note it and keep cleaning up.
         os.write(2, b"\n^C  still cleaning up.\n")
     except Exception as exc:
-        # NOT BaseException: SystemExit must still exit.
+        # Deliberately not BaseException: SystemExit must still exit.
         print(f"WARNING: cleanup step {what} failed: {exc!r}", flush=True)
 
 
@@ -663,24 +673,28 @@ def _blockbeam_verified(timeout=2.0):
     """
     _enter_cleanup()
     closed = False
-    with _safe("block beam"):
+
+    def close_and_confirm():
+        nonlocal closed
         shutter = get_connected_device("shutter_8ide")
         blockbeam()
-        t0, escalated = time.time(), False
+        t0 = time.time()
+        escalated = False
         while time.time() - t0 < timeout:
             if str(shutter.state_rbv.get(as_string=True)).lower().startswith("clos"):
                 closed = True
-                break
+                return
             if not escalated and time.time() - t0 > timeout / 2:
                 shutteroff()  # drop softglue's override, then ask once more
                 blockbeam()
                 escalated = True
             time.sleep(0.05)
-        if not closed:
-            print(
-                "\033[91m*** SHUTTER DID NOT CONFIRM CLOSED -- CLOSE IT BY HAND ***\033[0m",
-                flush=True,
-            )
+        print(
+            "\033[91m*** SHUTTER DID NOT CONFIRM CLOSED -- CLOSE IT BY HAND ***\033[0m",
+            flush=True,
+        )
+
+    _safe("block beam", close_and_confirm)
     return closed
 
 
@@ -736,7 +750,7 @@ def _return_motors(pairs, timeout=RETURN_TIMEOUT):
     _enter_cleanup()
     started = []
     for motor, start in pairs:
-        if _escaped():
+        if _user_gave_up():
             print(
                 f"^C^C^C  leaving {motor.name} at {motor.position} (start was {start}). "
                 f"The beam is off. Move it back at the prompt.",
@@ -755,40 +769,43 @@ def _return_motors(pairs, timeout=RETURN_TIMEOUT):
         #     target -- which is what the _settle() calls below wait for. (They
         #     replaced a flat 0.2 s sleep; see CHANGED (17).)
         # EpicsMotor.stop carries @raise_if_disconnected, hence the wrapper.
-        with _safe(f"stop {motor.name}"):
-            motor.stop()
+        _safe(f"stop {motor.name}", motor.stop)
     # CHANGED (17), replacing a flat time.sleep(0.2): wait for each axis to
     # actually finish decelerating. See _settle() for the measurement that
     # showed 0.2 s silently loses the return move on huber.nu.
     for motor, _start in pairs:
-        if _escaped():
+        if _user_gave_up():
             continue
-        with _safe(f"settle {motor.name}"):
-            if not _settle(motor):
+
+        def settle_and_warn(m=motor):
+            if not _settle(m):
                 print(
-                    f"WARNING: {motor.name} still reports DMOV=0 after {SETTLE_TIMEOUT}s; "
+                    f"WARNING: {m.name} still reports DMOV=0 after {SETTLE_TIMEOUT}s; "
                     f"issuing the return move anyway, but it may not take -- check the axis.",
                     flush=True,
                 )
+
+        _safe(f"settle {motor.name}", settle_and_warn)
     for motor, start in pairs:
-        if _escaped():
+        if _user_gave_up():
             continue
         try:
             started.append((motor, start, motor.move(start, wait=False, timeout=timeout)))
         except Exception as exc:
             print(f"WARNING: {motor.name} would not accept the return move: {exc!r}", flush=True)
     for motor, start, status in started:
-        with _safe(f"return {motor.name}"):
-            status.wait(timeout=timeout + 5)
+        _safe(f"return {motor.name}", status.wait, timeout=timeout + 5)
         # The status alone is not proof -- see _settle(). Let the ramp finish so
         # the position printed below is the one the axis actually stopped at.
-        with _safe(f"settle {motor.name} after return"):
-            _settle(motor)
-        with _safe(f"report {motor.name}"):
-            # Both numbers, no tolerance test: there is no epsilon that is right
-            # for huber.delta and sample.x alike, and a wrong hard-coded one
-            # trains people to ignore cleanup warnings.
-            print(f"{motor.name}: back at {motor.position} (start {start})", flush=True)
+        _safe(f"settle {motor.name} after return", _settle, motor)
+
+        # Both numbers, no tolerance test: there is no epsilon that is right for
+        # huber.delta and sample.x alike, and a wrong hard-coded one trains
+        # people to ignore cleanup warnings.
+        def report(m=motor, s=start):
+            print(f"{m.name}: back at {m.position} (start {s})", flush=True)
+
+        _safe(f"report {motor.name}", report)
 
 
 def _move_motors(pairs):
@@ -923,7 +940,10 @@ def dmesh(
     scan.write_header()
     expt.file_name = folder_prefix
 
-    with _scan_guard():  # CHANGED (8)
+    # CHANGED (8). Installed before anything moves, and handed back in the
+    # finally below so it is given up even if the scan raises.
+    _install_guard()
+    try:
         if is_tetramm:
             _arm_tetramm(det, save_img)
 
@@ -1041,6 +1061,8 @@ def dmesh(
 
         scan.close("error")
         raise ValueError(f"Unrecognized detector {det.name!r} (expected eiger, lambda or tetramm)")
+    finally:
+        _restore_guard()
 
 
 def mesh(
@@ -1150,7 +1172,10 @@ def mesh(
     scan.write_header()
     expt.file_name = folder_prefix
 
-    with _scan_guard():  # CHANGED (8)
+    # CHANGED (8). Installed before anything moves, and handed back in the
+    # finally below so it is given up even if the scan raises.
+    _install_guard()
+    try:
         if is_tetramm:
             _arm_tetramm(det, save_img)
 
@@ -1268,6 +1293,8 @@ def mesh(
 
         scan.close("error")
         raise ValueError(f"Unrecognized detector {det.name!r} (expected eiger, lambda or tetramm)")
+    finally:
+        _restore_guard()
 
 
 def dscan(motor, rel_begin, rel_end, num_pts, count_time, det=None, att_ratio=1e6, save_img=1, comment=""):
@@ -1336,7 +1363,10 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time, det=None, att_ratio=1e
     # and the folder is rebuildable from the other settings.
     expt.file_name = folder_prefix
 
-    with _scan_guard():  # CHANGED (8)
+    # CHANGED (8). Installed before anything moves, and handed back in the
+    # finally below so it is given up even if the scan raises.
+    _install_guard()
+    try:
         if is_tetramm:
             _arm_tetramm(det, save_img)
 
@@ -1457,6 +1487,8 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time, det=None, att_ratio=1e
 
         scan.close("error")
         raise ValueError(f"Unrecognized detector {det.name!r} (expected eiger, lambda or tetramm)")
+    finally:
+        _restore_guard()
 
 
 def d2scan(
@@ -1542,7 +1574,10 @@ def d2scan(
     positions1 = np.linspace(start1 + rel_begin1, start1 + rel_end1, num_pts)
     positions2 = np.linspace(start2 + rel_begin2, start2 + rel_end2, num_pts)
 
-    with _scan_guard():  # CHANGED (8)
+    # CHANGED (8). Installed before anything moves, and handed back in the
+    # finally below so it is given up even if the scan raises.
+    _install_guard()
+    try:
         if is_tetramm:
             _arm_tetramm(det, save_img)
 
@@ -1647,6 +1682,8 @@ def d2scan(
 
         scan.close("error")
         raise ValueError(f"Unrecognized detector {det.name!r} (expected eiger, lambda or tetramm)")
+    finally:
+        _restore_guard()
 
 
 def ascan(motor, abs_begin, abs_end, num_pts, count_time, det=None, att_ratio=7, save_img=1, comment=""):
@@ -1715,7 +1752,10 @@ def ascan(motor, abs_begin, abs_end, num_pts, count_time, det=None, att_ratio=7,
     # and the folder is rebuildable from the other settings.
     expt.file_name = folder_prefix
 
-    with _scan_guard():  # CHANGED (8)
+    # CHANGED (8). Installed before anything moves, and handed back in the
+    # finally below so it is given up even if the scan raises.
+    _install_guard()
+    try:
         if is_tetramm:
             _arm_tetramm(det, save_img)
 
@@ -1836,6 +1876,8 @@ def ascan(motor, abs_begin, abs_end, num_pts, count_time, det=None, att_ratio=7,
 
         scan.close("error")
         raise ValueError(f"Unrecognized detector {det.name!r} (expected eiger, lambda or tetramm)")
+    finally:
+        _restore_guard()
 
 
 def a2scan(
@@ -1921,7 +1963,10 @@ def a2scan(
     positions1 = np.linspace(abs_begin1, abs_end1, num_pts)
     positions2 = np.linspace(abs_begin2, abs_end2, num_pts)
 
-    with _scan_guard():  # CHANGED (8)
+    # CHANGED (8). Installed before anything moves, and handed back in the
+    # finally below so it is given up even if the scan raises.
+    _install_guard()
+    try:
         if is_tetramm:
             _arm_tetramm(det, save_img)
 
@@ -2026,87 +2071,8 @@ def a2scan(
 
         scan.close("error")
         raise ValueError(f"Unrecognized detector {det.name!r} (expected eiger, lambda or tetramm)")
-
-
-# ===========================================================================
-# The lup family.
-#
-# In scan_8id.py these are `yield from bp.rel_scan([det], motor, ...)` -- a
-# whole Bluesky plan, with no line-by-line Ophyd equivalent. They become thin
-# wrappers over dscan above, which is what rel_scan was doing for them anyway:
-# step the motor over a relative range and read the detector at each point.
-# Ranges, point counts, attenuation ratios and detector are exactly his.
-#
-# TWO THINGS CHANGED THAT YOU SHOULD KNOW BEFORE USING THESE:
-#
-#   * They now advance expt.measurement_num, one per call. bp.rel_scan wrote no
-#     file and advanced nothing; every scan here writes a uniquely-named .csv,
-#     and that name comes from gen_folder_prefix(), which increments. An
-#     alignment lup run thirty times in a shift now moves that counter thirty
-#     times, and it is shared with non-Bluesky tools.
-#   * count_time is new, and 0.1 s is a guess. bp.rel_scan took no dwell at
-#     all, and a MyTetrAMM has no cam.acquire_time to inherit one from, so the
-#     effective dwell used to be ~0 and a 60-point lup was over in seconds. At
-#     0.1 s the same lup spends ~6 s counting plus travel. Change the default
-#     here if that is wrong for your detector.
-# ===========================================================================
-
-
-def _lup(device_name, axis, rel_begin, rel_end, num_pts, att_ratio, det, count_time, comment):
-    """Shared body of the six lups: resolve the stage, then hand off to dscan."""
-    if det is None:
-        det = get_connected_device(DEFAULT_LUP_DETECTOR)
-    motor = getattr(get_connected_device(device_name), axis)
-    return dscan(
-        motor,
-        rel_begin,
-        rel_end,
-        num_pts,
-        count_time,
-        det=det,
-        att_ratio=att_ratio,
-        save_img=0,
-        comment=comment,
-    )
-
-
-def x_lup(rel_begin=-3, rel_end=3, num_pts=60, att_ratio=7, det=None, count_time=0.1, comment=""):
-    """Perform a relative scan along the sample X axis.
-
-    Args:
-        rel_begin: Start position relative to current position (mm)
-        rel_end: End position relative to current position (mm)
-        num_pts: Number of points in the scan
-        att_ratio: Attenuation ratio to use
-        det: Detector to use for the scan (default tetramm1)
-        count_time: dwell per point (s) -- see the note above this group
-    """
-    return _lup("sample", "x", rel_begin, rel_end, num_pts, att_ratio, det, count_time, comment)
-
-
-def y_lup(rel_begin=-3, rel_end=3, num_pts=60, att_ratio=7, det=None, count_time=0.1, comment=""):
-    """Perform a relative scan along the sample Y axis. See :func:`x_lup`."""
-    return _lup("sample", "y", rel_begin, rel_end, num_pts, att_ratio, det, count_time, comment)
-
-
-def huber_x_lup(rel_begin=-0.3, rel_end=0.3, num_pts=60, att_ratio=1, det=None, count_time=0.1, comment=""):
-    """Perform a relative scan along the huber X axis. See :func:`x_lup`."""
-    return _lup("huber", "x", rel_begin, rel_end, num_pts, att_ratio, det, count_time, comment)
-
-
-def huber_y_lup(rel_begin=-0.3, rel_end=0.3, num_pts=60, att_ratio=1, det=None, count_time=0.1, comment=""):
-    """Perform a relative scan along the huber Y axis. See :func:`x_lup`."""
-    return _lup("huber", "y", rel_begin, rel_end, num_pts, att_ratio, det, count_time, comment)
-
-
-def rheo_x_lup(rel_begin=-3, rel_end=3, num_pts=60, att_ratio=7, det=None, count_time=0.1, comment=""):
-    """Perform a relative scan along the rheometer X axis. See :func:`x_lup`."""
-    return _lup("rheometer", "x", rel_begin, rel_end, num_pts, att_ratio, det, count_time, comment)
-
-
-def rheo_y_lup(rel_begin=-3, rel_end=3, num_pts=60, att_ratio=7, det=None, count_time=0.1, comment=""):
-    """Perform a relative scan along the rheometer Y axis. See :func:`x_lup`."""
-    return _lup("rheometer", "y", rel_begin, rel_end, num_pts, att_ratio, det, count_time, comment)
+    finally:
+        _restore_guard()
 
 
 def auto_att(
@@ -2165,7 +2131,10 @@ def auto_att(
 
     # The beam is opened here, so the same interrupt guard applies: a ^C during
     # a pilot exposure must not leave the shutter open.
-    with _scan_guard():  # CHANGED (8)
+    # CHANGED (8). Installed before anything moves, and handed back in the
+    # finally below so it is given up even if the scan raises.
+    _install_guard()
+    try:
         showbeam()
         try:
             for attempt in range(retry_max):
@@ -2213,10 +2182,10 @@ def auto_att(
         finally:
             _blockbeam_verified()  # CHANGED (7)
             _enter_cleanup()
-            with _safe("restore acquire_time"):
-                det.cam.acquire_time.put(orig_acq_time)
-            with _safe("restore acquire_period"):
-                det.cam.acquire_period.put(orig_acq_period)
+            _safe("restore acquire_time", det.cam.acquire_time.put, orig_acq_time)
+            _safe("restore acquire_period", det.cam.acquire_period.put, orig_acq_period)
+    finally:
+        _restore_guard()
 
     trans = filter_beam.transmission.readback.get()
     atten = filter_beam.attenuation.readback.get()
