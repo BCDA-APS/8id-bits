@@ -57,60 +57,225 @@ package models.
 at `73d0be4` (Aug 2025) and stale; `nexus_xpcs_aps_95ab368` is the `mc_refact`
 commit the adapter was written against. Point `PYTHONPATH` at the second.
 
-## Adding something: three cases, and they differ a lot
+## Adding a device: which case are you in?
 
-### Case 1 — a whole new device that reuses one of his factories
+Ask one question — **does one of his factories already produce the group you
+want?** The complete list, with what each returns:
 
-**His wins outright, and needs nothing from him.** The factories are plain
-functions that take an index and return a fresh dict — no registration, no
-central list. The index is only interpolated into the description, so it can even
-be a string:
+| factory | signature | gives you |
+|---|---|---|
+| `make_slits` | `(index, description=None)` | 4 fields, `NXslit` |
+| `make_attenuator` | `(index)` | 2 fields, `NXattenuator` |
+| `make_undulator` | `(index)` | 3 fields, `NXinsertion_device` |
+| `make_detector` | `(index, name="Eiger4m")` | 19 fields, `NXdetector` |
+| `make_diffractometer` | `(name)` | 6 fields, `NXpositioner` |
+| `make_sample` | `(qnw=, rheometer=, huber_stage=, lakeshore=, keithley=, bk_pid=)` | 17–31 fields, `NXsample` |
+| `make_entry` | `(beamline, instrument, sample, user)` | the top-level wrapper |
+
+**There is no `make_stage` and no `make_motor`**, and no arbitrary-leaf helper.
+
+Note the shape difference: the first five take an **index** and can be called
+again for a new instance. `make_sample` takes **flags** and returns a fixed
+menu — you cannot ask it for a device it does not already know about.
+
+---
+
+## Worked example 1 — another slit (the easy case)
+
+**With his package.** One line in *our* `xpcs_schema_mc.py`, inside the
+`instrument` dict. His code is untouched:
 
 ```python
-make_slits(9)              ->  4 fields, NXslit
-make_slits("my_new_slit")  ->  4 fields, NXslit
-make_attenuator(9)         ->  2 fields, NXattenuator
-make_undulator(9)          ->  3 fields, NXinsertion_device
-make_detector(9)           -> 19 fields, NXdetector
-make_diffractometer("kappa") -> 6 fields, NXpositioner
+"sl9": _tag(make_slits(9, description="Slits 9"), "/entry/instrument/sl9", "his:make_slits"),
 ```
 
-You place the result under whatever key you like, in **our**
-`xpcs_schema_mc.py` — his code is not touched. The current schema already does
-this four times for slits, twice with non-numeric indices:
+That is a complete `NXslit` group with `horizontal_gap`, `horizontal_center`,
+`vertical_gap`, `vertical_center`, correctly typed and described. The index need
+not be numeric — the schema already does `make_slits("wb", …)` and
+`make_slits("mono", …)`.
+
+**With ours.** The same group, written out by hand in `xpcs_schema.py`:
 
 ```python
-"sl4":       _tag(make_slits(4, description="Slits 4"),          "/entry/instrument/sl4",       "his:make_slits"),
-"wb_slit":   _tag(make_slits("wb", description="white beam slit"), "/entry/instrument/wb_slit",   "his:make_slits"),
-"mono_slit": _tag(make_slits("mono", description="mono beam slit"), "/entry/instrument/mono_slit", "his:make_slits"),
+"sl9": {
+    "type": "NXslit",
+    "required": False,
+    "description": "Slits 9",
+    "horizontal_gap":    {"type": "NX_FLOAT", "units": "NX_LENGTH", "required": False,
+                          "description": "Horizontal size of the slits",   "data": 1.0},
+    "horizontal_center": {"type": "NX_FLOAT", "units": "NX_LENGTH", "required": False,
+                          "description": "Horizontal center of the slits", "data": 0.0},
+    "vertical_gap":      {"type": "NX_FLOAT", "units": "NX_LENGTH", "required": False,
+                          "description": "Vertical size of the slits",     "data": 1.0},
+    "vertical_center":   {"type": "NX_FLOAT", "units": "NX_LENGTH", "required": False,
+                          "description": "Vertical center of the slits",   "data": 0.0},
+},
 ```
 
-One line for a complete, correctly-classed NeXus group. Under our writer the
-same group is ~30 lines of literal dict, hand-written and hand-maintained.
+**One line versus about thirty**, and his version cannot drift from the NeXus
+class definition because he owns it.
 
-**⚠ There is no `make_stage` and no `make_motor`.** The complete list is
-`make_undulator`, `make_detector`, `make_slits`, `make_attenuator`,
-`make_diffractometer`, `make_sample`, `make_entry`. A motor stage is Case 3.
+Both then need the same four runtime lines in **our**
+`create_runtime_metadata_dict()` — this half never changes hands:
 
-### Case 2 — one more field inside a group he already models
+```python
+"/entry/instrument/sl9/horizontal_gap":    sl9.h_size.get(),
+"/entry/instrument/sl9/horizontal_center": sl9.h_center.get(),
+"/entry/instrument/sl9/vertical_gap":      sl9.v_size.get(),
+"/entry/instrument/sl9/vertical_center":   sl9.v_center.get(),
+```
 
-Free with his: the leaf arrives in the factory output, and an upstream fix or
-addition reaches you on a `git pull`. Two steps with ours (schema node + runtime
-line) versus one with his (runtime line only).
+---
 
-### Case 3 — a field or group he does not model at all
+## Worked example 2 — a pressure controller (the case you actually have)
 
-Neither writer helps. His factories return fixed leaf sets — `make_slits` gives
-exactly four fields, and there is no arbitrary-leaf helper — so you either ask
-him to add it upstream and wait for a release, or patch the composed dict
-locally the way `_rename()` already patches `flightpath_swing_horizontal`. That
-local patch is about the same work as adding the literal node to ours.
+A set pressure and a readback pressure: structurally a temperature controller.
 
-### Either way
+**⚠ Neither writer has this today.** His `make_sample()` can produce 31 fields
+across all six flags and **none of them is a pressure**. Our schema has no
+pressure field either. The closest existing shapes are his
+`qnw1_temperature` / `qnw1_temperature_set` and `bk_pid_VAL` / `bk_pid_RDBK` —
+both setpoint+readback pairs, both hard-wired to their device.
 
-The runtime half never changes hands: the line that reads the device and puts
-its value at a path lives in **our** `create_runtime_metadata_dict()` in both
-writers. His package does not model "which EPICS signal feeds this field".
+And because `make_sample` is flags-based, **there is no `make_sample(pressure=True)`
+to call.** This is the case where his package gives you nothing extra.
+
+**With ours** — add the node to `xpcs_schema.py` under `"sample"`:
+
+```python
+"pressure": {
+    "type": "NX_FLOAT", "required": False, "units": "NX_PRESSURE",
+    "description": "Sample pressure readback", "data": 0.0,
+},
+"pressure_set": {
+    "type": "NX_FLOAT", "required": False, "units": "NX_PRESSURE",
+    "description": "Sample pressure setpoint", "data": 0.0,
+},
+```
+
+**With his** — call `make_sample()` as now, then patch the returned dict in
+`xpcs_schema_mc.py`, the same way `_rename()` already patches
+`flightpath_swing_horizontal`:
+
+```python
+_sample = make_sample(qnw=False, rheometer=False, lakeshore=True)
+_sample["pressure"]     = {...}    # the same two literal blocks as above
+_sample["pressure_set"] = {...}
+```
+
+**Same work either way — about ten lines.** The difference is what happens next:
+with his, `pressure` is a standard `NXsample` field, so it is a reasonable thing
+to ask him to add as a `pressure=True` flag. Once he does, your local patch
+deletes and everyone at the APS gets it. With ours, it stays yours forever.
+
+Then, identically, the runtime lines in our `create_runtime_metadata_dict()`:
+
+```python
+"/entry/sample/pressure":     my_pressure.readback.get(),
+"/entry/sample/pressure_set": my_pressure.setpoint.get(),
+```
+
+**⚠ One gotcha that bites either way.** `default_units_keymap` in
+`nexus_utils.py` has no `NX_PRESSURE` entry, so the unit attribute silently
+falls through to `"any"` instead of `"Pa"`. Add it:
+
+```python
+"NX_PRESSURE": "Pa",
+```
+
+Unrecognised unit categories do not raise — they just write `"any"` — so nothing
+tells you this happened except reading the file.
+
+---
+
+## Summary
+
+| your device | with ours | with his |
+|---|---|---|
+| another slit / attenuator / undulator / detector | ~30 lines of literal dict | **one line** |
+| one more field in a group he models | 2 steps | **1 step**, and upstream fixes flow in |
+| a pressure controller, a bare motor stage | ~10 lines | ~10 lines, **but can become his** |
+
+## Field-by-field: what he covers, and what neither writer has
+
+Measured by building both schemas and diffing the leaf paths, not by reading
+prose. **Ours: 125 leaves. His, with every factory and every `make_sample` flag
+on: 119.**
+
+### He covers all 125 of our leaves
+
+18 leaf *names* differ, but not one is a missing capability — all three groups
+are renames or re-placements, and `xpcs_schema_mc.py` already resolves them,
+which is how it reaches 125/125 with nothing hand-written:
+
+| ours | his | difference |
+|---|---|---|
+| `detector_1/flightpath_swing` | `flightpath_swing_horizontal` | rename (already handled by `_rename()`) |
+| `/entry/sample/huber_{chi,delta,eta,mu,nu,phi}` | `make_diffractometer("huber")` → `chi, delta, eta, mu, nu, phi` | same six angles, no `huber_` prefix, and he puts them under `instrument` as `NXpositioner` |
+| `/entry/sample/keysight_*` (11) | `instrument/keysight_waveform_generator` → `amp, freq, func, phase, output, pulse_width, burst_{count,mode,state}, trigg_{edge,source}` | same eleven, no `keysight_` prefix, under `instrument` |
+
+**⚠ The last two are re-placements, not renames.** Migrating means repointing 17
+paths in our `create_runtime_metadata_dict()`, and any downstream reader that
+looks for `/entry/sample/keysight_freq` will not find it at the new address.
+
+### The detector's degrees of freedom are fully covered
+
+`make_detector(1)` returns 19 fields, a superset of what we use:
+
+```
+position_x  position_y                      translations
+rotation_x  rotation_y  rotation_z          angles (he has three; we use none)
+flightpath_swing_horizontal / _vertical     the two swing angles
+x_pixel_size  y_pixel_size                  pixel size
+distance  beam_center_x/y  beam_center_position_x/y
+count_time  frame_time  compression  detector_name  qmap_file
+```
+
+Nothing to add here for a detector — including pixel size, which you asked about.
+
+### The devices you asked about
+
+| | ours | his | verdict |
+|---|---|---|---|
+| `keithley` | 8 fields | 8 fields | **both** — commented out in our runtime only |
+| `bk_pid` | 2 | 2 | **both** — same |
+| `keysight` | 11 | 11 | **both**, at different paths (see above) |
+| `pixel_size` | 2 | 2 | **both** |
+| **`pressure`** | 0 | 0 | **neither** |
+| **`fofb`** | 0 | 0 | **neither** — and see the trap below |
+| **`xbpm`** | 0 | 0 | **neither**; the device is also commented out in `devices_aps_only.yml` |
+
+So `keithley` and `bk_pid` are not gaps at all — the schema nodes exist on both
+sides and only the runtime lines are commented out. `pressure`, `fofb` and
+`xbpm` are the three genuine holes, and they are holes in *both* writers.
+
+### ⚠ Two commented-out lines are booby-trapped
+
+Of the 30 commented-out paths in `create_runtime_metadata_dict()`, **28 are safe
+to uncomment** — the schema node exists, so they need only a working device.
+**Two are not:**
+
+```
+/entry/instrument/incident_beam/fofb_s09_horizontal
+/entry/instrument/incident_beam/fofb_s09_vertical
+```
+
+`incident_beam` has no `fofb_*` node — it holds `extent`,
+`incident_beam_intensity`, `incident_energy`, `incident_energy_spread`,
+`incident_polarization_type`, `ring_current`, `transmitted_beam_intensity`.
+Uncommenting either line raises `KeyError` at write time, and
+`det_acq_series()` swallows it — so the measurement finishes, prints one line,
+and writes **no metadata file at all**. Add the schema node first.
+
+### There is no catch-all class
+
+`make_entry(beamline, instrument, sample, user)` is the top-level wrapper: it
+takes the three already-composed sub-dicts and adds the entry-level fields
+(`definition`, `schema_version`, `start_time`, `end_time`). It is not a home for
+a device that fits nowhere else. The complete inventory of `core/` is eleven
+instrument modules, six sample-environment modules, `schema.py`, `user.py` and
+`utils.py` — and **no generic module, no arbitrary-leaf helper, no
+`make_stage`**.
 
 ## What each costs
 
@@ -119,51 +284,122 @@ writers. His package does not model "which EPICS signal feeds this field".
 | schema | 993 lines of literals, all ours to maintain | 244 lines of composition; the leaves are his |
 | who fixes a NeXus-standard bug | us | him, and it arrives on a pull |
 | adding a device that reuses an existing factory | ~30 lines of literal dict | one line, no upstream change |
-| adding something he does not model | a literal node | a local patch, or wait for his release |
+| adding something he does not model (e.g. pressure) | a literal node, ours forever | a local patch that can later become his |
 | dependency risk | none | none in practice: `h5py` + `numpy` |
 | coupling to `apsbits` | none | none, **provided only `core/` is used** — his `deployment/id8_{e,i}` needs apsbits and is obsolete |
 | behaviour if it breaks mid-beamtime | ours to fix | ours to work around |
 
+## Can we migrate with the code that exists today?
+
+**Yes, technically — but it is not a flip-a-switch job, and the schema is the
+easy half.** He covers 125/125 of our leaves. What makes it work is deciding
+what happens to the *contents* of every file.
+
+### What stays ours no matter what
+
+His package models the schema and the file writer. It does **not** model the
+beamline layer: which EPICS signal feeds which path. That is
+`create_runtime_metadata_dict()` plus its helpers and device binds — **269 of
+`nexus_utils.py`'s 420 lines** — and it is carried over unchanged. Migrating
+replaces the schema and the writer, not the part that knows about your hardware.
+
+### ⚠ Every file changes, on every object
+
+This is the decision to make first, because these files are copied into
+`*_results.hdf`:
+
+| change | scope |
+|---|---|
+| `NX_Class` → `NX_class` | **143 of 143 objects** (his spelling is the correct NeXus one) |
+| `unit` → `units` | **97 of 97** unit-bearing datasets |
+| unit string lost, becomes `any` | **20 datasets** — his keymap has 10 entries to our 11 and lacks `NX_VOLTAGE`, so the four keithley `*V` fields and `keysight_amp` degrade on top of 16 others |
+| description text | 41 leaves |
+| actual data value | 1 — `/entry/instrument/datamanagement/workflow_kwargs`, whose default is invalid JSON on his side; the other 11 diffs are masked by `default_metadata.py` |
+
+**⚠ Do not take his descriptions wholesale.** Only 2 of the 41 are typo fixes.
+At least 13 are losses: his `beam_center_position_x/y` says "position of beam
+center" but we store the *detector translation preset* there, so his text would
+mislead; `bk_pid_RDBK/VAL` lose the word "temperature" at the same moment their
+unit degrades from `K` to `any`; and all 8 keithley strings become bare labels
+that drop the current/voltage semantics.
+
+### ⚠ Two upstream bugs our adapter is already working around
+
+Both are in his code, and both are silent:
+
+1. **`make_sample()` returns leaves aliased to module-level singletons** — all 17
+   shared between two calls, and shared with his own `core.schema.xpcs_schema`.
+   His documented `xpcs_schema.copy()` pattern therefore corrupts the template
+   permanently. `nexus_utils_mc.py` deepcopies instead.
+2. **`_compiled_plans` is cached on `id(schema)`.** Handing it a fresh deepcopy
+   each call means a freed address can be reused and return a stale plan — it
+   collided 30 times in 200 cycles under test and wrote a file with a leaf
+   silently missing. `nexus_utils_mc.py` clears the cache every call, which
+   negates the cache's only purpose.
+
+Neither is a reason not to migrate; both are reasons the adapter must stay, or
+be fixed upstream.
+
+### Environment hazards
+
+* Not installed in any beamline environment. `import nexus_xpcs_aps` fails in
+  `8id_bits`.
+* **An editable install already exists in `e2507_timepix`, and it points at the
+  wrong clone** — `.../Miaoqi/nexus_xpcs_aps/src`, which is `main` at `73d0be4`
+  (Aug 2025) *and has an uncommitted modification*. So "just pip install -e it"
+  has already been done once against the stale tree. Install
+  `nexus_xpcs_aps_95ab368`, and pin it.
+* The source of truth would move to a directory in a user's home with no pinned
+  version, where a `git pull` silently changes what the beamline writes.
+
+### Call sites
+
+Three write a metadata file, and **only one honours `ID8_NEXUS_WRITER`**:
+
+| site | honours the flag? | note |
+|---|---|---|
+| `ad_acq.det_acq_series()` normal path | yes | the only one |
+| `ad_acq.cleanup_acquisition()` abort path | no | **this is the safety net** — it rewrites a failed file with our known-good writer. Switching all three removes it |
+| `dual_acq_eiger4m_rigaku3m` | no | per-leg overrides make the deepcopy discipline mandatory here |
+
+### One thing that is *not* nearly free
+
+`make_detector(2)` really does return a second 19-field detector group. But
+`detector_1` is hardcoded **16 times in `nexus_utils.py`, 18 in
+`default_metadata.py`, and 13 in dual_acq's `OVERRIDE_PATHS`** — all in the
+beamline layer he does not model. The factory call is the cheapest part.
+
+### The order of work
+
+1. Grep every consumer of `*_metadata.hdf` and `*_results.hdf` — boost_corr,
+   Miaoqi's readers, user scripts — for `NX_Class` and `unit`. **Nothing else
+   should start until this is answered.**
+2. `pip install -e` the **95ab368** clone into `8id_bits`, pinned. Delete the
+   stale clone and the `e2507_timepix` editable install that points at it.
+3. Add `NX_VOLTAGE` (and `NX_PRESSURE`) to whichever keymap ends up in use;
+   reconcile the other 15 unit categories his schema leaves as `NX_ANY`.
+4. Decide the 41 descriptions field by field. Do not bulk-accept.
+5. Collapse the three call sites behind one `write_nexus_metadata()` shim, so
+   the writer is chosen in one place rather than three.
+6. Keep the deepcopy and the `_compiled_plans.clear()`, or fix them upstream.
+7. Re-run the comparison on one measurement per detector mode.
+
+Steps 1 and 4 are the ones that need a person, not a script.
+
 ## Why we have not switched
 
 Honestly: **it is a test that was left switched off, not a considered rejection.**
-The comparison was run, came out clean, and then the DM/analysis investigation
-took over. Two reasons were live at the time, and only one still is:
+The comparison was run, came out clean at the path level, and then the
+DM/analysis investigation took over.
 
-1. *"Installing risks disturbing the `8id_bits` environment before beamtime."*
-   Largely gone. The declared dependencies are `h5py` and `numpy`, both already
-   present. A `pip install -e` of the clone would add no third-party package.
-2. *"`deployment/` is unusable."* Still true, and still fine — it needs
-   `apsbits`, which this instrument is moving away from. `core/` is the only
-   part we import, and it is self-contained.
+The original two objections have not aged equally. *"Installing risks disturbing
+`8id_bits`"* is largely gone — the declared dependencies are `h5py` and `numpy`,
+both already present. *"`deployment/` is unusable"* is still true and still
+irrelevant: it needs `apsbits`, which this instrument is leaving, and we import
+only `core/`.
 
-The remaining reason to wait is timing, not technology: swapping the writer
-changes the bytes of every metadata file, and `*_results.hdf` is a copy of that
-file. That is not a change to make two days before a run.
-
-**On the merits, though, Case 1 is the strongest argument for switching** — most
-new hardware at this beamline is another slit, attenuator, undulator or
-detector, and each of those is one line with his factories against ~30 lines of
-literal dict with ours.
-
-## What switching would take
-
-1. `pip install -e ~/Documents/Miaoqi/nexus_xpcs_aps_95ab368` into `8id_bits`,
-   so `PYTHONPATH` juggling stops.
-2. Delete the stale `~/Documents/Miaoqi/nexus_xpcs_aps` clone so nobody points
-   at Aug 2025 by accident.
-3. Make `mc` the default in `det_acq_series()`, and extend it to the two call
-   sites that ignore the variable today — `cleanup_acquisition()` (the abort
-   path) and the dual-detector path — or a run can emit files from both writers.
-4. Agree with Miaoqi which of our 125 leaves he owns, so a field we need is not
-   silently dropped by an upstream refactor.
-5. Fold `xpcs_schema.py` and `xpcs_schema_mc.py` into one, and delete
-   `nexus_utils_mc.py`.
-6. Re-run the comparison on one measurement per detector mode.
-
-Steps 3 and 4 are the substantive ones. Step 4 especially: pulling his changes
-means his refactor can change our files, which is the cost of him maintaining
-the schema.
+What replaced them is the list above: the switch changes an attribute on every
+object of every file, and nobody has yet checked what reads those files.
 
 ## Loose end
 
