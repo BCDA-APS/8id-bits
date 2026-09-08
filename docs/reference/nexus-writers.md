@@ -42,6 +42,30 @@ Why the beamline still writes metadata with `utils/nexus_utils.py` when
 what value goes at which path — is ours in both cases and is not something his
 package models.
 
+## Side by side
+
+| | ours (`nexus_utils.py`) | his (`nexus_xpcs_aps.core`) |
+|---|---|---|
+| **schema leaves** | 125, as 993 lines of literal dicts | all 125 reachable, from 244 lines of factory calls |
+| **class attribute** | `NX_Class` | `NX_class` ✅ **correct per the NeXus standard** |
+| **units attribute** | `unit` | `units` ✅ **correct per the standard** |
+| **units keymap** | 11 categories, incl. `NX_VOLTAGE` | 10 categories, **no** `NX_VOLTAGE` |
+| **unit strings lost as `any`** | 1 (`keysight_freq`, needs `NX_FREQUENCY`) | 20 |
+| **field descriptions** | ours on 41 leaves | his on 41; 2 are typo fixes, ~13 are losses |
+| **new slit/attenuator/undulator/detector** | ~30 lines of literal dict | **1 line** — `make_slits(9)` |
+| **new sample-environment device** | ~10 lines | ~10 lines; `make_sample` is 6 fixed flags, not extensible |
+| **generic / catch-all class** | n/a | **none** — no `make_stage`, no arbitrary-leaf helper |
+| **runtime layer** (signal → path) | ours, 269 of 420 lines | **not modelled at all**; ours is carried over unchanged |
+| **who maintains the schema** | us | him; fixes arrive on a `git pull` |
+| **installed?** | yes, it is the repo | **no** — clone + `PYTHONPATH` only |
+| **known silent bugs** | none found | 2: aliased `make_sample` leaves, `id()`-keyed plan cache |
+
+**On the attribute spelling, the standard is unambiguous.** The NeXus manual
+gives `@NX_class` and `@units`. Ours is wrong on both counts and has been since
+the `legacy/` code — which is why every file in the 8-ID archive carries the
+wrong spelling, and why fixing it is an archive-consistency decision rather than
+a typo fix.
+
 ## Status right now
 
 | | |
@@ -288,6 +312,57 @@ instrument modules, six sample-environment modules, `schema.py`, `user.py` and
 | dependency risk | none | none in practice: `h5py` + `numpy` |
 | coupling to `apsbits` | none | none, **provided only `core/` is used** — his `deployment/id8_{e,i}` needs apsbits and is obsolete |
 | behaviour if it breaks mid-beamtime | ours to fix | ours to work around |
+
+## Before 2026-09-09: what is actually blocked
+
+The plan of "uncomment everything in `nexus_utils.py`, plus a sample pressure
+field" is two very different jobs.
+
+### Uncommenting the metadata lines — **do not do this before the run**
+
+It is not one edit, it is a chain of four, and the third one can stop the
+session from starting at all:
+
+1. The **device** is commented out in `configs/devices.yml`.
+2. The **module-level bind** is commented out in `nexus_utils.py`.
+3. The bind uses `oregistry["name"]`, **not** `oregistry.get("name")` like the
+   live ones above it. Bracket lookup **raises `KeyError` at import**, and
+   `nexus_utils` is imported by `ad_acq`, which is imported by startup. A device
+   whose IOC is down therefore does not degrade — **it stops the session
+   booting.**
+4. Only then the runtime line itself.
+
+And the hardware is not there. Every PV behind these fields timed out from
+`pearl`, which can see the beamline:
+
+```
+S08ID:USID:Gap.VAL                  not found      undulator_upstream
+S08ID:DSID:Gap.VAL                  not found      undulator_downstream
+8idKeithley2600:SMU:A:SrcLevelV_AO  not found      keithley_chA / chB
+8idiSoft:BPMpid.VAL                 not found      bk_pid
+```
+
+So uncommenting the 28 lines would, today, either write nothing useful or break
+startup. The work is real but belongs after the run, in this order: bring the
+IOC up → uncomment the `devices.yml` entry → confirm it appears in `oregistry`
+→ change the bind to `oregistry.get()` → uncomment the runtime line.
+
+**⚠ Whatever else happens, change those binds from `oregistry["x"]` to
+`oregistry.get("x")`** so a dead IOC costs you a field rather than the session.
+
+### The sample pressure field — safe, and worth doing
+
+Additive and self-contained: two literal nodes in `xpcs_schema.py`, two runtime
+lines, and `"NX_PRESSURE": "Pa"` in `default_units_keymap`. It touches no
+existing field, so nothing already working can regress. The only prerequisite is
+the device itself in `devices.yml` and its IOC up. Needed 09/10, so there is
+time to add it on the 9th once the controller is on.
+
+### Switching writers — not before the run
+
+Changing the attribute spelling on every object of every file, three days before
+a beamtime, with no check yet on what reads those files, is the definition of a
+bad time. The switch is right; the date is wrong.
 
 ## Can we migrate with the code that exists today?
 
