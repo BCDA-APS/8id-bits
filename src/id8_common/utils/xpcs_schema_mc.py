@@ -92,20 +92,6 @@ def _drop(node, names):
     return out
 
 
-def _redescribe(node, **descriptions):
-    """Deep copy of ``node`` with the description of named leaves replaced.
-
-    LOCAL PATCHES over upstream text, removable when nexus_xpcs_aps fixes them
-    (reported to Miaoqi Chu 2026-09-08). Key order and every other key are
-    untouched, so only the `description` attribute in the file changes.
-    """
-    out = deepcopy(node)
-    for leaf, text in descriptions.items():
-        if leaf in out and isinstance(out[leaf], dict):
-            out[leaf]["description"] = text
-    return out
-
-
 def _rename(node, old, new, description=None):
     """Deep copy of ``node`` with leaf ``old`` re-keyed to ``new``.
 
@@ -147,26 +133,6 @@ _detector_1 = _rename(
     description="Swing angle of the flight path",
 )
 
-# LOCAL PATCH: upstream calls these two "Position of beam center, x/y axis, in
-# physical units", which reads as the beam centre converted from pixels to
-# metres. It is not that. It is the detector translation position at which the
-# DIRECT BEAM was measured -- the reference the qmap needs when a measurement is
-# taken with the detector somewhere other than where the direct beam was
-# calibrated. Compare with position_x/y, which is the live position during this
-# measurement; the difference between the two is the offset the qmap applies.
-#
-# Reported upstream 2026-09-08 (AZjk/nexus_xpcs_aps#1); drop this when it lands.
-_detector_1 = _redescribe(
-    _detector_1,
-    beam_center_position_x=(
-        "Detector position, x axis, at which the direct beam was measured "
-        "(qmap reference; compare with position_x for this measurement)"
-    ),
-    beam_center_position_y=(
-        "Detector position, y axis, at which the direct beam was measured "
-        "(qmap reference; compare with position_y for this measurement)"
-    ),
-)
 
 instrument = {
     "type": "NXinstrument",

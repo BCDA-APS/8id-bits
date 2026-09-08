@@ -14,17 +14,17 @@ His package has no runtime layer and cannot have one -- nothing upstream knows
 that /entry/instrument/detector_1/distance comes from device_position.yaml. That
 is why nexus_runtime.py stays ours.
 
-Two upstream bugs are worked around here rather than in his tree, so that a
-`git pull` of his repo cannot silently reintroduce them:
+The local patches this module used to carry are gone: AZjk/nexus_xpcs_aps#1
+merged on 2026-09-08 and upstream now fixes the make_sample() aliasing, the
+id()-keyed plan cache, the invalid-JSON workflow_kwargs default, and the three
+missing unit categories.
 
-1. make_sample() returns leaves aliased to his module-level singletons -- 17 of
-   17 shared between two calls, and shared with core.schema.xpcs_schema. His own
-   documented `xpcs_schema.copy()` pattern therefore corrupts the template for
-   the rest of the process. We deepcopy every call.
-2. _compiled_plans is cached on id(schema). Handing it a fresh deepcopy each
-   time means a freed address can be reused and return a stale plan -- observed
-   colliding 30 times in 200 cycles, once writing a file with a leaf missing. We
-   clear the cache every call, which costs nothing at one file per measurement.
+The deepcopy below is NOT one of those and must stay. It is not working around
+a bug in his code -- his writer no longer pops keys out of the schema at all.
+It protects OUR module-level `xpcs_schema_mc.xpcs_schema`: his
+`update_schema_at_runtime()` assigns `node["data"] = value` in place, so handing
+it the module-level dict would leave each measurement's values sitting in the
+template, to be inherited by the next measurement that does not overwrite them.
 """
 
 from copy import deepcopy
@@ -34,22 +34,6 @@ from typing import Optional
 
 from id8_common.utils.nexus_runtime import create_runtime_metadata_dict
 
-#: Unit categories his keymap does not define. LOCAL PATCH, reported to Miaoqi
-#: Chu 2026-09-08; delete each entry as it lands upstream.
-#:
-#: nexus_xpcs_aps.core.utils.default_units_keymap has 10 entries. A category it
-#: does not know silently becomes the string "any" -- no warning, nothing in the
-#: session output. Before the move to his writer our own keymap carried these
-#: three, so without this patch the move would be a REGRESSION:
-#:
-#:   NX_VOLTAGE    4 keithley *V leaves and keysight_amp  ->  "any"
-#:   NX_FREQUENCY  keysight_freq                          ->  "any"
-#:   NX_PRESSURE   the Alicat pressure fields, when added ->  "any"
-EXTRA_UNITS = {
-    "NX_VOLTAGE": "V",
-    "NX_FREQUENCY": "Hz",
-    "NX_PRESSURE": "Pa",
-}
 
 
 def create_nexus_format_metadata(
@@ -72,17 +56,10 @@ def create_nexus_format_metadata(
 
     from id8_common.utils.xpcs_schema_mc import xpcs_schema as mc_schema
 
-    # Teach his keymap the categories it is missing -- see EXTRA_UNITS. Applied
-    # here rather than at import so it survives a reload of his module, and
-    # setdefault so an upstream fix wins over our patch automatically.
-    for category, unit in EXTRA_UNITS.items():
-        mc_utils.default_units_keymap.setdefault(category, unit)
 
-    # See docstring, bug 2.
-    mc_utils._compiled_plans.clear()
 
-    # See docstring, bug 1; also his update_schema_at_runtime mutates in place,
-    # so without this one measurement's values persist into the next.
+    # See the module docstring: his update_schema_at_runtime() mutates in place,
+    # so the module-level template must never be handed to it directly.
     runtime_schema = deepcopy(mc_schema)
 
     runtime_metadata = create_runtime_metadata_dict(det, additional_metadata)

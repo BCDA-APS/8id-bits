@@ -175,15 +175,6 @@ def create_runtime_metadata_dict(
         "/entry/end_time": str(datetime.datetime.now()),  # fixme later
         "/entry/instrument/datamanagement/workflow_name": expt.workflow_name,
 
-        # LOCAL PATCH, remove when upstream fixes it (reported to Miaoqi Chu
-        # 2026-09-08). nexus_xpcs_aps' schema default for this field is
-        #     {qmap: 'sample_name', mask: 'mask_name'}
-        # -- unquoted keys and single quotes, which json.loads() rejects. Our
-        # retired default_metadata.py used to mask it; get_default_metadata()
-        # does not, so without this line the bad value lands in every file.
-        "/entry/instrument/datamanagement/workflow_kwargs":
-            '{"qmap": "sample_name", "mask": "mask_name"}',
-
         # TODO: Change the detector direct beam position and detector position to real numbers
 
         # Read detector name and use that name to decide what fields to use to populate the rest
