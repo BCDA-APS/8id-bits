@@ -32,12 +32,17 @@ def dm_setup() -> tuple:
 
 
 def dm_job_log_path() -> Path:
-    """<mount_point>/<cycle>/<experiment>/dm_jobs.log -- one line per submitted job.
+    """<mount_point>/<cycle>/<experiment>/data/dm_jobs.log -- one line per job.
 
-    At the experiment root, beside data/ and analysis/, rather than inside either:
-    both of those are DM-managed trees and this file is ours.
+    Inside data/, not at the experiment root. The root is dmadmin-owned and
+    mode 0750, so the beamline account can read it but not write there -- the
+    first version of this pointed at the root and every submission logged
+    "[dm_util] could not append ... Permission denied" (harmlessly, but the log
+    was never created). data/ and analysis/ are group-writable; data/ wins
+    because the measurement name in each line is a directory in that same tree,
+    and data outlives a re-run of the analysis.
     """
-    return Path(f"{expt.mount_point}{expt.cycle_name}/{expt.experiment_name}/dm_jobs.log")
+    return Path(f"{expt.mount_point}{expt.cycle_name}/{expt.experiment_name}/data/dm_jobs.log")
 
 
 def log_dm_job(job_id: str, file_name: str, filepath: str, machine_name: str, workflow_name: str):

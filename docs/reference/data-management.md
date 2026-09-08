@@ -32,11 +32,10 @@ tell a real success from a job that reported success and produced nothing.
 
 ## Finding the uuid again: `dm_jobs.log`
 
-Every submitted job is appended to a plain text log at the experiment root,
-beside `data/` and `analysis/`:
+Every submitted job is appended to a plain text log inside the data tree:
 
 ```
-/gdata/dm/8ID/8IDE/<cycle>/<expt>/dm_jobs.log
+/gdata/dm/8ID/8IDE/<cycle>/<expt>/data/dm_jobs.log
 ```
 
 ```
