@@ -26,6 +26,8 @@ rather than at protocol level.
 sample_info.yaml is shared with the serial path and read unchanged.
 """
 
+from pathlib import Path
+
 from id8_common.plans.acquire.dual_acq_eiger4m_rigaku3m import DUAL_LEGS
 from id8_common.plans.acquire.dual_acq_eiger4m_rigaku3m import FORBIDDEN_MOTORS
 from id8_common.plans.acquire.dual_acq_eiger4m_rigaku3m import dual_acq_series
@@ -449,7 +451,7 @@ def run_dual_measurement_info(
     measurement_info_file = measurement_info_file or expt.dual_measurement_info_file
     sample_info_file = sample_info_file or expt.sample_info_file
 
-    print(f"Reading dual plans from {measurement_info_file.parent}")
+    print(f"Reading dual plans from {Path(measurement_info_file).parent}")
 
     sample_info = read_yaml(sample_info_file)
     measurement_info = read_yaml(measurement_info_file)

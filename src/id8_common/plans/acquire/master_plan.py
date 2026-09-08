@@ -575,8 +575,12 @@ def run_measurement_info(
     """Read measurement_info.yaml + sample_info.yaml, expand them, and run every measurement in order."""
     # None, not a default argument: a default is bound once at import, so it
     # could not follow an experiment.yml edit or expt.reload().
-    measurement_info_file = measurement_info_file or expt.measurement_info_file
-    sample_info_file = sample_info_file or expt.sample_info_file
+    # Path(), because the caller may pass a plain string -- the usage examples
+    # and the dual module's docstring both show one -- and .parent below is a
+    # Path method. expt.measurement_info_file is already a Path; Path() on a
+    # Path is a no-op.
+    measurement_info_file = Path(measurement_info_file or expt.measurement_info_file)
+    sample_info_file = Path(sample_info_file or expt.sample_info_file)
 
     print(f"Reading plans from {measurement_info_file.parent}")
 

@@ -116,7 +116,9 @@ default_units_keymap = {
     "NX_CURRENT": "mA",  # Used for current, milliamper
     "NX_ANY": "any",  # Used for G2_unnormalized, two_time_corr_func
     "NX_ANGLE": "degree",  # Used for rotation_x, rotation_y, rotation_z
-    "NX_VOLTAGE": "V"
+    "NX_VOLTAGE": "V",
+    "NX_FREQUENCY": "Hz",   # keysight_freq wrote "any" until 2026-09-08
+    "NX_PRESSURE": "Pa",    # for the sample pressure controller
 }
 
 
@@ -172,10 +174,15 @@ def create_nexus_entry(
             # not a numpy dtype.
             nx_class = val.pop("type", None)
             if nx_class is not None:
-                handle.attrs["NX_Class"] = nx_class
+                # NX_class and units, per the NeXus standard (manual, "Design").
+                # Corrected 2026-09-08. Every file written before that date --
+                # the whole 8-ID archive, and both legacy/ copies -- carries the
+                # non-standard "NX_Class" and "unit" instead, so a reader that
+                # has to span the boundary must accept either spelling.
+                handle.attrs["NX_class"] = nx_class
             units = val.pop("units", None)
             if units is not None:
-                handle.attrs["unit"] = default_units_keymap.get(units, "any")
+                handle.attrs["units"] = default_units_keymap.get(units, "any")
             description = val.pop("description", None)
             if description is not None:
                 handle.attrs["description"] = description
