@@ -100,8 +100,8 @@ cd ~/Documents/Miaoqi/nexus_xpcs_aps_95ab368
 git log --oneline HEAD..origin/mc_refact      # read what would land, first
 ```
 
-Then re-run the six-mode check before trusting it — see
-[Verification 2026-09-08](verification-2026-09-08.md) for the procedure.
+Then re-acquire one measurement per detector mode and confirm each writes a
+metadata file and completes analysis, before trusting it.
 
 **⚠ There is a second, stale clone** at `~/Documents/Miaoqi/nexus_xpcs_aps`
 (`main` @ 73d0be4, Aug 2025) with uncommitted edits. Nothing should point at it.
@@ -109,4 +109,3 @@ Then re-run the six-mode check before trusting it — see
 ## Related
 
 * [Adding metadata fields](../adding-metadata.md) — the step-by-step
-* [Verification 2026-09-08](verification-2026-09-08.md) — the six-mode proof run

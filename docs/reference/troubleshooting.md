@@ -130,6 +130,11 @@ acquisition has no such guard — it overwrites.
 
 ## Analysis produced nothing
 
+> Submitting, checking and re-running analysis jobs is covered in full by
+> [Data Management](data-management.md) — how to find a job by its uuid, what
+> the DM stages mean, and how to run `boost_corr_bin` by hand. This section is
+> the symptom; that page is the tooling.
+
 **⚠ A green DM job does not mean the analysis ran.** DM can report
 `status: done / stage: 12-DONE / gladierStatus: SUCCEEDED` with no
 `*_results.hdf` produced.

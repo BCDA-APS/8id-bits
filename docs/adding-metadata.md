@@ -189,5 +189,4 @@ keep running, and open a PR against
 ## Related
 
 * [How the NeXus file is written](reference/nexus-writer.md) — how we got here, and the comparison
-* [Verification 2026-09-08](reference/verification-2026-09-08.md) — the six-mode proof run
 * [Devices](devices.md) — adding the EPICS device in the first place
