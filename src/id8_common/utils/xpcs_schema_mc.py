@@ -92,6 +92,20 @@ def _drop(node, names):
     return out
 
 
+def _redescribe(node, **descriptions):
+    """Deep copy of ``node`` with the description of named leaves replaced.
+
+    LOCAL PATCHES over upstream text, removable when nexus_xpcs_aps fixes them
+    (reported to Miaoqi Chu 2026-09-08). Key order and every other key are
+    untouched, so only the `description` attribute in the file changes.
+    """
+    out = deepcopy(node)
+    for leaf, text in descriptions.items():
+        if leaf in out and isinstance(out[leaf], dict):
+            out[leaf]["description"] = text
+    return out
+
+
 def _rename(node, old, new, description=None):
     """Deep copy of ``node`` with leaf ``old`` re-keyed to ``new``.
 
@@ -131,6 +145,16 @@ _detector_1 = _rename(
     "flightpath_swing_horizontal",
     "flightpath_swing",
     description="Swing angle of the flight path",
+)
+
+# LOCAL PATCH: upstream calls these two "Position of beam center, x/y axis, in
+# physical units". At 8-ID the field holds the detector TRANSLATION PRESET read
+# from device_position.yaml, not the beam centre, so his text describes the
+# wrong quantity. Reported 2026-09-08; drop this call when it lands upstream.
+_detector_1 = _redescribe(
+    _detector_1,
+    beam_center_position_x="Position of the detector, x axis, during data collection",
+    beam_center_position_y="Position of the detector, y axis, during data collection",
 )
 
 instrument = {

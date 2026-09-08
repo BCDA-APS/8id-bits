@@ -45,7 +45,7 @@ from id8_common.plans.set.shutter_att import post_align
 from id8_common.plans.set.shutter_att import shutteroff
 from id8_common.utils.dm_util import dm_run_job
 from id8_common.utils.dm_util import dm_setup
-from id8_common.utils.nexus_utils import create_nexus_format_metadata
+from id8_common.utils.nexus_writer import create_nexus_format_metadata
 
 # =============================================================================
 # Mode table
@@ -233,32 +233,12 @@ def det_acq_series(wait_time=0, hooks=None):
 
             print(f"{time_now}, Writing metadata, {file_name}")
 
-            # ---------------------------------------------------------------
-            # TEST 2026-09-04: the NeXus writer is selectable, so the DEFAULT
-            # behaviour is unchanged -- a normal session uses our writer and
-            # needs nothing extra on PYTHONPATH.
-            #
-            # Set ID8_NEXUS_WRITER=mc to use Miaoqi Chu's mc_refact writer
-            # instead (requires PYTHONPATH to include the nexus_xpcs_aps clone;
-            # the launcher run_mc_writer_test.sh does that).
-            #
-            # TO REMOVE THE TEST ENTIRELY: replace this whole block with the
-            # single line `create_nexus_format_metadata(metadata_fname, det=det)`
-            # and delete utils/nexus_utils_mc.py + utils/xpcs_schema_mc.py.
-            #
-            # cleanup_acquisition() (the abort path, above) always uses OUR
-            # writer, so an aborted run falls back to known-good code.
-            if os.environ.get("ID8_NEXUS_WRITER") == "mc":
-                from id8_common.utils.nexus_utils_mc import (
-                    create_nexus_format_metadata_mc,
-                )
-
-                print("    [writer] mc_refact (nexus_xpcs_aps)")
-                create_nexus_format_metadata_mc(metadata_fname, det=det)
-            else:
-                print("    [writer] id8_common (default)")
-                create_nexus_format_metadata(metadata_fname, det=det)
-            # ---------------------------------------------------------------
+            # One writer, no env-var switch: utils/nexus_writer.py, which is
+            # Miaoqi Chu's nexus_xpcs_aps for the schema and the HDF5 write,
+            # over our utils/nexus_runtime.py for the EPICS-signal mapping he
+            # does not model. The abort path above uses the same one, so an
+            # aborted run and a good run produce the same shape of file.
+            create_nexus_format_metadata(metadata_fname, det=det)
 
             # Complete, so an abort during DM submission must not rewrite it.
             metadata_fname = None

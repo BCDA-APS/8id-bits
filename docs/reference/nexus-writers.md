@@ -66,20 +66,38 @@ the `legacy/` code — which is why every file in the 8-ID archive carries the
 wrong spelling, and why fixing it is an archive-consistency decision rather than
 a typo fix.
 
-## Status right now
+## Status: we switched, 2026-09-08
+
+**Miaoqi Chu's `nexus_xpcs_aps` is now the only writer.** Our `nexus_utils.py`,
+`xpcs_schema.py` and `default_metadata.py` are retired to `utils/Archive/` as
+`.txt`. The `ID8_NEXUS_WRITER` env-var switch is gone — there is one path.
 
 | | |
 |---|---|
-| installed in `8id_bits`? | **No.** `import nexus_xpcs_aps` → `ModuleNotFoundError` |
-| where it lives | `~/Documents/Miaoqi/nexus_xpcs_aps_95ab368/src`, reached by `PYTHONPATH` |
-| declared dependencies | `h5py`, `numpy` — both already in the environment |
-| how it is selected | `export ID8_NEXUS_WRITER=mc`, set by no launcher |
-| which call sites honour it | 1 of 3 — the normal path in `det_acq_series()` only |
-| verified equivalent? | Yes: 125/125 leaves path-for-path identical, 0 hand-written |
+| installed | `nexus_xpcs_aps` 95ab368, editable, in `8id_bits` **and** `8ide_bits_test` |
+| install cost | `pip freeze` grew by exactly one line (`--no-deps --no-build-isolation`) |
+| proof | all six detector modes acquired, metadata written, `boost_corr_bin` exit 0 on all six — see [Verification 2026-09-08](verification-2026-09-08.md) |
 
-**⚠ Two clones sit side by side.** `~/Documents/Miaoqi/nexus_xpcs_aps` is `main`
-at `73d0be4` (Aug 2025) and stale; `nexus_xpcs_aps_95ab368` is the `mc_refact`
-commit the adapter was written against. Point `PYTHONPATH` at the second.
+### What each side provides
+
+| | |
+|---|---|
+| `nexus_xpcs_aps.core.*` | **his** — schema factories and the HDF5 writer |
+| `utils/xpcs_schema_mc.py` | ours, 244 lines — 8-ID's composition of his factories |
+| `utils/nexus_runtime.py` | ours, 298 lines — EPICS signal → NeXus path |
+| `utils/nexus_writer.py` | ours, ~90 lines — the entry point, plus the workarounds |
+
+**His package has no runtime layer and cannot have one**: nothing upstream knows
+that `/entry/instrument/detector_1/distance` comes from `device_position.yaml`.
+That is why `nexus_runtime.py` stays ours — it is 8-ID's wiring, not a shortcoming.
+
+### Local patches carried
+
+Listed with their reasons in
+[Adding metadata fields](../adding-metadata.md#-local-patches-currently-carried).
+Five of them; each is commented in the source with the date reported upstream.
+Only one gap could **not** be patched locally: a pressure controller, because
+`make_sample()` takes six hard-coded flags rather than an extensible spec.
 
 ## Adding a device: which case are you in?
 

@@ -62,8 +62,10 @@ from id8_common.expt_config import expt
 from id8_common.registry import oregistry
 from id8_common.utils.dm_util import dm_run_job
 from id8_common.utils.dm_util import dm_setup
-from id8_common.utils.nexus_utils import create_nexus_format_metadata
-from id8_common.utils.xpcs_schema import xpcs_schema
+from id8_common.utils.nexus_writer import create_nexus_format_metadata
+# The composed 8-ID schema, built from Miaoqi Chu's core factories.
+# Was utils/xpcs_schema.py (993 lines of literals) until 2026-09-08.
+from id8_common.utils.xpcs_schema_mc import xpcs_schema
 
 
 POLL_INTERVAL = 0.1
