@@ -364,6 +364,38 @@ Changing the attribute spelling on every object of every file, three days before
 a beamtime, with no check yet on what reads those files, is the definition of a
 bad time. The switch is right; the date is wrong.
 
+## Can a dead IOC stop the session? No — verified
+
+The concern is real and the answer matters more than which writer wins, so it
+was tested rather than reasoned about. Every check below was run in a live
+session on `pearl`.
+
+| check | result |
+|---|---|
+| module-level `oregistry[...]` anywhere in `nexus_utils.py` | **none** — all binds are `.get()`, including the commented-out ones |
+| import `nexus_utils` with the registry **completely empty** | imports fine; devices bind to `None` |
+| import `nexus_utils_mc` **without** `nexus_xpcs_aps` installed | imports fine — his imports are inside the function, not at module level |
+| does `ad_acq` import the mc writer at module level? | no; only inside the env-var branch |
+| a device missing while metadata is being built | raises `AttributeError` naming the attribute — `'NoneType' object has no attribute 'transmission'` |
+| does `det_acq_series()` catch that? | yes, `except Exception` |
+
+Tested by nulling each of `filter_8ide`, `lakeshore1`, `mono`, `huber` and `sl4`
+in turn against a real detector: each raised a catchable `AttributeError`. The
+baseline build produces 119 metadata entries.
+
+**So the failure mode is: that measurement loses its metadata file, is reported,
+and the queue continues.** The session does not fall over, and neither writer
+changes this — `nexus_utils_mc` reuses our `create_runtime_metadata_dict`, so it
+has exactly the same exposure and exactly the same containment.
+
+**⚠ The rule that makes this true is easy to break.** `nexus_utils.py` is
+imported by `ad_acq`, which is imported by startup. A single `oregistry["name"]`
+at module scope there raises `KeyError` at import and the session will not
+start. Three other files still do this — `plans/set/hooks.py`,
+`plans/set/volt_seq.py`, `plans/set/ur5_pipetting.py` — but none of them is
+imported at startup, so they are latent rather than dangerous. Do not add a
+fourth in the metadata path.
+
 ## Can we migrate with the code that exists today?
 
 **Yes, technically — but it is not a flip-a-switch job, and the schema is the
@@ -387,7 +419,7 @@ This is the decision to make first, because these files are copied into
 |---|---|
 | `NX_Class` → `NX_class` | **143 of 143 objects** (his spelling is the correct NeXus one) |
 | `unit` → `units` | **97 of 97** unit-bearing datasets |
-| unit string lost, becomes `any` | **20 datasets** — his keymap has 10 entries to our 11 and lacks `NX_VOLTAGE`, so the four keithley `*V` fields and `keysight_amp` degrade on top of 16 others |
+| unit string lost, becomes `any` | **20 datasets** — his keymap has 10 entries to our 11 and lacks `NX_VOLTAGE`. **Judged a non-issue by the owner (2026-09-08):** a field's unit is fixed by the device and does not change run to run, so it can be recovered by looking at the device. Worth a one-line keymap fix, not worth blocking on |
 | description text | 41 leaves |
 | actual data value | 1 — `/entry/instrument/datamanagement/workflow_kwargs`, whose default is invalid JSON on his side; the other 11 diffs are masked by `default_metadata.py` |
 
@@ -451,8 +483,9 @@ beamline layer he does not model. The factory call is the cheapest part.
    should start until this is answered.**
 2. `pip install -e` the **95ab368** clone into `8id_bits`, pinned. Delete the
    stale clone and the `e2507_timepix` editable install that points at it.
-3. Add `NX_VOLTAGE` (and `NX_PRESSURE`) to whichever keymap ends up in use;
-   reconcile the other 15 unit categories his schema leaves as `NX_ANY`.
+3. Add `NX_VOLTAGE` (and `NX_PRESSURE`) to whichever keymap ends up in use.
+   Low priority: units are inferable from the device, so `any` is untidy rather
+   than lossy.
 4. Decide the 41 descriptions field by field. Do not bulk-accept.
 5. Collapse the three call sites behind one `write_nexus_metadata()` shim, so
    the writer is chosen in one place rather than three.

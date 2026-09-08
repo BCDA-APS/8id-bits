@@ -26,26 +26,37 @@ from id8_common.plans.set.select_device import _resolve
 from .default_metadata import default_metadata
 from .xpcs_schema import xpcs_schema
 
-# fofb = oregistry['fofb_s09']
+# Devices this module may read when it writes metadata.
+#
+# ALWAYS oregistry.get(), NEVER oregistry["name"], even in a commented-out line
+# that someone will one day uncomment. This module is imported by ad_acq, which
+# is imported by startup, so a bracket lookup here raises KeyError at import and
+# the SESSION DOES NOT START -- one dead IOC would cost you the whole beamline
+# instead of one metadata field. `.get()` binds None instead; the failure then
+# lands at write time as AttributeError on None, inside det_acq_series()'s
+# except-block, so you lose that measurement's metadata and nothing else.
+#
+# Uncommenting a line below is not enough on its own: the device also has to be
+# uncommented in configs/devices.yml and its IOC has to be up, or the value
+# written is whatever None does. See docs/reference/nexus-writers.md.
+# fofb_s09 = oregistry.get("fofb_s09")   # also needs a schema node -- none exists yet
 filter_8ide = oregistry.get("filter_8ide")
 lakeshore1 = oregistry.get("lakeshore1")
 mono = oregistry.get("mono")
 tetramm1 = oregistry.get("tetramm1")
-# undulator_upstream = oregistry["undulator_upstream"]
-# undulator_downstream = oregistry["undulator_downstream"]
+# undulator_upstream = oregistry.get("undulator_upstream")
+# undulator_downstream = oregistry.get("undulator_downstream")
 huber = oregistry.get("huber")
-sl4 = oregistry.get("sl4")
-# xbpm1 = oregistry["xbpm1"]
 sl4 = oregistry.get("sl4")
 sl7 = oregistry.get("sl7")
 wb_slit = oregistry.get("wb_slit")
 mono_slit = oregistry.get("mono_slit")
-# xbpm1 = oregistry["xbpm1"]
-# aps = oregistry["aps"]
-# keithley_chA = oregistry["keithley_chA"]
-# keithley_chB = oregistry["keithley_chB"]
-# bk_pid = oregistry["bk_pid"]
-# keysight = oregistry["keysight"]
+# xbpm1 = oregistry.get("xbpm1")
+# aps = oregistry.get("aps")
+# keithley_chA = oregistry.get("keithley_chA")
+# keithley_chB = oregistry.get("keithley_chB")
+# bk_pid = oregistry.get("bk_pid")
+# keysight = oregistry.get("keysight")
 rheometer = oregistry.get("rheometer")
 sample = oregistry.get("sample")
 qnw_env1 = oregistry.get("qnw_env1")
