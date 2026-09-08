@@ -68,12 +68,10 @@ conda activate 8id_bits
 pip install -e ."[all]"
 ```
 
-**⚠ The queueserver scripts are stale.** `scripts/id8_i_qs_host.sh` and
-`scripts/id8_e_qs_host.sh` resolve `src/id8_i/configs` and `src/id8_i/qserver`,
-which moved to `src/legacy/` — so they cannot work as written, and the QS config
-still names `startup.startup_module: id8_i.startup`. Nobody has run the
-queueserver since the move. Don't repair them on your own initiative; ask whether
-the queueserver is still wanted before spending time there.
+**⚠ The queueserver is retired.** Its launchers now sit in `scripts/Archive/`
+(`id8_i_qs_host.sh`, `id8_e_qs_host.sh`) and resolve `src/id8_i/configs` and
+`src/id8_i/qserver`, which moved to `src/legacy/` — so they cannot work as
+written either. Don't revive them on your own initiative; ask first.
 
 Linting/formatting is enforced by pre-commit (`ruff` + `ruff-format`, line length 120, py311). CI runs only pre-commit (`.github/workflows/pre-commit.yml`). Install once with `pre-commit install`.
 
