@@ -81,12 +81,12 @@ form.
 | | repeats analysed | counts/frame | hot pixels | hot share |
 |---|---|---|---|---|
 | `A0163` | 10 | 435.7 | 187 | 60.9 % |
-| `A0171` | 4 | 436.5 | 187 | 60.8 % |
+| `A0171` | 10 | 436.3 | 187 | 60.8 % |
 
-The same 187 pixels, and the total rate agrees to 0.2 %. This is a stable
-property of the detector, not a transient. (`A0171` is a spot check rather than
-a full set — the remaining six repeats add nothing once the first four agree to
-two parts in a thousand.)
+The same 187 pixels, the same hot share, and total rates agreeing to 0.14 %
+(435.7 vs 436.3), from two independent sessions an hour apart. The number of
+lit pixels also matches to 0.05 % (336 682 vs 336 501). This is a stable
+property of the detector, not a transient.
 
 ## What to do with this
 
