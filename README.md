@@ -99,7 +99,6 @@ and line, are on the page named in each row.
 | `eiger4M` Internal Enable can hang indefinitely | stalls the session with the shutter open; intermittent | [Troubleshooting → an acquisition hangs](docs/reference/troubleshooting.md#an-acquisition-hangs) |
 | several other detector waits are unbounded | same failure mode, not yet seen | [Troubleshooting → an acquisition hangs](docs/reference/troubleshooting.md#an-acquisition-hangs) |
 | Rigaku ZDT `.bin.000` fails in DM analysis | no result file; the same data analyses fine locally | [Data Management](docs/reference/data-management.md) |
-| a qmap named in a plan is not checked to exist | a long run can finish and then fail at analysis | [Running measurements](docs/running-measurements.md) |
 | the Alicat pressure reading is not in the metadata file yet | pressure is recorded nowhere | [Adding metadata fields](docs/adding-metadata.md) |
 | no Eiger measurement has been verified with beam | plumbing proven, numbers not | — |
 | two commented-out metadata lines have no schema node | uncommenting either silently loses the whole metadata file | [Adding metadata fields](docs/adding-metadata.md) |

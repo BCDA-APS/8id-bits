@@ -41,6 +41,7 @@ from id8_common.plans.acquire.validators import require_mode_devices
 from id8_common.plans.acquire.validators import require_positive_int
 from id8_common.plans.acquire.validators import reset_sample_position
 from id8_common.plans.acquire.validators import validate_acq_time
+from id8_common.plans.acquire.validators import validate_qmap_exists
 from id8_common.plans.acquire import validators
 from id8_common.plans.set.select_device import DETECTOR_ALIASES
 from id8_common.plans.set.shutter_att import att
@@ -265,6 +266,12 @@ def validate_dual_measurement(measurement, sample, check_hardware=True):
         raise ValueError(f"Duplicate detector labels in one protocol: {labels}. Give one of them an explicit label.")
 
     validate_shutter_owner(legs)
+
+    # Outside the check_hardware gate on purpose: a missing qmap is a file on
+    # disk, not a device, and a dry run must catch it either way.
+    for leg in legs:
+        if "qmap_file" in leg:
+            validate_qmap_exists(leg["qmap_file"], where=f"Leg '{leg_label(leg)}'")
 
     if check_hardware:
         for leg in legs:

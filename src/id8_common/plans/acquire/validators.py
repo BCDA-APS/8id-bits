@@ -21,6 +21,8 @@ table) and is imported by the two master-plan modules. Nothing in ``ad_acq`` or
 the per-detector mode modules may import it back.
 """
 
+from pathlib import Path
+
 import yaml
 
 from id8_common.expt_config import expt
@@ -186,6 +188,54 @@ def require_mode_devices(detector, mode, where=""):
             raise RuntimeError(f"{_prefix(where)}{detector} {mode} needs '{device_name}': {exc}") from exc
 
     return get_connected_device(mode_info.get("hardware_device", detector))
+
+
+def qmap_dir():
+    """Directory a bare qmap name resolves against: <experiment>/data/.
+
+    Not a guess -- this is where DM looks. Its own job log reads
+    ``Waiting on file: /gdata/.../<experiment>/data/<qmap>``. We submit only the
+    bare file name in argsDict, so this is the one place it can be.
+    """
+    return Path(f"{expt.mount_point}{expt.cycle_name}/{expt.experiment_name}/data")
+
+
+def validate_qmap_exists(qmap_file, where=""):
+    """Fail before anything moves if the named qmap is not on disk.
+
+    Until 2026-09-08 the only check was that the name was a non-empty string, so
+    a typo -- or a qmap that was simply never copied into the experiment -- stayed
+    invisible until the analysis stage. The production dual plan named two qmaps
+    that did not exist and dry-ran clean; a 7.5 hour acquisition would have
+    completed and then produced nothing. This turns that into a dry-run error.
+    """
+    name = str(qmap_file).strip()
+
+    if not name:
+        raise ValueError(f"{_prefix(where)}qmap_file must not be empty.")
+
+    directory = qmap_dir()
+
+    if not directory.is_dir():
+        # Almost always /gdata not mounted on this host, or a wrong
+        # cycle_name/experiment_name in configs/experiment.yml. Say which,
+        # rather than blaming the qmap.
+        raise FileNotFoundError(
+            f"{_prefix(where)}cannot check qmap {name!r}: {directory} does not exist. "
+            f"Is /gdata mounted here, and are cycle_name/experiment_name right in "
+            f"configs/experiment.yml?"
+        )
+
+    path = directory / name
+
+    if not path.is_file():
+        available = sorted(q.name for q in directory.glob("*qmap*"))
+        raise FileNotFoundError(
+            f"{_prefix(where)}qmap {name!r} not found at {path}. "
+            f"Available in that directory: {available or 'none'}"
+        )
+
+    return path
 
 
 def validate_acq_time(acq_time, detector, mode, where=""):

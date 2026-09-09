@@ -290,6 +290,23 @@ is optional and takes a literal number or a dotted ophyd path read live:
           swing_horizontal: huber.nu
 ```
 
+## ⚠ The qmap must already be on disk
+
+A plan names a qmap by bare file name, and it is resolved against the
+experiment's `data/` directory — the same place DM looks for it. Since
+2026-09-08 both the dry run and the real run check the file is there and refuse
+to start if it is not, naming what *is* available:
+
+```
+qmap 'rigaku3m_qmap_Sq360_Dq18_Sphi16_Dphi1_lin.hdf' not found at
+  /gdata/dm/8ID/8IDE/2026-3/comm202609/data/…
+  Available in that directory: ['eiger4m_qmap_default.hdf', 'rigaku3m_qmap_default.hdf']
+```
+
+Before that check existed, only the name's non-emptiness was validated, so a
+typo or a qmap that was never copied into the experiment stayed invisible until
+the analysis stage — after the data was taken.
+
 ## Related
 
 * [Detector modes](reference/detector-modes.md)

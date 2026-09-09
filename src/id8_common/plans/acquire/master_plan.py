@@ -19,6 +19,7 @@ from id8_common.plans.acquire.validators import require_mode_devices
 from id8_common.plans.acquire.validators import require_positive_int
 from id8_common.plans.acquire.validators import reset_sample_position
 from id8_common.plans.acquire.validators import validate_acq_time
+from id8_common.plans.acquire.validators import validate_qmap_exists
 from id8_common.plans.acquire.validators import yes_no
 from id8_common.plans.acquire import validators
 from id8_common.expt_config import expt
@@ -451,6 +452,7 @@ def validate_measurement(measurement, sample):
     validate_required_devices_connected(measurement)
     validate_timing(measurement)
     validate_counts(measurement)
+    validate_qmap_exists(measurement["qmap_file"])
     validate_sample_motion(measurement, sample)
 
 
@@ -637,6 +639,7 @@ def dry_run_measurement_info(measurement_info_file=None, sample_info_file=None):
         validate_analysis_type(measurement)
         validate_timing(measurement)
         validate_counts(measurement)
+        validate_qmap_exists(measurement["qmap_file"])
 
         acq_period = float(measurement["acq_period"])
         num_frames = int(measurement["num_frames"])
