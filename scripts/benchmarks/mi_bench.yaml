@@ -1,0 +1,35 @@
+# ZDT-vs-FastTransfer benchmark. 10 repeats each, frames scaled 10x down from
+# the production protocol to keep total volume sane at low threshold.
+runs:
+  - name: zdt_vs_ftf
+    samples: [1]
+    protocols: [bench_zdt2bit, bench_ftf2bit]
+    loop_order: protocol_major
+    num_repeats: 1
+
+protocols:
+  bench_zdt2bit:
+    detector: rigaku3M
+    mode: ZDT2bit
+    att_level: 2
+    acq_time: 0.00002
+    num_frames: 10000
+    num_repeats: 10
+    wait_time: 0
+    sample_move: no
+    position_reset: no
+    analysis_type: Multitau
+    qmap_file: rigaku3m_qmap_default.hdf
+
+  bench_ftf2bit:
+    detector: rigaku3M_ftf
+    mode: ZDT2bit
+    att_level: 2
+    acq_time: 0.00002
+    num_frames: 10000
+    num_repeats: 10
+    wait_time: 0
+    sample_move: no
+    position_reset: no
+    analysis_type: Multitau
+    qmap_file: rigaku3m_qmap_default.hdf

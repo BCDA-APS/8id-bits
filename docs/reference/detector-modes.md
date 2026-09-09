@@ -126,6 +126,14 @@ specifications:
 
 A low threshold on a quiet beam records a noise flood and sparsifies nothing.
 
+A controlled sweep of both formats at 4, 5, 6 and 7 keV, ten repeats each, is in
+**[ZDT vs Fast Transfer](rigaku-zdt-vs-fast-transfer.md)**. Its 4 keV point
+scaled to 100 000 frames (836 GB ZDT / 67 GB FTF) agrees with the 4.0 keV row
+above to within 20 %, from a separate measurement on a different day — so these
+sizes do scale with frame count. The short version: the two formats cross over
+between 5 and 6 keV, ZDT winning by up to 4× on sparse data and losing by more
+than 12× on dense.
+
 ## Timing rules at a glance
 
 | Rule | Applies to |
