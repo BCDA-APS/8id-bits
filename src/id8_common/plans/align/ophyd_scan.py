@@ -75,8 +75,8 @@ Anything else that differs from ``scan_8id.py`` is marked with a
      ``None`` when ``safe_make_devices()`` had skipped that detector as
      offline, and failed later as an ``AttributeError`` on ``None``.
 (15) The tetramm branch closes the shutter when it finishes, which his did not.
-     Safe-direction, and it makes all three branches agree. It does NOT open
-     the shutter -- that stays external, exactly as he had it.
+     Safe-direction, and it makes all three branches agree. Superseded in part
+     by (18): it now opens the shutter too.
 (16) The public names are also exported with an ``_ophyd`` suffix. See the
      alias block at the bottom of this file for why that is not cosmetic.
 (17) The return move waits for the axis to finish DECELERATING (DMOV back to 1)
@@ -84,6 +84,14 @@ Anything else that differs from ``scan_8id.py`` is marked with a
      record ignored the new target AND ophyd reported the move successful, so
      an aborted scan left the motor parked mid-scan while printing that it had
      gone home. See ``_settle``.
+(18) The tetramm branch opens the shutter at the start of the scan and closes
+     it before the return move. It previously did neither: (15) closed it, but
+     only in ``_disarm_tetramm`` after the return move, and nothing opened it
+     at all -- so a ``dscan`` on a TetrAMM counted with the shutter shut unless
+     the user had opened it by hand. Reported from 8-ID-E beamtime on
+     2026-09-09. This is a deliberate departure from his original, which left
+     opening external; all six scan functions had the same gap and all six are
+     fixed, so the tetramm, lambda and eiger branches now agree.
 
 NOT PORTED, and why (all still present and working in ``scan_8id.py``):
 
@@ -948,6 +956,11 @@ def dmesh(
             _arm_tetramm(det, save_img)
 
             def inner_tetramm():
+                # CHANGED (18): open the shutter. showbeam() alone, as on the
+                # eiger branch -- pre_align() already left the logic in manual
+                # mode, and the TetrAMM is software-timed, so there is no
+                # softglue to enable with shutteron().
+                showbeam()
                 try:
                     for p1 in positions1:
                         for p2 in positions2:
@@ -959,6 +972,11 @@ def dmesh(
                             time.sleep(count_time)
                             scan.add_point(p1, p2)
                 finally:
+                    # CHANGED (18): close before the return move, not after it in
+                    # _disarm_tetramm -- the return move is the long step and there
+                    # is no reason to spend it with the shutter open. Same reasoning
+                    # as the eiger branch.
+                    _blockbeam_verified()
                     _return_motors([(motor1, start1), (motor2, start2)])
 
             exit_status = "success"
@@ -1180,6 +1198,11 @@ def mesh(
             _arm_tetramm(det, save_img)
 
             def inner_tetramm():
+                # CHANGED (18): open the shutter. showbeam() alone, as on the
+                # eiger branch -- pre_align() already left the logic in manual
+                # mode, and the TetrAMM is software-timed, so there is no
+                # softglue to enable with shutteron().
+                showbeam()
                 try:
                     for p1 in positions1:
                         for p2 in positions2:
@@ -1191,6 +1214,11 @@ def mesh(
                             time.sleep(count_time)
                             scan.add_point(p1, p2)
                 finally:
+                    # CHANGED (18): close before the return move, not after it in
+                    # _disarm_tetramm -- the return move is the long step and there
+                    # is no reason to spend it with the shutter open. Same reasoning
+                    # as the eiger branch.
+                    _blockbeam_verified()
                     _return_motors([(motor1, start1), (motor2, start2)])
 
             exit_status = "success"
@@ -1374,6 +1402,11 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time, det=None, att_ratio=1e
             positions = np.linspace(start_pos + rel_begin, start_pos + rel_end, num_pts)
 
             def inner_tetramm():
+                # CHANGED (18): open the shutter. showbeam() alone, as on the
+                # eiger branch -- pre_align() already left the logic in manual
+                # mode, and the TetrAMM is software-timed, so there is no
+                # softglue to enable with shutteron().
+                showbeam()
                 try:
                     for pos in positions:
                         motor.move(pos, wait=True)
@@ -1383,6 +1416,11 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time, det=None, att_ratio=1e
                         time.sleep(count_time)
                         scan.add_point(pos)
                 finally:
+                    # CHANGED (18): close before the return move, not after it in
+                    # _disarm_tetramm -- the return move is the long step and there
+                    # is no reason to spend it with the shutter open. Same reasoning
+                    # as the eiger branch.
+                    _blockbeam_verified()
                     _return_motors([(motor, start_pos)])
 
             exit_status = "success"
@@ -1582,6 +1620,11 @@ def d2scan(
             _arm_tetramm(det, save_img)
 
             def inner_tetramm():
+                # CHANGED (18): open the shutter. showbeam() alone, as on the
+                # eiger branch -- pre_align() already left the logic in manual
+                # mode, and the TetrAMM is software-timed, so there is no
+                # softglue to enable with shutteron().
+                showbeam()
                 try:
                     for p1, p2 in zip(positions1, positions2, strict=True):
                         _move_motors([(motor1, p1), (motor2, p2)])
@@ -1589,6 +1632,11 @@ def d2scan(
                         time.sleep(count_time)
                         scan.add_point(p1, p2)
                 finally:
+                    # CHANGED (18): close before the return move, not after it in
+                    # _disarm_tetramm -- the return move is the long step and there
+                    # is no reason to spend it with the shutter open. Same reasoning
+                    # as the eiger branch.
+                    _blockbeam_verified()
                     _return_motors([(motor1, start1), (motor2, start2)])
 
             exit_status = "success"
@@ -1763,6 +1811,11 @@ def ascan(motor, abs_begin, abs_end, num_pts, count_time, det=None, att_ratio=7,
             positions = np.linspace(abs_begin, abs_end, num_pts)
 
             def inner_tetramm():
+                # CHANGED (18): open the shutter. showbeam() alone, as on the
+                # eiger branch -- pre_align() already left the logic in manual
+                # mode, and the TetrAMM is software-timed, so there is no
+                # softglue to enable with shutteron().
+                showbeam()
                 try:
                     for pos in positions:
                         motor.move(pos, wait=True)
@@ -1772,6 +1825,11 @@ def ascan(motor, abs_begin, abs_end, num_pts, count_time, det=None, att_ratio=7,
                         time.sleep(count_time)
                         scan.add_point(pos)
                 finally:
+                    # CHANGED (18): close before the return move, not after it in
+                    # _disarm_tetramm -- the return move is the long step and there
+                    # is no reason to spend it with the shutter open. Same reasoning
+                    # as the eiger branch.
+                    _blockbeam_verified()
                     _return_motors([(motor, start_pos)])
 
             exit_status = "success"
@@ -1971,6 +2029,11 @@ def a2scan(
             _arm_tetramm(det, save_img)
 
             def inner_tetramm():
+                # CHANGED (18): open the shutter. showbeam() alone, as on the
+                # eiger branch -- pre_align() already left the logic in manual
+                # mode, and the TetrAMM is software-timed, so there is no
+                # softglue to enable with shutteron().
+                showbeam()
                 try:
                     for p1, p2 in zip(positions1, positions2, strict=True):
                         _move_motors([(motor1, p1), (motor2, p2)])
@@ -1978,6 +2041,11 @@ def a2scan(
                         time.sleep(count_time)
                         scan.add_point(p1, p2)
                 finally:
+                    # CHANGED (18): close before the return move, not after it in
+                    # _disarm_tetramm -- the return move is the long step and there
+                    # is no reason to spend it with the shutter open. Same reasoning
+                    # as the eiger branch.
+                    _blockbeam_verified()
                     _return_motors([(motor1, start1), (motor2, start2)])
 
             exit_status = "success"
