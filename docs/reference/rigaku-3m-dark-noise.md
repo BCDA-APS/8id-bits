@@ -97,8 +97,7 @@ property of the detector, not a transient.
 * **The full census is checked in as
   [`rigaku3m-hot-pixels.csv`](rigaku3m-hot-pixels.csv)** — row, column, and the
   rate at each threshold for all 188, sorted by 6 keV rate. That is the list to
-  hand to the vendor or to feed into a mask. (Working copy on `adamite`:
-  `/home/beams/8IDIUSER/thr_analysis/`.)
+  hand to the vendor or to feed into a mask.
 * **Raising the threshold is not a fix for these.** It is very effective against
   the diffuse floor (40× fewer lit pixels) and nearly useless against the hot
   population.
@@ -114,6 +113,25 @@ property of the detector, not a transient.
 * Only the ZDT (`.bin`) datasets could be analysed. The Fast Transfer `.h5.NNN`
   output cannot be read by `boost_corr` at all — see
   [ZDT vs Fast Transfer](rigaku-zdt-vs-fast-transfer.md#what-you-can-do-with-the-data-afterwards).
+
+## Where the analysed files are
+
+The 30 result files are in the usual place for this experiment:
+
+```
+/gdata/dm/8ID/8IDE/2026-3/comm202609/analysis/Multitau/
+    A0163_Thr6keV_a0002_f010000_r000NN_results.hdf    6 keV,  10 files
+    A0165_Thr7keV_a0002_f010000_r000NN_results.hdf    7 keV,  10 files
+    A0171_Thr6keV_a0002_f010000_r000NN_results.hdf    6 keV repeat, 10 files
+```
+
+**These were produced by running `boost_corr` directly, not by a DM job**, so
+they did not land there on their own — they were written to a scratch directory
+and copied in afterwards. DM was not used because the Polaris workflow currently
+returns SUCCEEDED without producing a result file. Same file name and same
+contents as a DM job would give (`xpcs/multitau/normalized_g2`,
+`xpcs/temporal_mean/scattering_2d`, and the copied-through NeXus metadata), so
+downstream tools do not care which route produced them.
 
 ## Reproducing
 
