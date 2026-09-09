@@ -101,31 +101,48 @@ will not start — one dead IOC costing you the whole beamline instead of one fi
 
 ---
 
-## Case 2 — a field he does not model (e.g. a pressure controller)
+## Case 2 — a sample environment he models with a count (e.g. pressure)
 
-`make_sample()` has six fixed flags and none is pressure, so you patch the
-composed dict. Same pattern as the existing `_rename()` and `_redescribe()` calls
-in `xpcs_schema.py`:
-
-```python
-_sample["pressure"] = {
-    "type": "NX_FLOAT", "required": False, "units": "NX_PRESSURE",
-    "description": "Sample pressure readback", "data": 0.0,
-}
-_sample["pressure_set"] = {
-    "type": "NX_FLOAT", "required": False, "units": "NX_PRESSURE",
-    "description": "Sample pressure setpoint", "data": 0.0,
-}
-```
-
-Then in `nexus_runtime.py`, with `pcd1 = oregistry.get("pcd1")` at module scope:
+`make_sample()` takes `pressure=N`, a **count** of Alicat PCD controllers, not a
+flag. Unit `i` contributes `pcd{i}_pressure` and `pcd{i}_pressure_set`, the same
+shape as `qnw{i}_temperature` / `qnw{i}_temperature_set`. To add a third unit,
+change one number in `xpcs_schema.py`:
 
 ```python
-"/entry/sample/pressure":     pcd1.pressure.get(),
-"/entry/sample/pressure_set": pcd1.setpoint_rbv.get(),
+_sample_full = make_sample(..., pressure=2)
 ```
+
+Then in `nexus_runtime.py`, with the device bound at module scope:
+
+```python
+pcd2 = oregistry.get("pcd2")   # Alicat PCD pressure controller, unit 2
+...
+"/entry/sample/pcd2_pressure":     pcd2.pressure.get(),
+"/entry/sample/pcd2_pressure_set": pcd2.setpoint_rbv.get(),
+```
+
+and add the matching column pair to `configs/scan_csv_template.yml` so the
+scan `.csv` records it too.
 
 `NX_PRESSURE` already resolves to `Pa` — see the units note below.
+
+> **History.** Upstream first added pressure as a bool giving one unnumbered
+> pair, `pressure` / `pressure_set`, in AZjk/nexus_xpcs_aps#1 at our request.
+> It was generalised to N units in `7e2b8b7`, which renamed those two leaves to
+> `pcd1_pressure` / `pcd1_pressure_set`. Metadata files written before
+> 2026-09-09 carry the old unnumbered paths.
+
+## Case 3 — a field he does not model at all
+
+Patch the composed dict directly, the same pattern as the existing `_rename()`
+and `_redescribe()` calls in `xpcs_schema.py`:
+
+```python
+_sample["my_field"] = {
+    "type": "NX_FLOAT", "required": False, "units": "NX_PRESSURE",
+    "description": "Some reading upstream has no factory for", "data": 0.0,
+}
+```
 
 ## Removing a field
 
