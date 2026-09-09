@@ -69,6 +69,7 @@ sample = oregistry.get("sample")
 qnw_env1 = oregistry.get("qnw_env1")
 qnw_env2 = oregistry.get("qnw_env2")
 qnw_env3 = oregistry.get("qnw_env3")
+pcd1 = oregistry.get("pcd1")   # Alicat PCD pressure controller
 
 
 def _get_ring_current():
@@ -276,6 +277,12 @@ def create_runtime_metadata_dict(
         "/entry/sample/qnw2_temperature": qnw_env2.readback.get(),
         "/entry/sample/qnw2_temperature_set": qnw_env2.setpoint.get(),
         "/entry/sample/qnw3_temperature": qnw_env3.readback.get(),
+
+        # Alicat PCD. pressure_set is the controller's own readback of the
+        # demand, not the value we last wrote, so it records what the unit is
+        # actually aiming at.
+        "/entry/sample/pressure": pcd1.pressure.get(),
+        "/entry/sample/pressure_set": pcd1.setpoint_rbv.get(),
         "/entry/sample/qnw3_temperature_set": qnw_env3.setpoint.get(),
 
         "/entry/sample/huber_nu": huber.nu.position,

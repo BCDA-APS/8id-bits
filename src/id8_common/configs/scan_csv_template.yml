@@ -242,6 +242,13 @@ columns:
   - {label: tetramm3_sum_all,      source: tetramm3.sum_all.mean_value,  optional: true}
   - {label: tetramm1_sum_all,      source: tetramm1.sum_all.mean_value,  optional: true}
 
+  # Alicat PCD pressure controllers. optional, so a scan run with the 8idAlicat
+  # IOC down loses these two columns and nothing else. Deliberately placed
+  # BEFORE the detector stats block: the viewers default Y/Z to the LAST column,
+  # which should stay the detector counter, not a pressure reading.
+  - {label: pcd1_pressure,         source: pcd1.pressure,       optional: true}
+  - {label: pcd1_setpoint,         source: pcd1.setpoint_rbv,   optional: true}
+
   # Area-detector ROI counters. stats1 last: it is the default Y axis.
   - {label: "{det}_stats4_total",  source: det.stats4.total, optional: true}
   - {label: "{det}_stats3_total",  source: det.stats3.total, optional: true}

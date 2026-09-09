@@ -206,6 +206,10 @@ _mc_sample = make_sample(
     lakeshore=True,
     keithley=True,
     bk_pid=True,
+    # Alicat PCD pressure controller -- pressure and pressure_set. Upstream
+    # added this flag in AZjk/nexus_xpcs_aps#1 at our request; before that a
+    # sample-environment device could not be added from outside the package.
+    pressure=True,
 )
 _sample_core = _drop(_mc_sample, ["rheometer_shear_rate", "rheometer_temperature"])
 
