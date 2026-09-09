@@ -14,10 +14,29 @@ cycle_name: "2026-3"
 mount_point: "/gdata/dm/8ID/8IDE/"
 
 # DM experiment name.
-experiment_name: "comm202609"
+experiment_name: "pope202609"
 
-# Where analysis runs: "polaris", "local", or "none" to skip DM submission.
-analysis_machine: "polaris"
+# Where analysis runs. Any value other than "local" or "none" is passed straight
+# through to DM as the machine name, so the usable ones are exactly what the
+# xpcs8-boost-corr workflow accepts:
+#
+#   "adamite"     10.54.116.17    beamline GPU box; DM's own default
+#   "amazonite"   10.54.136.96    beamline GPU box
+#   "polaris"     164.54.113.77   ALCF, submitted via Gladier (gpuID 0, not -2)
+#   "pioneer"     10.54.100.120   APS cluster, submitted via PBS
+#
+#   "local"       pick a beamline box at random -- see the warning below
+#   "none"        write the data and submit no analysis job at all
+#
+# adamite and amazonite run stage 05-LOCAL, which is `ssh <machine>
+# "boost_corr_bin ..."`, so the name has to resolve from the DM host -- both do.
+#
+# "local" calls utils/misc.get_machine_name(), which now picks adamite or
+# amazonite with equal probability. Until 2026-09-09 that list was
+# ["adamite", "califone", "califone"] and califone (10.54.116.22) is not one of
+# the workflow's accepted machines, so "local" handed DM an unusable machine
+# about two times in three. Name a machine explicitly if you care which runs it.
+analysis_machine: "adamite"
 
 # DM workflow to submit to.
 workflow_name: "xpcs8-boost-corr"

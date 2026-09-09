@@ -52,12 +52,16 @@ def get_machine_name() -> str:
 
     Returns:
         str: one of the names in the `machines` list below -- currently
-             'adamite' or 'califone' (califone twice, so it is picked ~2/3 of
-             the time). 'amazonite' is in the commented-out list, not the live
-             one.
+             'adamite' or 'amazonite', with equal probability.
+
+    Both are accepted by the xpcs8-boost-corr workflow, whose choices are
+    ['polaris', 'pioneer', 'adamite', 'amazonite']. califone was dropped from
+    this list on 2026-09-09: it is NOT one of those choices, and being weighted
+    two-thirds it was handing DM a machine it does not take on most calls.
+    Anything added here must appear in the workflow's choices too.
     """
     # machines = ["adamite", "califone", "amazonite"]
-    machines = ["adamite", "califone", "califone"]
+    machines = ["adamite", "amazonite"]
     return random.choice(machines)
 
 

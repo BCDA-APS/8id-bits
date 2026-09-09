@@ -79,7 +79,7 @@ detectors:
     motors:
       - name: horizontal
         device: detector.x
-        position: -250.0
+        position: -275.0
       - name: vertical
         device: detector.y
         position: 170.0
@@ -87,7 +87,7 @@ detectors:
         device: flight_path_8idi.swing
       - name: swing_angle_vertical
         device: null
-    db_x: 1378
+    db_x: 1052
     db_y: 852
     distance: 22
     pixel_size: 76.0e-6          # metres, written to NeXus x/y_pixel_size
