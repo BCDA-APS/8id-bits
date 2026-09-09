@@ -28,8 +28,8 @@ Three files, and knowing which one to edit is most of the job:
                                                     │  {path: value}
    ┌────────────────────────────────────────────────▼──────────────────────────┐
    │  utils/xpcs_schema.py           WHAT FIELDS EXIST                OURS, │
-   │                                                              CALLING HIS  │
-   │    "sl4": _tag(make_slits(4), ...)      ← his factory, our placement      │
+   │                                                              CALLING       │
+   │    "sl4": _tag(make_slits(4), ...)      ← upstream factory, our placement      │
    │    instrument = {...}  sample = {...}   ← 8-ID's composition             │
    └────────────────────────────────────────────────┬──────────────────────────┘
                                                     │  schema + values
@@ -39,7 +39,7 @@ Three files, and knowing which one to edit is most of the job:
    │    + workarounds for two upstream bugs, + the missing unit categories     │
    └────────────────────────────────────────────────┬──────────────────────────┘
                                                     ▼
-                      nexus_xpcs_aps.core.utils     WRITES THE HDF5       HIS
+                      nexus_xpcs_aps.core.utils     WRITES THE HDF5   UPSTREAM
 ```
 
 **Both a schema entry and a runtime line are required.** A runtime path with no
@@ -49,7 +49,7 @@ session output after adding a field; silence is not success.
 
 ## Which case are you in?
 
-**Ask: does one of his factories already produce the group you want?**
+**Ask: does an upstream factory already produce the group you want?**
 
 | factory | signature | gives you |
 |---|---|---|
@@ -67,12 +67,12 @@ no `make_motor`, and no arbitrary-leaf helper.
 
 ---
 
-## Case 1 — a device his factories already model
+## Case 1 — a device the upstream factories already model
 
-One line in `xpcs_schema.py`, inside the `instrument` dict. His code untouched:
+One line in `xpcs_schema.py`, inside the `instrument` dict. Upstream untouched:
 
 ```python
-"sl9": _tag(make_slits(9, description="Slits 9"), "/entry/instrument/sl9", "his:make_slits"),
+"sl9": _tag(make_slits(9, description="Slits 9"), "/entry/instrument/sl9", "upstream:make_slits"),
 ```
 
 That is a complete `NXslit` group. The index need not be numeric — the schema
@@ -138,7 +138,7 @@ field before removing it.
 ## Units
 
 The category string in a schema node (`"units": "NX_LENGTH"`) is looked up in
-`nexus_xpcs_aps.core.utils.default_units_keymap` to get what is written. **His
+`nexus_xpcs_aps.core.utils.default_units_keymap` to get what is written. **The
 map has 10 entries and an unknown category silently becomes `"any"`** — no
 warning anywhere.
 
@@ -149,7 +149,7 @@ upstream fix wins automatically:
 NX_VOLTAGE → V     NX_FREQUENCY → Hz     NX_PRESSURE → Pa
 ```
 
-**⚠ That fixes the map, not the schema.** Several of his leaves *declare*
+**⚠ That fixes the map, not the schema.** Several upstream leaves *declare*
 `NX_ANY` — `keysight_freq` and `keysight_amp` among them — so they write `"any"`
 no matter what the map contains. Fixing those means changing the declared
 category in `xpcs_schema.py`, or upstream. Low priority: a field's unit is
@@ -161,28 +161,28 @@ fixed by its device and recoverable by looking at the device.
 last. The dual path uses it for a leg with a `geometry:` block. The path must
 already exist in the schema — this overrides a value, it does not create a field.
 
-## ⚠ Local patches currently carried
+## Local patches currently carried
 
-All in `nexus_writer.py` or `xpcs_schema.py`, each commented with the date
-reported upstream. Delete them as his fixes land:
+**None.** All five landed upstream in
+[PR #1](https://github.com/AZjk/nexus_xpcs_aps/pull/1) (merged 2026-09-08) and
+were deleted from this repo in `8b83c67`: the `make_sample()` leaf aliasing, the
+`id()`-keyed plan cache, the invalid-JSON `workflow_kwargs` default, the three
+missing unit categories, and the `beam_center_position_x/y` description.
 
-| patch | why |
-|---|---|
-| `deepcopy` of the schema every call | `make_sample()` returns leaves aliased to his module-level singletons — 17 of 20 shared between two calls. Writing pops keys out of the nodes, so the first write would gut the template for the process. |
-| `_compiled_plans.clear()` every call | his plan cache is keyed on `id(schema)`; 127 of 200 deepcopy cycles reused a previously-cached address. |
-| `workflow_kwargs` override | his default is invalid JSON: `{qmap: 'sample_name', …}`. |
-| `_redescribe()` on `beam_center_position_x/y` | his text says "beam center"; the field holds the detector translation preset. |
-| `EXTRA_UNITS` | the three missing unit categories above. |
+The `deepcopy` in `nexus_writer.py` is **not** a leftover patch and must stay:
+`update_schema_at_runtime()` assigns `node["data"] = value` in place by design,
+so any caller has to protect its own module-level template. See
+[How the NeXus file is written](reference/nexus-writer.md#local-patches-we-carry).
 
 ## When this needs Miaoqi rather than you
 
 Short version: **if a value is wrong, it is ours; if a field cannot exist, it is
-his.** The full decision table is in
+upstream's.** The full decision table is in
 [How the NeXus file is written](reference/nexus-writer.md#-when-to-contact-miaoqi).
 
 The one case that comes up in practice: a new **sample-environment** device.
 `make_sample()` takes six fixed flags, so unlike `make_slits(9)` you cannot add a
-seventh from outside his package. Patch the composed dict as in Case 2 above to
+seventh from outside the upstream package. Patch the composed dict as in Case 2 above to
 keep running, and open a PR against
 [AZjk/nexus_xpcs_aps](https://github.com/AZjk/nexus_xpcs_aps) for the real fix.
 

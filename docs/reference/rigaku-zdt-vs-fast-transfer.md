@@ -42,6 +42,8 @@ metadata), not streaming throughput. See [Acquisition efficiency](#acquisition-e
 
 **2. There was no beam.** The counts are detector dark noise, so the lower
 threshold acts as a count-rate knob rather than as a real photon-energy cut.
+What that noise actually consists of — and the finding that ~188 pixels produce
+most of it — is in [Rigaku 3M dark noise](rigaku-3m-dark-noise.md).
 That is exactly what a compression comparison needs — a controlled sweep from
 dense to sparse — but the absolute rates are not what a real sample would give,
 and the threshold at which the two formats cross over will move with the actual
@@ -78,9 +80,35 @@ per-repeat size — reproducibility was excellent throughout (worst case 0.2 %).
 | 7 keV | ZDT | 14.48 | 0.01 | 6.53 | 0.08 | 0.14 GB |
 | 7 keV | FTF | 58.27 | 0.01 | 2.76 | 0.09 | 0.58 GB |
 
-Measurement numbers (ZDT/FTF): 4 keV `A0167`/`A0168`, 5 keV `A0169`/`A0170`,
-6 keV `A0163`/`A0164`, 7 keV `A0165`/`A0166`. The 6 keV repeat is
-`A0171`/`A0172`.
+### Which files are which threshold
+
+All under `/gdata/dm/8ID/8IDE/2026-3/comm202609/data/`. Every measurement is ten
+folders, `_r00001` … `_r00010`, each holding six data files plus one
+`_metadata.hdf`. The measurement numbers are **not** in threshold order —
+6 and 7 keV were measured first, then 4 and 5 keV were re-measured after the
+first attempt was discarded.
+
+| threshold | mode | folder | data files |
+|---|---|---|---|
+| 4 keV | ZDT | `A0167_Thr4keV_a0002_f010000_r000NN` | `.bin.000` … `.bin.005` |
+| 4 keV | FTF | `A0168_Thr4keV_a0002_f010000_r000NN` | `.h5.000` … `.h5.005` |
+| 5 keV | ZDT | `A0169_Thr5keV_a0002_f010000_r000NN` | `.bin.000` … `.bin.005` |
+| 5 keV | FTF | `A0170_Thr5keV_a0002_f010000_r000NN` | `.h5.000` … `.h5.005` |
+| 6 keV | ZDT | `A0163_Thr6keV_a0002_f010000_r000NN` | `.bin.000` … `.bin.005` |
+| 6 keV | FTF | `A0164_Thr6keV_a0002_f010000_r000NN` | `.h5.000` … `.h5.005` |
+| 7 keV | ZDT | `A0165_Thr7keV_a0002_f010000_r000NN` | `.bin.000` … `.bin.005` |
+| 7 keV | FTF | `A0166_Thr7keV_a0002_f010000_r000NN` | `.h5.000` … `.h5.005` |
+| 6 keV | ZDT — repeat | `A0171_Thr6keV_a0002_f010000_r000NN` | `.bin.000` … `.bin.005` |
+| 6 keV | FTF — repeat | `A0172_Thr6keV_a0002_f010000_r000NN` | `.h5.000` … `.h5.005` |
+
+For these ten, **the `ThrNkeV` in the folder name is the real threshold** — each
+was recorded by a single process whose threshold readback was sampled every
+0.5 s and never varied.
+
+**`A0153`–`A0162` are the discarded first attempt and their names lie about the
+threshold** — see [the appendix](#appendix-the-discarded-first-attempt). There
+is no correct threshold to assign them; they are not in the table above and
+should be deleted rather than re-labelled.
 
 ## Compression efficiency
 
@@ -194,7 +222,26 @@ These are two separate problems, and it is worth not conflating them:
 | | can `boost_corr` read the format? | does the DM job succeed? |
 |---|---|---|
 | ZDT `.bin.000` | **yes** | **no** — but for an unrelated, Polaris-side reason; the same file analyses fine locally |
-| FTF `.h5.000` | **no** — `create_dataset` has a `.bin.000` branch and no `.h5.000` one, so the extension is simply not recognised, despite the file being valid HDF5 (it carries the `\x89HDF` magic number) | n/a |
+| FTF `.h5.000` | **no** | n/a |
+
+Tested directly on this data (`A0166` rep 1), rather than assumed:
+
+```
+TypeError: File type [.000] is not supported
+  -> boost_corr.xpcs_aps_8idi.exceptions.DatasetError
+```
+
+The dispatch in `boost_corr/xpcs_aps_8idi/dataset/utils.py` has an explicit
+`raw_fname.endswith(".bin.000")` branch and a `.tpx.000` branch, but for
+`.h5.000` `os.path.splitext` yields `.000`, which is in none of the lists, so it
+falls through to the `raise`. The file itself is perfectly good HDF5 — it
+carries the `\x89HDF` magic number.
+
+**This is more than a missing extension.** The `.bin.000` branch dispatches to
+`Rigaku3MDataset`, which knows to find the other five module files and unpack
+2-bit frames. Supporting FTF needs an equivalent reader for its layout (six
+files, `entry/data/data` chunked one frame at a time), not just another
+`elif`.
 
 So FTF's compression advantage in the dense regime is currently unusable end to
 end — the data is written but nothing will read it — and that is a code gap in

@@ -44,9 +44,16 @@ old_code/
 # Per-experiment plans (sample_info.yaml, measurement_info.yaml, beamtime
 # scripts) ARE tracked as of 2026-09-07 -- they are the worked examples a new
 # user copies, and expt.user_plan_dir resolves into them from experiment.yml.
-# Only the throwaway bits are ignored.
-src/user_plans/.loglogin
-src/user_plans/**/error_log.txt
+# As of 2026-09-08 the throwaway bits are tracked too, by the owner's decision:
+# the two rules that used to exclude them are left here, commented, so it is
+# clear they were removed on purpose rather than lost.
+# src/user_plans/.loglogin
+# src/user_plans/**/error_log.txt
+#
+# NOTE: src/user_plans/.loglogin is STILL ignored despite the line above being
+# commented out -- the bare `.loglogin` rule under "APS IT droppings" higher up
+# catches it anywhere in the tree. That one is deliberate (it is an APS IT
+# dropping, not user content); delete it there too if you really want the file.
 
 # RE metadata dictionary for session persistence
 .re_md_dict.yml

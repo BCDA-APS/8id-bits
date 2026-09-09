@@ -99,6 +99,7 @@ and line, are on the page named in each row.
 | `eiger4M` Internal Enable can hang indefinitely | stalls the session with the shutter open; intermittent | [Troubleshooting → an acquisition hangs](docs/reference/troubleshooting.md#an-acquisition-hangs) |
 | several other detector waits are unbounded | same failure mode, not yet seen | [Troubleshooting → an acquisition hangs](docs/reference/troubleshooting.md#an-acquisition-hangs) |
 | Rigaku ZDT `.bin.000` fails in DM analysis | no result file; the same data analyses fine locally | [Data Management](docs/reference/data-management.md) |
+| ~100 Rigaku 3M pixels are hot and unmasked | 88% of the dark count rate at 7 keV; raising the threshold does not remove them | [Rigaku 3M dark noise](docs/reference/rigaku-3m-dark-noise.md) |
 | no Eiger measurement has been verified with beam | plumbing proven, numbers not | — |
 | two commented-out metadata lines have no schema node | uncommenting either silently loses the whole metadata file | [Adding metadata fields](docs/adding-metadata.md) |
 

@@ -17,49 +17,49 @@ it needs Miaoqi.
    └──────────────────────────────────────────┬───────────────────────────────┘
    ┌──────────────────────────────────────────▼───────────────────────────────┐
    │  utils/xpcs_schema.py      which fields exist            OURS,        │
-   │                               244 lines CALLING his factories            │
+   │                               244 lines CALLING upstream factories            │
    └──────────────────────────────────────────┬───────────────────────────────┘
    ┌──────────────────────────────────────────▼───────────────────────────────┐
    │  utils/nexus_writer.py        the entry point + workarounds        OURS  │
    │                               create_nexus_format_metadata(file, det)    │
    └──────────────────────────────────────────┬───────────────────────────────┘
                                               ▼
-              nexus_xpcs_aps.core.utils        writes the HDF5           HIS
+              nexus_xpcs_aps.core.utils        writes the HDF5      UPSTREAM
 ```
 
 | file | answers | lines | whose |
 |---|---|---|---|
 | `utils/nexus_runtime.py` | *where the numbers come from* | ~300 | ours |
-| `utils/xpcs_schema.py` | *what fields exist* | 244 | ours, calling his |
+| `utils/xpcs_schema.py` | *what fields exist* | 244 | ours, calling upstream |
 | `utils/nexus_writer.py` | *the front door* | ~90 | ours |
-| `nexus_xpcs_aps.core.*` | *schema factories + HDF5 writer* | — | **his** |
+| `nexus_xpcs_aps.core.*` | *schema factories + HDF5 writer* | — | **upstream** |
 
-**His package has no runtime layer and cannot have one.** Nothing upstream knows
+**The upstream package has no runtime layer and cannot have one.** Nothing upstream knows
 that `/entry/instrument/detector_1/distance` comes from `device_position.yaml`.
-That is why `nexus_runtime.py` is ours — it is 8-ID's wiring, not a gap in his
+That is why `nexus_runtime.py` is ours — it is 8-ID's wiring, not a gap in the
 code.
 
 ## ⚠ When to contact Miaoqi
 
-Work out which layer the problem is in *before* writing to him. Most things are
+Work out which layer the problem is in *before* writing to Miaoqi. Most things are
 ours.
 
-**Fix it yourself — do not contact him:**
+**Fix it yourself — do not contact Miaoqi:**
 
 | symptom | where |
 |---|---|
 | a field holds the wrong *value* | `nexus_runtime.py` — that is our device mapping |
-| a field is missing and one of his factories makes it | `xpcs_schema.py` — call `make_slits(9)` etc. |
+| a field is missing and an upstream factory makes it | `xpcs_schema.py` — call `make_slits(9)` etc. |
 | a device reads `None` / `AttributeError` at write time | `configs/devices.yml`, or the IOC is down |
 | `KeyError` naming a NeXus path | you added a runtime line with no schema node |
 | a value is right but in the wrong place in the tree | `xpcs_schema.py` composition |
 
-**Contact him — it is upstream:**
+**Contact Miaoqi — it is upstream:**
 
-| symptom | why it is his |
+| symptom | why it is upstream |
 |---|---|
-| you need a device group **no factory produces** and it is not a slit / attenuator / undulator / detector / diffractometer | his factories are the only way to get a correctly-classed group. `make_sample()` in particular takes fixed flags, so a new *sample environment* cannot be added from outside |
-| a leaf *declares* the wrong `units` category, e.g. `NX_ANY` where a real one exists | the category lives in his factory output |
+| you need a device group **no factory produces** and it is not a slit / attenuator / undulator / detector / diffractometer | the upstream factories are the only way to get a correctly-classed group. `make_sample()` in particular takes fixed flags, so a new *sample environment* cannot be added from outside |
+| a leaf *declares* the wrong `units` category, e.g. `NX_ANY` where a real one exists | the category lives in the upstream factory output |
 | the same schema writes different files on successive calls | an aliasing or caching bug in `core/` — see the patch list below |
 | a NeXus-standard question: class names, attribute spelling, required fields | he owns the schema's conformance |
 
@@ -86,13 +86,13 @@ beamline environment, so a branch switch there changes what the beamline imports
 in `8b83c67`.
 
 The one thing that looks like a leftover and is not: `nexus_writer.py`
-deepcopies the schema on every call. That is **not** working around a bug. His
+deepcopies the schema on every call. That is **not** working around a bug. Upstream's
 `update_schema_at_runtime()` assigns `node["data"] = value` in place — by
 design — so handing it our module-level `xpcs_schema` would leave one
 measurement's values sitting in the template for the next measurement to
-inherit. Any caller of his writer needs to do this. Don't remove it.
+inherit. Any caller of the upstream writer needs to do this. Don't remove it.
 
-## Upgrading his package
+## Upgrading the upstream package
 
 It is installed editable from a clone, so "upgrading" is a `git pull` in that
 clone — which changes what the beamline writes, with no warning and no version
