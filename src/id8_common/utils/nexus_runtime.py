@@ -73,6 +73,49 @@ pcd1 = oregistry.get("pcd1")   # Alicat PCD pressure controller, unit 1
 pcd2 = oregistry.get("pcd2")   # Alicat PCD pressure controller, unit 2
 
 
+#: Units already reported as absent, so a long run prints one note per unit
+#: instead of two lines per measurement. Same convention as the scan CSV
+#: template, which skips an unreadable column "with one note printed".
+_pressure_warned = set()
+
+
+def _pressure_readings(unit, device):
+    """Return the two NeXus entries for one Alicat PCD unit, or {} if unreadable.
+
+    An omitted path is NOT an omitted field. create_runtime_metadata_dict seeds
+    itself from ``get_default_metadata(xpcs_schema)``, so a path left out here
+    keeps the default declared in the schema -- 0.0, from upstream's
+    ``make_pressure`` -- and the dataset is still written. That is the point:
+    the file keeps the same shape whether or not the 8idAlicat IOC is up, and
+    the default is Miaoqi's to define rather than a number duplicated here.
+
+    Two distinct failures are guarded. ``device is None`` means the unit was
+    skipped at startup, because ``oregistry.get()`` binds None for an IOC that
+    was down then. An exception from ``.get()`` means it connected at startup
+    and has gone away since, or is timing out now.
+
+    Before this guard either one raised out of the dict literal below and failed
+    the WHOLE metadata write -- every field, not just pressure -- inside
+    ``det_acq_series()``'s except-block, where it is printed and swallowed. One
+    dead sample-environment IOC therefore cost the entire metadata file.
+    """
+    if device is None:
+        if unit not in _pressure_warned:
+            _pressure_warned.add(unit)
+            print(f"[nexus] pcd{unit} not in the registry -- pressure left at the schema default")
+        return {}
+    try:
+        return {
+            f"/entry/sample/pcd{unit}_pressure": float(device.pressure.get()),
+            f"/entry/sample/pcd{unit}_pressure_set": float(device.setpoint_rbv.get()),
+        }
+    except Exception as exc:
+        if unit not in _pressure_warned:
+            _pressure_warned.add(unit)
+            print(f"[nexus] pcd{unit} unreadable ({exc}) -- pressure left at the schema default")
+        return {}
+
+
 def _get_ring_current():
     """Return the APS storage-ring current in mA.
 
@@ -280,13 +323,6 @@ def create_runtime_metadata_dict(
         "/entry/sample/qnw3_temperature": qnw_env3.readback.get(),
         "/entry/sample/qnw3_temperature_set": qnw_env3.setpoint.get(),
 
-        # Alicat PCD, two units. pcdN_pressure_set is the controller's own
-        # readback of the demand, not the value we last wrote, so it records
-        # what the unit is actually aiming at.
-        "/entry/sample/pcd1_pressure": pcd1.pressure.get(),
-        "/entry/sample/pcd1_pressure_set": pcd1.setpoint_rbv.get(),
-        "/entry/sample/pcd2_pressure": pcd2.pressure.get(),
-        "/entry/sample/pcd2_pressure_set": pcd2.setpoint_rbv.get(),
 
         "/entry/sample/huber_nu": huber.nu.position,
         "/entry/sample/huber_delta": huber.delta.position,
@@ -303,6 +339,14 @@ def create_runtime_metadata_dict(
         ),
     }
     # update the runtime metadata with the runtime updates
+    # Alicat PCD, two units. Added after the literal rather than inside it so an
+    # absent or unreadable controller can contribute no key at all and fall back
+    # to the schema default. pcdN_pressure_set is the controller's own readback
+    # of the demand, not the value we last wrote, so it records what the unit is
+    # actually aiming at.
+    for _unit, _device in ((1, pcd1), (2, pcd2)):
+        runtime_updates.update(_pressure_readings(_unit, _device))
+
     runtime_metadata.update(runtime_updates)
     if additional_metadata is not None:
         runtime_metadata.update(additional_metadata)
