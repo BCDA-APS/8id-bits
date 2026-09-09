@@ -16,7 +16,7 @@ it needs Miaoqi.
    │                               ~180 lines of {path: value}                │
    └──────────────────────────────────────────┬───────────────────────────────┘
    ┌──────────────────────────────────────────▼───────────────────────────────┐
-   │  utils/xpcs_schema_mc.py      which fields exist            OURS,        │
+   │  utils/xpcs_schema.py      which fields exist            OURS,        │
    │                               244 lines CALLING his factories            │
    └──────────────────────────────────────────┬───────────────────────────────┘
    ┌──────────────────────────────────────────▼───────────────────────────────┐
@@ -30,7 +30,7 @@ it needs Miaoqi.
 | file | answers | lines | whose |
 |---|---|---|---|
 | `utils/nexus_runtime.py` | *where the numbers come from* | ~300 | ours |
-| `utils/xpcs_schema_mc.py` | *what fields exist* | 244 | ours, calling his |
+| `utils/xpcs_schema.py` | *what fields exist* | 244 | ours, calling his |
 | `utils/nexus_writer.py` | *the front door* | ~90 | ours |
 | `nexus_xpcs_aps.core.*` | *schema factories + HDF5 writer* | — | **his** |
 
@@ -49,10 +49,10 @@ ours.
 | symptom | where |
 |---|---|
 | a field holds the wrong *value* | `nexus_runtime.py` — that is our device mapping |
-| a field is missing and one of his factories makes it | `xpcs_schema_mc.py` — call `make_slits(9)` etc. |
+| a field is missing and one of his factories makes it | `xpcs_schema.py` — call `make_slits(9)` etc. |
 | a device reads `None` / `AttributeError` at write time | `configs/devices.yml`, or the IOC is down |
 | `KeyError` naming a NeXus path | you added a runtime line with no schema node |
-| a value is right but in the wrong place in the tree | `xpcs_schema_mc.py` composition |
+| a value is right but in the wrong place in the tree | `xpcs_schema.py` composition |
 
 **Contact him — it is upstream:**
 
@@ -77,16 +77,20 @@ beamline environment, so a branch switch there changes what the beamline imports
 
 ## Local patches we carry
 
-Each is commented in the source with the date it was reported. Delete as they
-land upstream; all five are in [PR #1](https://github.com/AZjk/nexus_xpcs_aps/pull/1).
+**None.** [PR #1](https://github.com/AZjk/nexus_xpcs_aps/pull/1) merged on
+2026-09-08 and upstream now carries all five fixes we had been holding: the
+`make_sample()` leaf aliasing, the `id()`-keyed plan cache, the invalid-JSON
+`workflow_kwargs` default, the three missing unit categories
+(`NX_VOLTAGE` / `NX_FREQUENCY` / `NX_PRESSURE`), and the
+`beam_center_position_x/y` description. The patches were deleted from this repo
+in `8b83c67`.
 
-| patch | where | why |
-|---|---|---|
-| deepcopy the schema every call | `nexus_writer.py` | `make_sample()` returns leaves aliased to his module-level singletons, so the first write guts the template and later files lose their attributes |
-| `_compiled_plans.clear()` every call | `nexus_writer.py` | his plan cache is keyed on `id(schema)`; 127 of 200 deepcopy cycles reused a freed address |
-| `workflow_kwargs` override | `nexus_runtime.py` | his default is invalid JSON |
-| `EXTRA_UNITS` | `nexus_writer.py` | his keymap lacks `NX_VOLTAGE`, `NX_FREQUENCY`, `NX_PRESSURE`; an unknown category silently becomes `"any"` |
-| `_redescribe()` on `beam_center_position_x/y` | `xpcs_schema_mc.py` | his text read as "beam centre in metres"; the field is the detector position at which the **direct beam** was measured, which the qmap uses as its reference |
+The one thing that looks like a leftover and is not: `nexus_writer.py`
+deepcopies the schema on every call. That is **not** working around a bug. His
+`update_schema_at_runtime()` assigns `node["data"] = value` in place — by
+design — so handing it our module-level `xpcs_schema` would leave one
+measurement's values sitting in the template for the next measurement to
+inherit. Any caller of his writer needs to do this. Don't remove it.
 
 ## Upgrading his package
 

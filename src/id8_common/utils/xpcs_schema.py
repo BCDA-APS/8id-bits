@@ -1,9 +1,10 @@
-"""Candidate 8-ID NeXus schema composed from Miaoqi Chu's mc_refact core factories.
+"""The 8-ID NeXus schema: which fields exist in the metadata file.
 
-This module reproduces, path-for-path, the schema currently defined in
-    /home/beams10/8IDIUSER/bluesky/src/id8_common/utils/xpcs_schema.py
-but builds it by *calling* the factories in ``nexus_xpcs_aps.core.*`` instead of
-spelling out 977 lines of literal dicts.
+Composed by *calling* the factories in ``nexus_xpcs_aps.core.*`` rather than
+spelling out 977 lines of literal dicts. This file is OURS -- it decides what
+8-ID records; the factories it calls are Miaoqi Chu's. It replaced a
+hand-written dict of the same name, kept for reference as
+``Archive/xpcs_schema.txt``, and reproduces it path for path.
 
 Rules obeyed here
 -----------------

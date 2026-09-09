@@ -27,7 +27,7 @@ Three files, and knowing which one to edit is most of the job:
    └────────────────────────────────────────────────┬──────────────────────────┘
                                                     │  {path: value}
    ┌────────────────────────────────────────────────▼──────────────────────────┐
-   │  utils/xpcs_schema_mc.py           WHAT FIELDS EXIST                OURS, │
+   │  utils/xpcs_schema.py           WHAT FIELDS EXIST                OURS, │
    │                                                              CALLING HIS  │
    │    "sl4": _tag(make_slits(4), ...)      ← his factory, our placement      │
    │    instrument = {...}  sample = {...}   ← 8-ID's composition             │
@@ -69,7 +69,7 @@ no `make_motor`, and no arbitrary-leaf helper.
 
 ## Case 1 — a device his factories already model
 
-One line in `xpcs_schema_mc.py`, inside the `instrument` dict. His code untouched:
+One line in `xpcs_schema.py`, inside the `instrument` dict. His code untouched:
 
 ```python
 "sl9": _tag(make_slits(9, description="Slits 9"), "/entry/instrument/sl9", "his:make_slits"),
@@ -105,7 +105,7 @@ will not start — one dead IOC costing you the whole beamline instead of one fi
 
 `make_sample()` has six fixed flags and none is pressure, so you patch the
 composed dict. Same pattern as the existing `_rename()` and `_redescribe()` calls
-in `xpcs_schema_mc.py`:
+in `xpcs_schema.py`:
 
 ```python
 _sample["pressure"] = {
@@ -129,7 +129,7 @@ Then in `nexus_runtime.py`, with `pcd1 = oregistry.get("pcd1")` at module scope:
 
 ## Removing a field
 
-Delete it from **both** places: the schema node in `xpcs_schema_mc.py` and the
+Delete it from **both** places: the schema node in `xpcs_schema.py` and the
 line in `nexus_runtime.py`. Schema only → `KeyError` at write time (swallowed).
 Runtime only → the schema's literal placeholder is written as if it were a
 measurement. Check that `boost_corr` and any plotting scripts do not read the
@@ -152,7 +152,7 @@ NX_VOLTAGE → V     NX_FREQUENCY → Hz     NX_PRESSURE → Pa
 **⚠ That fixes the map, not the schema.** Several of his leaves *declare*
 `NX_ANY` — `keysight_freq` and `keysight_amp` among them — so they write `"any"`
 no matter what the map contains. Fixing those means changing the declared
-category in `xpcs_schema_mc.py`, or upstream. Low priority: a field's unit is
+category in `xpcs_schema.py`, or upstream. Low priority: a field's unit is
 fixed by its device and recoverable by looking at the device.
 
 ## Per-measurement overrides
@@ -163,7 +163,7 @@ already exist in the schema — this overrides a value, it does not create a fie
 
 ## ⚠ Local patches currently carried
 
-All in `nexus_writer.py` or `xpcs_schema_mc.py`, each commented with the date
+All in `nexus_writer.py` or `xpcs_schema.py`, each commented with the date
 reported upstream. Delete them as his fixes land:
 
 | patch | why |

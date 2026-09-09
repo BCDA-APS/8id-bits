@@ -6,7 +6,7 @@ utils/nexus_utils.py, which is retained as nexus_utils.txt for reference.
 Division of labour:
 
     nexus_xpcs_aps.core.*           the schema factories        HIS
-    utils/xpcs_schema_mc.py         8-ID's composition of them  ours (244 lines)
+    utils/xpcs_schema.py         8-ID's composition of them  ours (244 lines)
     utils/nexus_runtime.py          EPICS signal -> NeXus path  ours (~180 lines)
     nexus_xpcs_aps.core.utils       the HDF5 writer             HIS
 
@@ -21,7 +21,7 @@ missing unit categories.
 
 The deepcopy below is NOT one of those and must stay. It is not working around
 a bug in his code -- his writer no longer pops keys out of the schema at all.
-It protects OUR module-level `xpcs_schema_mc.xpcs_schema`: his
+It protects OUR module-level `xpcs_schema.xpcs_schema`: his
 `update_schema_at_runtime()` assigns `node["data"] = value` in place, so handing
 it the module-level dict would leave each measurement's values sitting in the
 template, to be inherited by the next measurement that does not overwrite them.
@@ -52,18 +52,21 @@ def create_nexus_format_metadata(
         additional_metadata: {nexus_path: value} merged last, used by the dual
             path to give each leg its own geometry
     """
-    from nexus_xpcs_aps.core import utils as mc_utils
+    # `upstream` is his package; everything else in this function is ours.
+    # The alias matters because he and we both define a function called
+    # create_nexus_format_metadata -- the prefix says which one is being called.
+    from nexus_xpcs_aps.core import utils as upstream
 
-    from id8_common.utils.xpcs_schema_mc import xpcs_schema as mc_schema
+    from id8_common.utils.xpcs_schema import xpcs_schema
 
 
 
     # See the module docstring: his update_schema_at_runtime() mutates in place,
     # so the module-level template must never be handed to it directly.
-    runtime_schema = deepcopy(mc_schema)
+    runtime_schema = deepcopy(xpcs_schema)
 
     runtime_metadata = create_runtime_metadata_dict(det, additional_metadata)
-    runtime_schema = mc_utils.update_schema_at_runtime(runtime_schema, runtime_metadata)
+    runtime_schema = upstream.update_schema_at_runtime(runtime_schema, runtime_metadata)
 
-    mc_utils.create_nexus_format_metadata(filename, runtime_schema)
+    upstream.create_nexus_format_metadata(filename, runtime_schema)
     return filename

@@ -138,9 +138,9 @@ def create_runtime_metadata_dict(
     # what default_metadata.py was maintained by hand to be.
     from nexus_xpcs_aps.core.utils import get_default_metadata
 
-    from id8_common.utils.xpcs_schema_mc import xpcs_schema as _mc_schema
+    from id8_common.utils.xpcs_schema import xpcs_schema
 
-    runtime_metadata = dict(get_default_metadata(_mc_schema))
+    runtime_metadata = dict(get_default_metadata(xpcs_schema))
 
     # Resolve the current detector's swing/translation axes and distance from device_position.yaml
     det_name = expt.det_name
