@@ -78,6 +78,61 @@ pcd2 = oregistry.get("pcd2")   # Alicat PCD pressure controller, unit 2
 #: template, which skips an unreadable column "with one note printed".
 _env_warned = set()
 
+#: Runtime paths already reported as unreadable or unknown, so a long run prints
+#: one line per problem instead of one per measurement.
+_metadata_warned = set()
+
+
+def _resolve(deferred, schema):
+    """Evaluate the deferred runtime values, dropping any that cannot be read.
+
+    Each entry in ``deferred`` is a zero-argument callable rather than a value,
+    which is the whole point: the dict used to be a literal, so the FIRST device
+    that was missing or disconnected raised while the literal was still being
+    built and took every other field with it. ``det_acq_series()`` then swallowed
+    the exception, and the measurement wrote its data with no metadata file and
+    no analysis job -- silently. That cost A0013-A0016 on 2026-09-09.
+
+    Now a field that cannot be read simply contributes no key, so the value the
+    schema declares stands instead, and the file keeps its full shape. One dead
+    IOC costs its own fields and nothing else.
+
+    Paths the schema does not declare are dropped here too. Passing one through
+    would raise KeyError out of update_schema_at_runtime() and lose the whole
+    file again -- the very failure this is meant to end -- so an unknown path is
+    reported and skipped. That also makes the schema/runtime duplication safe:
+    the two lists no longer have to agree for a measurement to survive, and where
+    they disagree it is said out loud instead of discovered days later.
+
+    Both kinds of problem are reported once per process, not once per repeat.
+    """
+    resolved = {}
+    for path, getter in deferred.items():
+        if not _schema_has(schema, path):
+            if path not in _metadata_warned:
+                _metadata_warned.add(path)
+                print(f"[nexus] {path} is not in xpcs_schema -- not written. "
+                      f"Add the leaf there, or drop it from nexus_runtime.")
+            continue
+        try:
+            resolved[path] = getter()
+        except Exception as exc:
+            if path not in _metadata_warned:
+                _metadata_warned.add(path)
+                print(f"[nexus] {path} unreadable ({type(exc).__name__}: {exc}) "
+                      f"-- left at the schema default.")
+    return resolved
+
+
+def _schema_has(schema, path):
+    """True if `path` names a leaf the schema declares."""
+    node = schema
+    for part in path.strip("/").split("/"):
+        if not isinstance(node, dict) or part not in node:
+            return False
+        node = node[part]
+    return True
+
 
 def _env_readings(device, label, fields):
     """Return the /entry/sample entries for one sample-environment unit, or {}.
@@ -246,42 +301,42 @@ def create_runtime_metadata_dict(
     beam_center_position_y = _find_motor(motors_cfg, "vertical").get("position", 0)
 
     # Update the metadata with runtime values
-    runtime_updates = {
+    deferred = {
         # Entry level metadata
-        "/entry/entry_identifier": "xpcs_20240214_120000",
-        "/entry/entry_identifier_uuid": "550e8400-e29b-41d4-a716-446655440000",
-        "/entry/scan_number": 1,
-        "/entry/user/cycle": expt.cycle_name,
-        "/entry/start_time": str(datetime.datetime.now()),
-        "/entry/end_time": str(datetime.datetime.now()),  # fixme later
-        "/entry/instrument/datamanagement/workflow_name": expt.workflow_name,
+        "/entry/entry_identifier": lambda: "xpcs_20240214_120000",
+        "/entry/entry_identifier_uuid": lambda: "550e8400-e29b-41d4-a716-446655440000",
+        "/entry/scan_number": lambda: 1,
+        "/entry/user/cycle": lambda: expt.cycle_name,
+        "/entry/start_time": lambda: str(datetime.datetime.now()),
+        "/entry/end_time": lambda: str(datetime.datetime.now()),  # fixme later
+        "/entry/instrument/datamanagement/workflow_name": lambda: expt.workflow_name,
 
         # TODO: Change the detector direct beam position and detector position to real numbers
 
         # Read detector name and use that name to decide what fields to use to populate the rest
-        "/entry/instrument/detector_1/detector_name": expt.det_name,
+        "/entry/instrument/detector_1/detector_name": lambda: expt.det_name,
 
         # Define all degrees of freedom of the detector
-        "/entry/instrument/detector_1/position_x": horizontal / 1000.0,
-        "/entry/instrument/detector_1/position_y": vertical / 1000.0,
+        "/entry/instrument/detector_1/position_x": lambda: horizontal / 1000.0,
+        "/entry/instrument/detector_1/position_y": lambda: vertical / 1000.0,
 
-        "/entry/instrument/detector_1/beam_center_x": det_cfg["db_x"],
-        "/entry/instrument/detector_1/beam_center_y": det_cfg["db_y"],
-        "/entry/instrument/detector_1/beam_center_position_x": beam_center_position_x / 1000.0,
-        "/entry/instrument/detector_1/beam_center_position_y": beam_center_position_y / 1000.0,
+        "/entry/instrument/detector_1/beam_center_x": lambda: det_cfg["db_x"],
+        "/entry/instrument/detector_1/beam_center_y": lambda: det_cfg["db_y"],
+        "/entry/instrument/detector_1/beam_center_position_x": lambda: beam_center_position_x / 1000.0,
+        "/entry/instrument/detector_1/beam_center_position_y": lambda: beam_center_position_y / 1000.0,
 
         # These below are shared by all detectors 
-        "/entry/instrument/detector_1/count_time": det.cam.acquire_time.get(),
-        "/entry/instrument/detector_1/frame_time": det.cam.acquire_period.get(),
-        "/entry/instrument/detector_1/qmap_file": expt.qmap_file,
-        "/entry/instrument/detector_1/distance": sample_detector_distance,
-        "/entry/instrument/detector_1/x_pixel_size": det_pixel_size,
-        "/entry/instrument/detector_1/y_pixel_size": det_pixel_size,
+        "/entry/instrument/detector_1/count_time": lambda: det.cam.acquire_time.get(),
+        "/entry/instrument/detector_1/frame_time": lambda: det.cam.acquire_period.get(),
+        "/entry/instrument/detector_1/qmap_file": lambda: expt.qmap_file,
+        "/entry/instrument/detector_1/distance": lambda: sample_detector_distance,
+        "/entry/instrument/detector_1/x_pixel_size": lambda: det_pixel_size,
+        "/entry/instrument/detector_1/y_pixel_size": lambda: det_pixel_size,
 
-        "/entry/instrument/detector_1/flightpath_swing": swing_angle_horizontal,
-        "/entry/instrument/detector_1/flightpath_swing_vertical": swing_angle_vertical,
+        "/entry/instrument/detector_1/flightpath_swing": lambda: swing_angle_horizontal,
+        "/entry/instrument/detector_1/flightpath_swing_vertical": lambda: swing_angle_vertical,
 
-        "/entry/sample/lakeshore1": lakeshore1.readback_ch1.get(),
+        "/entry/sample/lakeshore1": lambda: lakeshore1.readback_ch1.get(),
         # "/entry/sample/keithley_chA_SrcLevelV": keithley_chA.SrcLevelV_AO.value,
         # "/entry/sample/keithley_chA_SrcLevelI": keithley_chA.SrcLevelI_AO.value,
         # "/entry/sample/keithley_chB_SrcLevelV": keithley_chB.SrcLevelV_AO.value,
@@ -304,26 +359,26 @@ def create_runtime_metadata_dict(
         # "/entry/sample/keysight_burst_state": keysight.burst_state_rbv.value,
         # "/entry/sample/keysight_output": keysight.output_rbv.value,
         
-        "/entry/instrument/wb_slit/vertical_gap": wb_slit.vgap.position,
-        "/entry/instrument/wb_slit/vertical_center": wb_slit.vcen.position,
-        "/entry/instrument/wb_slit/horizontal_gap": wb_slit.hgap.position,
-        "/entry/instrument/wb_slit/horizontal_center": wb_slit.hcen.position,
-        "/entry/instrument/mono_slit/vertical_gap": mono_slit.vgap.position,
-        "/entry/instrument/mono_slit/vertical_center": mono_slit.vcen.position,
-        "/entry/instrument/mono_slit/horizontal_gap": mono_slit.hgap.position,
-        "/entry/instrument/mono_slit/horizontal_center": mono_slit.hcen.position,
-        "/entry/instrument/sl4/vertical_gap": sl4.v.size.position,
-        "/entry/instrument/sl4/vertical_center": sl4.v.center.position,
-        "/entry/instrument/sl4/horizontal_gap": sl4.h.size.position,
-        "/entry/instrument/sl4/horizontal_center": sl4.h.center.position,
-        "/entry/instrument/sl7/vertical_gap": sl7.v.size.position,
-        "/entry/instrument/sl7/vertical_center": sl7.v.center.position,
-        "/entry/instrument/sl7/horizontal_gap": sl7.h.size.position,
-        "/entry/instrument/sl7/horizontal_center": sl7.h.center.position,
-        "/entry/instrument/monochromator/energy": mono.energy.user_readback.value,
-        "/entry/instrument/monochromator/wavelength": mono.wavelength.user_readback.value,
-        "/entry/instrument/incident_beam/incident_energy": mono.energy.user_readback.value,
-        "/entry/instrument/incident_beam/incident_energy_spread": 0.0001,
+        "/entry/instrument/wb_slit/vertical_gap": lambda: wb_slit.vgap.position,
+        "/entry/instrument/wb_slit/vertical_center": lambda: wb_slit.vcen.position,
+        "/entry/instrument/wb_slit/horizontal_gap": lambda: wb_slit.hgap.position,
+        "/entry/instrument/wb_slit/horizontal_center": lambda: wb_slit.hcen.position,
+        "/entry/instrument/mono_slit/vertical_gap": lambda: mono_slit.vgap.position,
+        "/entry/instrument/mono_slit/vertical_center": lambda: mono_slit.vcen.position,
+        "/entry/instrument/mono_slit/horizontal_gap": lambda: mono_slit.hgap.position,
+        "/entry/instrument/mono_slit/horizontal_center": lambda: mono_slit.hcen.position,
+        "/entry/instrument/sl4/vertical_gap": lambda: sl4.v.size.position,
+        "/entry/instrument/sl4/vertical_center": lambda: sl4.v.center.position,
+        "/entry/instrument/sl4/horizontal_gap": lambda: sl4.h.size.position,
+        "/entry/instrument/sl4/horizontal_center": lambda: sl4.h.center.position,
+        "/entry/instrument/sl7/vertical_gap": lambda: sl7.v.size.position,
+        "/entry/instrument/sl7/vertical_center": lambda: sl7.v.center.position,
+        "/entry/instrument/sl7/horizontal_gap": lambda: sl7.h.size.position,
+        "/entry/instrument/sl7/horizontal_center": lambda: sl7.h.center.position,
+        "/entry/instrument/monochromator/energy": lambda: mono.energy.user_readback.value,
+        "/entry/instrument/monochromator/wavelength": lambda: mono.wavelength.user_readback.value,
+        "/entry/instrument/incident_beam/incident_energy": lambda: mono.energy.user_readback.value,
+        "/entry/instrument/incident_beam/incident_energy_spread": lambda: 0.0001,
 
         # "/entry/instrument/incident_beam/fofb_s09_horizontal": fofb_s09.h_loop.get(),
         # "/entry/instrument/incident_beam/fofb_s09_vertical": fofb_s09.v_loop.get(),
@@ -334,47 +389,51 @@ def create_runtime_metadata_dict(
         #     + xbpm1.current3.mean_value.get() / xbpm1.current_scales.ch3.get()
         #     + xbpm1.current4.mean_value.get() / xbpm1.current_scales.ch4.get()
         # ), 
-        "/entry/instrument/incident_beam/ring_current": _get_ring_current(),
+        "/entry/instrument/incident_beam/ring_current": lambda: _get_ring_current(),
         # "/entry/instrument/undulator_1/gap": undulator_upstream.gap.position,
         # "/entry/instrument/undulator_1/energy": undulator_upstream.energy.position,
         # "/entry/instrument/undulator_1/taper": undulator_upstream.gap_taper.position,
         # "/entry/instrument/undulator_2/gap": undulator_downstream.gap.position,
         # "/entry/instrument/undulator_2/energy": undulator_downstream.energy.position,
         # "/entry/instrument/undulator_2/taper": undulator_downstream.gap_taper.position,
-        "/entry/instrument/attenuator_1/attenuator_transmission": (filter_8ide.transmission.readback.get()),
-        "/entry/instrument/attenuator_1/attenuator_index": (filter_8ide.index.readback.get()),
-        "/entry/instrument/attenuator_2/attenuator_transmission": (0),
-        "/entry/instrument/attenuator_2/attenuator_index": (0),
+        "/entry/instrument/attenuator_1/attenuator_transmission": lambda: (filter_8ide.transmission.readback.get()),
+        "/entry/instrument/attenuator_1/attenuator_index": lambda: (filter_8ide.index.readback.get()),
+        "/entry/instrument/attenuator_2/attenuator_transmission": lambda: (0),
+        "/entry/instrument/attenuator_2/attenuator_index": lambda: (0),
         
-        "/entry/sample/position_x": sample.x.position,
-        "/entry/sample/position_y": sample.y.position,
-        "/entry/sample/position_z": sample.z.position,
-        "/entry/sample/position_rheo_x": rheometer.x.position,
-        "/entry/sample/position_rheo_y": rheometer.y.position,
-        "/entry/sample/position_rheo_z": rheometer.z.position,
+        "/entry/sample/position_x": lambda: sample.x.position,
+        "/entry/sample/position_y": lambda: sample.y.position,
+        "/entry/sample/position_z": lambda: sample.z.position,
+        "/entry/sample/position_rheo_x": lambda: rheometer.x.position,
+        "/entry/sample/position_rheo_y": lambda: rheometer.y.position,
+        "/entry/sample/position_rheo_z": lambda: rheometer.z.position,
 
-        "/entry/sample/huber_nu": huber.nu.position,
-        "/entry/sample/huber_delta": huber.delta.position,
-        "/entry/sample/huber_mu": huber.mu.position,
-        "/entry/sample/huber_eta": huber.eta.position,
-        "/entry/sample/huber_chi": huber.chi.position,
-        "/entry/sample/huber_phi": huber.phi.position,
-        "/entry/sample/huber_y": huber.y.position,
-        "/entry/sample/huber_z": huber.z.position,
-        "/entry/sample/huber_x": huber.x.position,
-        "/entry/instrument/bluesky/parent_folder": (
+        "/entry/sample/huber_nu": lambda: huber.nu.position,
+        "/entry/sample/huber_delta": lambda: huber.delta.position,
+        "/entry/sample/huber_mu": lambda: huber.mu.position,
+        "/entry/sample/huber_eta": lambda: huber.eta.position,
+        "/entry/sample/huber_chi": lambda: huber.chi.position,
+        "/entry/sample/huber_phi": lambda: huber.phi.position,
+        "/entry/sample/huber_y": lambda: huber.y.position,
+        "/entry/sample/huber_z": lambda: huber.z.position,
+        "/entry/sample/huber_x": lambda: huber.x.position,
+        "/entry/instrument/bluesky/parent_folder": lambda: (
             f"{expt.mount_point}/{expt.cycle_name}/"
             f"{expt.experiment_name}/data/"
         ),
     }
-    # update the runtime metadata with the runtime updates
     # Sample environments -- three QNW cells and two Alicat PCD controllers.
-    # Added after the literal rather than inside it so an absent or unreadable
-    # unit contributes no key at all and falls back to the schema default,
-    # instead of raising out of the literal and losing the whole file.
-    # globals() so the table above can name devices bound at module scope.
+    # Kept as its own table because those five share one shape and one guard;
+    # everything else is guarded per field by _resolve() below.
     for _label, _fields in _SAMPLE_ENV_UNITS:
-        runtime_updates.update(_env_readings(globals().get(_label), _label, _fields))
+        deferred.update(
+            {path: (lambda v=value: v)
+             for path, value in _env_readings(globals().get(_label), _label, _fields).items()}
+        )
+
+    # Read every field, skipping the ones that cannot be read or that the schema
+    # does not declare. See _resolve().
+    runtime_updates = _resolve(deferred, xpcs_schema)
 
     runtime_metadata.update(runtime_updates)
     if additional_metadata is not None:
