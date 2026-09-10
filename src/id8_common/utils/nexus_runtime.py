@@ -69,7 +69,87 @@ sample = oregistry.get("sample")
 qnw_env1 = oregistry.get("qnw_env1")
 qnw_env2 = oregistry.get("qnw_env2")
 qnw_env3 = oregistry.get("qnw_env3")
-pcd1 = oregistry.get("pcd1")   # Alicat PCD pressure controller
+pcd1 = oregistry.get("pcd1")   # Alicat PCD pressure controller, unit 1
+pcd2 = oregistry.get("pcd2")   # Alicat PCD pressure controller, unit 2
+
+
+#: Units already reported as unreadable, so a long run prints one note per unit
+#: instead of two lines per measurement. Same convention as the scan CSV
+#: template, which skips an unreadable column "with one note printed".
+_env_warned = set()
+
+
+def _env_readings(device, label, fields):
+    """Return the /entry/sample entries for one sample-environment unit, or {}.
+
+    ``fields`` is ((leaf, attribute), ...) -- the leaf names under /entry/sample
+    this unit owns, and the ophyd attribute each one reads from.
+
+    An omitted path is NOT an omitted field. create_runtime_metadata_dict seeds
+    itself from ``get_default_metadata(xpcs_schema)``, so a path left out here
+    keeps the default declared in the schema and the dataset is still written.
+    That is the point: the file keeps the same shape whether or not the unit's
+    IOC is up, and the default is upstream's to define -- make_pressure and
+    make_sample both set 0.0 -- rather than a number duplicated here.
+
+    Two distinct failures are guarded. ``device is None`` means the unit was
+    skipped at startup, because ``oregistry.get()`` binds None for an IOC that
+    was down then. An exception from ``.get()`` means it connected at startup
+    and has gone away since, or is timing out now.
+
+    Before this guard either one raised out of the dict literal below and failed
+    the WHOLE metadata write -- all 50 sample leaves and every other field, not
+    just this unit's -- inside ``det_acq_series()``'s except-block, where it is
+    printed and swallowed. One dead sample-environment IOC cost the entire file.
+
+    Only the units in _SAMPLE_ENV_UNITS are guarded. huber, sample and rheometer
+    are bound the same way and are deliberately left unguarded: they are
+    positioners read through ``.position``, and a measurement whose sample stage
+    is missing has bigger problems than its metadata.
+    """
+    if device is None:
+        _warn_env_once(label, "not in the registry")
+        return {}
+
+    # Resolve the attributes BEFORE the try. Components are class attributes, so
+    # getattr succeeds whatever the connection state -- an AttributeError here
+    # can only mean a name in _SAMPLE_ENV_UNITS does not match the device class,
+    # i.e. a bug in this file. Raise it. Falling back to the schema default for a
+    # typo would write 0.0 over a perfectly healthy reading, for every file, with
+    # nothing in the log to say so -- silently losing data is worse than the
+    # crash this guard exists to prevent.
+    try:
+        signals = [(leaf, getattr(device, attr)) for leaf, attr in fields]
+    except AttributeError as exc:
+        raise AttributeError(f"_SAMPLE_ENV_UNITS names {label}.{exc}") from exc
+
+    # Reading, by contrast, is a hardware condition: fall back quietly.
+    try:
+        return {f"/entry/sample/{leaf}": float(signal.get()) for leaf, signal in signals}
+    except Exception as exc:
+        _warn_env_once(label, f"unreadable ({exc})")
+        return {}
+
+
+def _warn_env_once(label, reason):
+    """Report an unreadable sample-environment unit the first time only."""
+    if label not in _env_warned:
+        _env_warned.add(label)
+        print(f"[nexus] {label} {reason} -- its fields left at the schema default")
+
+
+#: Sample-environment units guarded by _env_readings, each independent of the
+#: others: a dead 8idAlicat does not cost the QNW fields, or the reverse.
+#: qnw_env1 is the Air QNW. qnwN_temperature_set is the demand, while
+#: pcdN_pressure_set is the controller's own readback of the demand rather than
+#: the value we last wrote, so it records what the unit is actually aiming at.
+_SAMPLE_ENV_UNITS = (
+    ("qnw_env1", (("qnw1_temperature", "readback"), ("qnw1_temperature_set", "setpoint"))),
+    ("qnw_env2", (("qnw2_temperature", "readback"), ("qnw2_temperature_set", "setpoint"))),
+    ("qnw_env3", (("qnw3_temperature", "readback"), ("qnw3_temperature_set", "setpoint"))),
+    ("pcd1", (("pcd1_pressure", "pressure"), ("pcd1_pressure_set", "setpoint_rbv"))),
+    ("pcd2", (("pcd2_pressure", "pressure"), ("pcd2_pressure_set", "setpoint_rbv"))),
+)
 
 
 def _get_ring_current():
@@ -272,18 +352,6 @@ def create_runtime_metadata_dict(
         "/entry/sample/position_rheo_x": rheometer.x.position,
         "/entry/sample/position_rheo_y": rheometer.y.position,
         "/entry/sample/position_rheo_z": rheometer.z.position,
-        "/entry/sample/qnw1_temperature": qnw_env1.readback.get(),  # Air QNW
-        "/entry/sample/qnw1_temperature_set": qnw_env1.setpoint.get(),
-        "/entry/sample/qnw2_temperature": qnw_env2.readback.get(),
-        "/entry/sample/qnw2_temperature_set": qnw_env2.setpoint.get(),
-        "/entry/sample/qnw3_temperature": qnw_env3.readback.get(),
-
-        # Alicat PCD. pressure_set is the controller's own readback of the
-        # demand, not the value we last wrote, so it records what the unit is
-        # actually aiming at.
-        "/entry/sample/pressure": pcd1.pressure.get(),
-        "/entry/sample/pressure_set": pcd1.setpoint_rbv.get(),
-        "/entry/sample/qnw3_temperature_set": qnw_env3.setpoint.get(),
 
         "/entry/sample/huber_nu": huber.nu.position,
         "/entry/sample/huber_delta": huber.delta.position,
@@ -300,6 +368,14 @@ def create_runtime_metadata_dict(
         ),
     }
     # update the runtime metadata with the runtime updates
+    # Sample environments -- three QNW cells and two Alicat PCD controllers.
+    # Added after the literal rather than inside it so an absent or unreadable
+    # unit contributes no key at all and falls back to the schema default,
+    # instead of raising out of the literal and losing the whole file.
+    # globals() so the table above can name devices bound at module scope.
+    for _label, _fields in _SAMPLE_ENV_UNITS:
+        runtime_updates.update(_env_readings(globals().get(_label), _label, _fields))
+
     runtime_metadata.update(runtime_updates)
     if additional_metadata is not None:
         runtime_metadata.update(additional_metadata)

@@ -226,10 +226,16 @@ _sample_full = make_sample(
     lakeshore=True,
     keithley=True,
     bk_pid=True,
-    # Alicat PCD pressure controller -- pressure and pressure_set. Upstream
-    # added this flag in AZjk/nexus_xpcs_aps#1 at our request; before that a
-    # sample-environment device could not be added from outside the package.
-    pressure=True,
+    # Alicat PCD pressure controllers. This is a COUNT, not a flag: unit i
+    # contributes pcd{i}_pressure and pcd{i}_pressure_set. Two units are
+    # installed at 8-ID (8idAlicat:PCD1: and PCD2:), so 2.
+    #
+    # Upstream added pressure support in AZjk/nexus_xpcs_aps#1 at our request
+    # -- as a bool, one unnumbered pair -- then generalised it to N units in
+    # 7e2b8b7. Adopting that renamed our leaves: pressure -> pcd1_pressure and
+    # pressure_set -> pcd1_pressure_set. Metadata files written before
+    # 2026-09-09 carry the old unnumbered paths.
+    pressure=2,
 )
 _sample_core = _drop(_sample_full, ["rheometer_shear_rate", "rheometer_temperature"])
 
