@@ -13,11 +13,11 @@ runs:
  - name: mode_test
    samples: [1]
    protocols:
-    #  - eiger_internal_series
+     - eiger_internal_series
     #  - eiger_internal_enable
     #  - eiger_external_enable
     #  - eiger_external_series
-     - rigaku_epics
+    #  - rigaku_epics
     #  - rigaku_zdt_2bit
     #  - rigaku_ftf_2bit
    repeats: 1
@@ -34,17 +34,17 @@ protocols:
   eiger_internal_series:
     detector: eiger4M
     mode: Internal Series
-    att_level: 2
+    att_level: 1
     # The eiger detector paces its own frames, so acq_period is not used and
     # must be left out -- det_acq_series() sets it equal to acq_time.
-    acq_time: 0.01
-    num_frames: 100
-    num_repeats: 3
+    acq_time: 1
+    num_frames: 10
+    num_repeats: 5
     wait_time: 0
     sample_move: no
     position_reset: no
     analysis_type: Multitau
-    qmap_file: eiger4m_qmap_default.hdf
+    qmap_file: eiger4m_qmap_4m.hdf
 
   # Internally timed, but ONE SOFTWARE TRIGGER PER FRAME
   # (cam.special_trigger_button in a loop, paced by acq_period). That cannot be
@@ -115,16 +115,16 @@ protocols:
   rigaku_zdt_2bit:
     detector: rigaku3M
     mode: ZDT2bit
-    att_level: 2
+    att_level: 1
     # 2e-5 s is the floor for 2 bit (4e-5 for ZDT4bit, 8e-5 for ZDT8bit).
     acq_time: 0.00002
     num_frames: 100000
-    num_repeats: 1
+    num_repeats: 10
     wait_time: 0
-    sample_move: no
-    position_reset: no
+    sample_move: yes
+    position_reset: yes
     analysis_type: Multitau
-    qmap_file: rigaku3m_qmap_default.hdf
+    qmap_file: rigaku3m_qmap_Sq360_Dq36_lin.hdf
 
   # Standard areaDetector acquisition through the HDF1 plugin -- neither
   # fast-file format. Writes <file_name>.h5. This is the only rigaku mode that
@@ -134,28 +134,28 @@ protocols:
   rigaku_epics:
     detector: rigaku3M_epics
     mode: EPICS
-    att_level: 10
+    att_level: 1
     acq_time: 0.01
     num_frames: 1000
-    num_repeats: 1
+    num_repeats: 5
+    wait_time: 0
+    sample_move: yes
+    position_reset: yes
+    analysis_type: Multitau
+    qmap_file: rigaku3m_qmap_Sq360_Dq36_NoStreak_lin.hdf
+
+  rigaku_ftf_2bit:
+    detector: rigaku3M_ftf
+    mode: ZDT2bit
+    att_level: 1
+    acq_time: 0.00002
+    num_frames: 100000
+    num_repeats: 10
     wait_time: 0
     sample_move: yes
     position_reset: yes
     analysis_type: Multitau
     qmap_file: rigaku3m_qmap_Sq360_Dq36_lin.hdf
-
-  rigaku_ftf_2bit:
-    detector: rigaku3M_ftf
-    mode: ZDT2bit
-    att_level: 2
-    acq_time: 0.00002
-    num_frames: 100000
-    num_repeats: 1
-    wait_time: 0
-    sample_move: no
-    position_reset: no
-    analysis_type: Multitau
-    qmap_file: rigaku3m_qmap_default.hdf
 
 
 ###### Change here to change measurement conditions #######

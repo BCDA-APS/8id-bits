@@ -5,7 +5,7 @@ loop_order: sample_major
 runs:
  - name: dual_att_series
    samples: [1]
-   protocols: [dual_att2]
+   protocols: [dual_att1]
    repeats: 1
 
 ###### Change here to change measurement conditions #######
@@ -125,17 +125,17 @@ protocols:
 
   dual_att1:
     att_level: 1
-    num_repeats: 1
+    num_repeats: 5
     wait_time: 0
     sample_move: no
-    position_reset: yes
+    position_reset: no
     detectors:
       - device: rigaku3M_epics
         mode: EPICS
         acq_time: 1
-        num_frames: 3000
-        qmap_file: rigaku3m_qmap_Sq360_Dq18_Sphi16_Dphi1_lin.hdf
-        analysis_type: Both
+        num_frames: 50
+        qmap_file: rigaku3m_qmap_Sq360_Dq36_NoStreak_lin.hdf
+        analysis_type: Multitau
         select_device: yes
         shutter_owner: yes
         start_timeout: 30
@@ -143,9 +143,9 @@ protocols:
       - device: eiger4M
         mode: Internal Series
         acq_time: 1
-        num_frames: 3000
-        qmap_file: eiger4m_qmap_Sq360_Sphi9_Dq3_Dphi1_WAXPCS_lin.hdf
-        analysis_type: Both
+        num_frames: 50
+        qmap_file: eiger4m_qmap_4m.hdf
+        analysis_type: Multitau
         hdf_timeout: 600
 
 ###### Change here to change measurement conditions #######
