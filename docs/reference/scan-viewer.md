@@ -1,13 +1,13 @@
 # The scan viewer (BLUETELLA): checkout, environment, and what we changed
 
-[← index](../../README.md) · [Viewing scans](../viewing-scans.md)
+[← index](../../README.md) · [Running and viewing scans](../running-and-viewing-scans.md)
 
 The maintainer's page for the viewer 8-ID plots its scans with: where it is
 checked out, how its environment is built, what we changed in it, and why those
 changes are upstreamable rather than a fork.
 
 Day-to-day use — which viewer for which scan, the flags, the attenuation trap,
-who to contact — is [Viewing scans](../viewing-scans.md). This page does not
+who to contact — is [Running and viewing scans](../running-and-viewing-scans.md). This page does not
 repeat it.
 
 **BLUETELLA is Peco Myint's (9-ID) code.** We run it and contribute back. The
@@ -263,7 +263,7 @@ or beamline testing before it merges. His CI passes on both legs.
 The two 8-ID site documents that were on that branch — `8ID_SCANVIEWER.md` and
 `USING_SCANVIEWER.md` — were deleted at his request and ignored in that clone,
 since his repository should describe the package, not one beamline's
-deployment. **This page and [Viewing scans](../viewing-scans.md) are what became
+deployment. **This page and [Running and viewing scans](../running-and-viewing-scans.md) are what became
 of them.** Do not put 8-ID documentation back in his repository.
 
 ## Hardware verification, 2026-09-08
@@ -288,7 +288,7 @@ has a `.h5` beside it.
 
 Those runs were taken under heavy attenuation, so every `lambda2M_stats*` column
 reads zero — pick `tetramm1_sum_all`. This is the single most common "the viewer
-is broken" report; [Viewing scans](../viewing-scans.md) explains it.
+is broken" report; [Running and viewing scans](../running-and-viewing-scans.md) explains it.
 
 Ctrl+C was exercised on all three detector branches in the 2026-09-07 run:
 motors return to where the scan started, the shutter is closed and confirmed against its
@@ -342,8 +342,7 @@ that reads current scans.
 
 ## See also
 
-* [Viewing scans](../viewing-scans.md) — how to use it, and when to contact Peco
-* [Ophyd scans and the CSV file template](../../src/id8_common/plans/align/OPHYD_SCAN.md)
+* [Running and viewing scans](../running-and-viewing-scans.md) — how to use it, and when to contact Peco
   — the scans themselves and what the `.csv` contains
 * [`plans/align/scan_csv.py`](../../src/id8_common/plans/align/scan_csv.py) — the writer
 * [`configs/scan_csv_template.yml`](../../src/id8_common/configs/scan_csv_template.yml) — which lines and columns a scan writes

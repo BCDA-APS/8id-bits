@@ -59,7 +59,7 @@ class EpicsPvStorageRegisters(Device):
     # GUI (or a shell script with caget) could find the live scan without being
     # told where to look. StrReg21/22 were unused and empty beamline-wide; each
     # is a 256-character waveform, so a full path fits. Commented out on
-    # 2026-09-02 -- see plans/align/OPHYD_SCAN.md; nothing declares or writes
+    # 2026-09-02 -- see docs/running-and-viewing-scans.md; nothing declares or writes
     # them now.
     # scan_h5_file = Component(EpicsSignal, "StrReg21", string=True)
     # scan_csv_file = Component(EpicsSignal, "StrReg22", string=True)

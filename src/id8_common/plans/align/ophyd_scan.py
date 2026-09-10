@@ -84,6 +84,9 @@ Anything else that differs from ``scan_8id.py`` is marked with a
      record ignored the new target AND ophyd reported the move successful, so
      an aborted scan left the motor parked mid-scan while printing that it had
      gone home. See ``_settle``.
+(19) Every scan re-reads sample_info.yaml for ``header`` and ``sample_name``
+     before naming its file, instead of inheriting whatever the last measurement
+     left in ``expt``. See ``_scan_folder_prefix``.
 (18) The tetramm branch opens the shutter at the start of the scan and closes
      it before the return move. It previously did neither: (15) closed it, but
      only in ``_disarm_tetramm`` after the return move, and nothing opened it
@@ -154,6 +157,7 @@ import numpy as np
 
 from id8_common.expt_config import expt
 from id8_common.plans.acquire.ad_acq import gen_folder_prefix
+from id8_common.plans.acquire.ad_acq import read_sample_identity
 from id8_common.plans.align import scan_csv
 from id8_common.plans.set.shutter_att import PIND_status
 from id8_common.plans.set.shutter_att import att
@@ -188,6 +192,39 @@ RETURN_TIMEOUT = 120.0
 #: Longest to wait for a motor record to finish its deceleration ramp after a
 #: stop(), before issuing the return move anyway. See :func:`_settle`.
 SETTLE_TIMEOUT = 10.0
+
+
+def _scan_folder_prefix():
+    """``gen_folder_prefix()``, but re-reading sample_info.yaml first. CHANGED (19).
+
+    ``gen_folder_prefix()`` names the file from ``expt.header`` and
+    ``expt.sample_name``. Those are run-state fields: ``run_measurement()`` sets
+    them, and once it has, they stay set for the rest of the session. So an
+    align scan run after any measurement inherited that measurement's name, and
+    editing sample_info.yaml had no effect until the session was restarted --
+    which is how a whole afternoon of scans ends up labelled with a sample that
+    was swapped out hours ago.
+
+    Every scan now takes ``header`` and ``sample_name`` from the file, and writes
+    them back into ``expt`` so the prompt agrees with the file names. Only those
+    two keys are read; ``inner_*``/``outer_*`` in the same block describe a mesh
+    and are none of this function's business.
+
+    Which block is read follows ``expt.sample_index`` -- set it with
+    ``select_sample(<n>)``. A change is announced, because a file name silently
+    changing under you is worse than one extra line of output.
+    """
+    header, sample_name = read_sample_identity()
+
+    was = (getattr(expt, "header", None), getattr(expt, "sample_name", None))
+    if was != (header, sample_name):
+        old = f"{was[0]}/{was[1]}" if was[0] is not None else "unset"
+        print(f"sample_info.yaml: sample_{expt.sample_index} is "
+              f"{header}/{sample_name} (was {old})")
+    expt.header = header
+    expt.sample_name = sample_name
+
+    return gen_folder_prefix()
 
 
 def data_folder():
@@ -899,7 +936,7 @@ def dmesh(
     # .csv has a unique name that matches its .h5 when there is one. His
     # `gen_folder_prefix() if save_img == 1 else ""` left every save_img=0 scan
     # trying to write to the same nameless file.
-    folder_prefix = gen_folder_prefix()
+    folder_prefix = _scan_folder_prefix()
     file_path = data_folder()
     h5_file = f"{file_path}/{folder_prefix}.h5" if save_img == 1 else ""
     csv_file = f"{file_path}/{folder_prefix}.csv"
@@ -1141,7 +1178,7 @@ def mesh(
     # .csv has a unique name that matches its .h5 when there is one. His
     # `gen_folder_prefix() if save_img == 1 else ""` left every save_img=0 scan
     # trying to write to the same nameless file.
-    folder_prefix = gen_folder_prefix()
+    folder_prefix = _scan_folder_prefix()
     file_path = data_folder()
     h5_file = f"{file_path}/{folder_prefix}.h5" if save_img == 1 else ""
     csv_file = f"{file_path}/{folder_prefix}.csv"
@@ -1362,7 +1399,7 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time, det=None, att_ratio=1e
 
     # One measurement number per scan whether or not images are saved, so every
     # .csv has a unique name that matches its .h5 when there is one.
-    folder_prefix = gen_folder_prefix()
+    folder_prefix = _scan_folder_prefix()
     file_path = data_folder()
     h5_file = f"{file_path}/{folder_prefix}.h5" if save_img == 1 else ""
     csv_file = f"{file_path}/{folder_prefix}.csv"
@@ -1579,7 +1616,7 @@ def d2scan(
     is_eiger = ("eiger" in det.name.lower()) or ("eiger" in det.prefix.lower())
     is_lambda = ("lambda" in det.name.lower()) or ("lambda" in det.prefix.lower())
 
-    folder_prefix = gen_folder_prefix()
+    folder_prefix = _scan_folder_prefix()
     file_path = data_folder()
     h5_file = f"{file_path}/{folder_prefix}.h5" if save_img == 1 else ""
     csv_file = f"{file_path}/{folder_prefix}.csv"
@@ -1771,7 +1808,7 @@ def ascan(motor, abs_begin, abs_end, num_pts, count_time, det=None, att_ratio=7,
 
     # One measurement number per scan whether or not images are saved, so every
     # .csv has a unique name that matches its .h5 when there is one.
-    folder_prefix = gen_folder_prefix()
+    folder_prefix = _scan_folder_prefix()
     file_path = data_folder()
     h5_file = f"{file_path}/{folder_prefix}.h5" if save_img == 1 else ""
     csv_file = f"{file_path}/{folder_prefix}.csv"
@@ -1988,7 +2025,7 @@ def a2scan(
     is_eiger = ("eiger" in det.name.lower()) or ("eiger" in det.prefix.lower())
     is_lambda = ("lambda" in det.name.lower()) or ("lambda" in det.prefix.lower())
 
-    folder_prefix = gen_folder_prefix()
+    folder_prefix = _scan_folder_prefix()
     file_path = data_folder()
     h5_file = f"{file_path}/{folder_prefix}.h5" if save_img == 1 else ""
     csv_file = f"{file_path}/{folder_prefix}.csv"

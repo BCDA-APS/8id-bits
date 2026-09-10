@@ -38,6 +38,7 @@ __all__ = [
     "get_ophyd_object",
     "get_sample_position",
     "gen_folder_prefix",
+    "read_sample_identity",
     "get_common_file_path",
     "get_rigaku_file_path",
     "sample_mesh_move",
@@ -143,6 +144,22 @@ def _name_and_header():
     except AttributeError:
         pass  # no measurement in flight -- read the sample block instead
 
+    return read_sample_identity()
+
+
+def read_sample_identity():
+    """``(header, sample_name)`` read FRESH from sample_info.yaml, ignoring run state.
+
+    Split out of :func:`_name_and_header` so a caller can ask for what the file
+    says *now* rather than what the last measurement happened to leave in run
+    state. ``_name_and_header`` still prefers run state -- during a multi-sample
+    measurement that is the only thing that knows which sample is in the beam --
+    but the align scans in ``plans/align/ophyd_scan.py`` call this directly, so
+    editing sample_info.yaml between scans takes effect without a restart.
+
+    Only ``header`` and ``sample_name`` are read. The ``inner_*``/``outer_*``
+    keys in the same block describe a mesh and have nothing to do with naming.
+    """
     # Imported here, not at module scope: master_plan imports this module
     # (via ad_acq), so a top-level import would be circular.
     import yaml

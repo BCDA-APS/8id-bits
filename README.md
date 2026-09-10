@@ -30,7 +30,7 @@ read the output.
 | read or set `expt` at the prompt | [Using `expt`](docs/using-expt.md) |
 | define a protocol, run a measurement, or look up a detector mode | [Running measurements](docs/running-measurements.md) |
 | add or remove a field in the NeXus metadata file | [Adding metadata fields](docs/adding-metadata.md) |
-| plot a scan, live or afterwards | [Viewing scans](docs/viewing-scans.md) |
+| run an alignment scan, and plot it live or afterwards | [Running and viewing scans](docs/running-and-viewing-scans.md) |
 | work out why something failed, including an analysis job | [Troubleshooting](docs/reference/troubleshooting.md) |
 
 ## The 30-second version
