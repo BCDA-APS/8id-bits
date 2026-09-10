@@ -33,6 +33,7 @@ from id8_common.plans.acquire.dual_acq_eiger4m_rigaku3m import FORBIDDEN_MOTORS
 from id8_common.plans.acquire.dual_acq_eiger4m_rigaku3m import dual_acq_series
 from id8_common.plans.acquire.master_plan import expand_measurements
 from id8_common.plans.acquire.master_plan import get_sample
+from id8_common.plans.acquire.master_plan import reload_experiment_config
 from id8_common.plans.acquire.validators import as_bool
 from id8_common.plans.acquire.validators import normalize_yes_no
 from id8_common.plans.acquire.validators import read_yaml
@@ -455,6 +456,10 @@ def run_dual_measurement_info(
     """Expand dual_measurement_info.yaml and run every measurement it describes."""
     # None, not a default argument: a default binds once at import and could not
     # follow an experiment.yml edit or expt.reload().
+    # experiment.yml is cached by expt; re-read it so an edit takes effect
+    # without a restart, and BEFORE the paths below are resolved from it.
+    reload_experiment_config()
+
     measurement_info_file = measurement_info_file or expt.dual_measurement_info_file
     sample_info_file = sample_info_file or expt.sample_info_file
 
@@ -492,6 +497,9 @@ def dry_run_dual_measurement_info(
     to run them too. It does NOT skip the sample-mesh check, which resolves inner_motor and
     outer_motor either way, so a sample_move: yes protocol still needs a live session.
     """
+    # experiment.yml is cached by expt; re-read it so an edit takes effect
+    # without a restart, and BEFORE the paths below are resolved from it.
+    reload_experiment_config()
     measurement_info_file = measurement_info_file or expt.dual_measurement_info_file
     sample_info_file = sample_info_file or expt.sample_info_file
 

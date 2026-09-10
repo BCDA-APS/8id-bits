@@ -570,6 +570,41 @@ def run_measurement(measurement, sample_info):
     det_acq_series(wait_time=wait_time, hooks=measurement.get("hooks"))
 
 
+def reload_experiment_config():
+    """Re-read configs/experiment.yml, and say so if anything changed.
+
+    expt caches experiment.yml: it is read once at startup and then only by an
+    explicit expt.reload(). Everything downstream -- which cycle and experiment
+    the data lands under, which mount point, which analysis machine, which DM
+    workflow -- comes from that cache, so editing the file mid-session changed
+    nothing until someone remembered to reload, and a run could quietly write
+    into the previous experiment's tree.
+
+    Called at the top of the run_* and dry_run_* entry points, before any path is
+    resolved from expt, so the plan files themselves also follow an edit. Only the
+    static block is re-read; run state and persistent state are untouched (see
+    ExperimentConfig.reload).
+
+    A change is announced, and experiment_name/mount_point/cycle_name are called
+    out as a group, because those three decide where the data goes.
+    """
+    before = dict(getattr(expt, "_static", {}) or {})
+    after = expt.reload()
+
+    changed = {k: (before.get(k), v) for k, v in after.items() if before.get(k) != v}
+    if not changed:
+        return changed
+
+    print("experiment.yml changed since it was last read:")
+    for key in sorted(changed):
+        was, now = changed[key]
+        print(f"    {key}: {was!r} -> {now!r}")
+    if {"experiment_name", "mount_point", "cycle_name"} & set(changed):
+        print(f"    -> data now goes to {expt.mount_point}{expt.cycle_name}/"
+              f"{expt.experiment_name}/")
+    return changed
+
+
 def run_measurement_info(
     measurement_info_file=None,
     sample_info_file=None,
@@ -581,6 +616,10 @@ def run_measurement_info(
     # and the dual module's docstring both show one -- and .parent below is a
     # Path method. expt.measurement_info_file is already a Path; Path() on a
     # Path is a no-op.
+    # experiment.yml is cached by expt; re-read it so an edit takes effect
+    # without a restart, and BEFORE the paths below are resolved from it.
+    reload_experiment_config()
+
     measurement_info_file = Path(measurement_info_file or expt.measurement_info_file)
     sample_info_file = Path(sample_info_file or expt.sample_info_file)
 
@@ -615,6 +654,9 @@ def dry_run_measurement_info(measurement_info_file=None, sample_info_file=None):
     that validate_measurement() also makes. A protocol that passes here can
     still be rejected once run_measurement() gets to it.
     """
+    # experiment.yml is cached by expt; re-read it so an edit takes effect
+    # without a restart, and BEFORE the paths below are resolved from it.
+    reload_experiment_config()
     measurement_info_file = measurement_info_file or expt.measurement_info_file
     sample_info_file = sample_info_file or expt.sample_info_file
 
