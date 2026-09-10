@@ -130,10 +130,18 @@ def recover_eiger_idle(eiger4M=None):
        nothing. Completing a trivial series is what walks the DCU back to Idle when
        a bare disarm will not.
 
-    Every camera setting step 2 touches is saved and restored. Letting the
-    following setup_eiger_*() overwrite them would be wrong: Internal Enable never
-    sets ``num_images``, so a recovery that left it at 1 would silently truncate
-    that mode's next run.
+**Nothing is restored.** Every parameter step 2 touches is rewritten by the
+    calling setup_eiger_*() on the very next lines, so putting the old value back
+    here is not merely redundant, it is harmful: the restore and the setup are two
+    rapid writes to the same DCU-backed parameter, and the earlier one can be the
+    one that sticks. That showed up as an exposure time visibly flashing back to
+    the previous protocol's value and then staying there, ignoring
+    measurement_info.yaml (reported 2026-09-10, from an earlier version of this
+    function that saved and restored six parameters).
+
+    This is safe only because every setup_eiger_*() is self-contained about the
+    camera parameters. setup_eiger_internal_enable() did not write num_images and
+    was made to, rather than restoring it here -- one write beats two.
 
     Returns True if it had to do anything, False if the camera was already Idle.
     """
@@ -169,13 +177,6 @@ def recover_eiger_idle(eiger4M=None):
 
     # --- 2. throwaway frame, no beam, no file ----------------------------
     blockbeam()
-    saved = {}
-    for attr in ("trigger_mode", "num_images", "num_triggers",
-                 "acquire_time", "acquire_period", "manual_trigger"):
-        try:
-            saved[attr] = getattr(cam, attr).get()
-        except Exception:
-            pass
     try:
         eiger4M.hdf1.capture.put(0)
         cam.manual_trigger.put("Disable")   # else it waits for a trigger that never comes
@@ -198,11 +199,6 @@ def recover_eiger_idle(eiger4M=None):
             cam.acquire.put(0)
         except Exception:
             pass
-        for attr, value in saved.items():
-            try:
-                getattr(cam, attr).put(value)
-            except Exception:
-                pass
 
     print("  Idle after a throwaway frame.")
     return True
@@ -270,8 +266,11 @@ def setup_eiger_internal_enable(acq_time, acq_period, num_frames, file_header, f
     # explicitly puts it back to "Disable" -- see the note there.
     eiger4M.cam.manual_trigger.put("Enable")
     eiger4M.cam.num_triggers.put(num_frames)
-    # num_images is ignored by the detector in this mode -- each software
-    # trigger produces exactly one image.
+    # One image per software trigger, num_triggers of them. The detector ignores
+    # num_images in this mode, but it is written anyway so this setup states the
+    # full camera configuration on its own: recover_eiger_idle() may have left it
+    # at 1, and it restores nothing (see the note there about racing writes).
+    eiger4M.cam.num_images.put(1)
 
     metadata_fname = f"{file_path}/{file_name}_metadata.hdf"
 
@@ -373,6 +372,11 @@ def setup_eiger_external(acq_time, acq_period, num_frames, file_header, file_nam
     eiger4M.hdf1.num_capture.put(num_frames)
 
     eiger4M.cam.num_triggers.put(num_frames)
+    # One image per external pulse, num_triggers of them. Written explicitly for
+    # the same reason as manual_trigger below: this setup states the full camera
+    # configuration rather than inheriting it. recover_eiger_idle() may have left
+    # num_images at 1, and it restores nothing (see the note there).
+    eiger4M.cam.num_images.put(1)
     eiger4M.cam.trigger_mode.put("External Enable")
     # Explicit, not inherited: setup_eiger_internal_enable() turns manual
     # triggering ON and nothing used to turn it back off, so any mode that ran
