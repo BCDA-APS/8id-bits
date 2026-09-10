@@ -82,6 +82,9 @@ import time as ttime
 
 from id8_common.plans.acquire.acq_helpers import get_common_file_path
 from id8_common.plans.acquire.acq_helpers import get_connected_device
+from id8_common.plans.acquire.acq_wait import STATE_FAILED
+from id8_common.plans.acquire.acq_wait import STATE_IDLE
+from id8_common.plans.acquire.acq_wait import DetectorWaitError
 from id8_common.plans.acquire.acq_wait import cam_fault
 from id8_common.plans.acquire.acq_wait import hdf_frames_written
 from id8_common.plans.acquire.acq_wait import hdf_progress
@@ -94,6 +97,115 @@ from id8_common.plans.set.shutter_att import shutteron
 #: Seconds to let the HDF plugin finish writing after the cam stops. 60 s is
 #: the old 600 x 0.1 s poll budget, now enforced rather than abandoned.
 HDF_DRAIN_TIMEOUT = 60.0
+
+#: Longest to spend on each step of returning the camera to Idle.
+EIGER_DISARM_TIMEOUT = 5.0
+EIGER_RECOVER_TIMEOUT = 15.0
+
+#: Exposure for the throwaway frame in step 2 below. Short enough to cost
+#: nothing, long enough that the DCU treats it as a real series.
+EIGER_RECOVER_EXPOSURE = 0.01
+
+
+def recover_eiger_idle(eiger4M=None):
+    """Return the Eiger to Idle before arming it. Raises if it cannot.
+
+    Ctrl+C out of an acquisition leaves the camera in Aborted (ADStatus 10).
+    Aborted is TERMINAL -- it never becomes Idle on its own -- and arming over it
+    is what hangs the next measurement: ``cam.acquire`` goes to 1 and never comes
+    back, and the exposure waits in this module are deliberately unbounded, so the
+    plan sits there for ever instead of raising.
+
+    Why not just treat Aborted as Idle and carry on? Because that changes what we
+    BELIEVE about the detector without changing the detector. The DCU still holds
+    the abandoned series, so the next arm hangs exactly as it did. The state has to
+    be cleared, not reinterpreted.
+
+    Two steps, cheapest first:
+
+    1. **Disarm** -- ``cam.acquire.put(0)``. No beam, no frames, no time. On its own
+       this is usually enough, so step 2 is rarely reached.
+    2. **One throwaway frame** -- a single short exposure with the HDF plugin off,
+       so nothing is written, and the beam blocked first, so the sample sees
+       nothing. Completing a trivial series is what walks the DCU back to Idle when
+       a bare disarm will not.
+
+    Every camera setting step 2 touches is saved and restored. Letting the
+    following setup_eiger_*() overwrite them would be wrong: Internal Enable never
+    sets ``num_images``, so a recovery that left it at 1 would silently truncate
+    that mode's next run.
+
+    Returns True if it had to do anything, False if the camera was already Idle.
+    """
+    if eiger4M is None:
+        eiger4M = get_connected_device("eiger4M")
+    cam = eiger4M.cam
+
+    def state():
+        try:
+            return int(cam.detector_state.get())
+        except Exception:
+            return None
+
+    if state() == STATE_IDLE:
+        return False
+
+    name = STATE_FAILED.get(state(), state())
+    print(f"eiger4M is in {name}, not Idle -- clearing it before arming.")
+
+    # --- 1. disarm -------------------------------------------------------
+    try:
+        cam.acquire.put(0)
+    except Exception as exc:
+        print(f"  disarm write failed ({exc}); trying a throwaway frame")
+    else:
+        try:
+            wait_until(lambda: state() == STATE_IDLE,
+                       timeout=EIGER_DISARM_TIMEOUT, what="eiger4M disarm")
+            print("  Idle after disarm.")
+            return True
+        except DetectorWaitError:
+            print("  still not Idle after disarm; taking one throwaway frame")
+
+    # --- 2. throwaway frame, no beam, no file ----------------------------
+    blockbeam()
+    saved = {}
+    for attr in ("trigger_mode", "num_images", "num_triggers",
+                 "acquire_time", "acquire_period", "manual_trigger"):
+        try:
+            saved[attr] = getattr(cam, attr).get()
+        except Exception:
+            pass
+    try:
+        eiger4M.hdf1.capture.put(0)
+        cam.manual_trigger.put("Disable")   # else it waits for a trigger that never comes
+        cam.trigger_mode.put("Internal Series")
+        cam.num_images.put(1)
+        cam.num_triggers.put(1)
+        cam.acquire_time.put(EIGER_RECOVER_EXPOSURE)
+        cam.acquire_period.put(EIGER_RECOVER_EXPOSURE)
+        cam.acquire.put(1)
+        wait_until(lambda: state() == STATE_IDLE,
+                   timeout=EIGER_RECOVER_TIMEOUT, what="eiger4M recovery frame")
+    except DetectorWaitError as exc:
+        raise RuntimeError(
+            f"eiger4M will not leave {name}: {exc}. Arming anyway is the hang this "
+            f"check exists to prevent. Restart the Eiger IOC, or put cam.acquire to 0 "
+            f"by hand and confirm DetectorState_RBV reads Idle."
+        ) from exc
+    finally:
+        try:
+            cam.acquire.put(0)
+        except Exception:
+            pass
+        for attr, value in saved.items():
+            try:
+                getattr(cam, attr).put(value)
+            except Exception:
+                pass
+
+    print("  Idle after a throwaway frame.")
+    return True
 
 # =============================================================================
 # Detector setup functions
@@ -108,6 +220,9 @@ HDF_DRAIN_TIMEOUT = 60.0
 def setup_eiger_internal(acq_time, num_frames, file_header, file_name):
     """Configure the Eiger for "Internal Series". Return the metadata file path."""
     eiger4M = get_connected_device("eiger4M")
+    # Ctrl+C out of the previous run leaves the camera Aborted; arming over
+    # that hangs. See recover_eiger_idle().
+    recover_eiger_idle(eiger4M)
     file_path = get_common_file_path(file_header, file_name)
 
     # This mode has no separate acq_period (needs_acq_period is False in the
@@ -138,6 +253,9 @@ def setup_eiger_internal(acq_time, num_frames, file_header, file_name):
 def setup_eiger_internal_enable(acq_time, acq_period, num_frames, file_header, file_name):
     """Configure the Eiger for "Internal Enable". Return the metadata file path."""
     eiger4M = get_connected_device("eiger4M")
+    # Ctrl+C out of the previous run leaves the camera Aborted; arming over
+    # that hangs. See recover_eiger_idle().
+    recover_eiger_idle(eiger4M)
     file_path = get_common_file_path(file_header, file_name)
 
     eiger4M.cam.acquire_time.put(acq_time)
@@ -169,6 +287,9 @@ def setup_eiger_external_series(
     docstring for how acq_period and trigger_period differ.
     """
     eiger4M = get_connected_device("eiger4M")
+    # Ctrl+C out of the previous run leaves the camera Aborted; arming over
+    # that hangs. See recover_eiger_idle().
+    recover_eiger_idle(eiger4M)
     softglue = get_connected_device("softglue")
     # Not referenced below. get_connected_device() does connect it, so the only
     # effect of this line is that a dead mz2 softglue fails here at setup
@@ -235,6 +356,9 @@ def setup_eiger_external(acq_time, acq_period, num_frames, file_header, file_nam
     is what sets the exposure length in this mode.
     """
     eiger4M = get_connected_device("eiger4M")
+    # Ctrl+C out of the previous run leaves the camera Aborted; arming over
+    # that hangs. See recover_eiger_idle().
+    recover_eiger_idle(eiger4M)
     softglue = get_connected_device("softglue")
     # Not referenced below; see the same line in setup_eiger_external_series().
     softglue_8id_mz2 = get_connected_device("softglue_8id_mz2")
