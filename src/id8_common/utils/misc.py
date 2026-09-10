@@ -21,15 +21,7 @@ def ioc_alive(pv: str, timeout: float=0.5, retries: int=2) -> bool:
 
 
 def stream_rois(det, stats_nums=(1, 2, 3), fields=("total",), hinted=("total",)):
-    """Read out only the wanted stats-plugin fields for this detector.
-
-    For each plugin number in stats_nums the plugin is marked "hinted" so the
-    BestEffortCallback picks it up, and its read is narrowed to `fields`. Fields also
-    listed in `hinted` get plotted; the rest are recorded but not plotted.
-    """
-    # Drop the dotted sub-attributes (e.g. "stats1.total") that the detector class ships
-    # with -- the loop below re-adds each stats plugin by its plain name and then lets
-    # the plugin's own read_attrs decide which sub-signals come along.
+    """Configure 'kind' attribute for area detector signals."""
     det.read_attrs = [a for a in det.read_attrs if "." not in a]
     for n in stats_nums:
         stats_attr = f"stats{n}"
@@ -48,13 +40,10 @@ def stream_rois(det, stats_nums=(1, 2, 3), fields=("total",), hinted=("total",))
             sig.kind = "hinted" if f in hinted else "normal"
 
 def get_machine_name() -> str:
-    """Returns the name of a randomly selected analysis machine.
+    """Returns the name of a randomly selected machine (A or B).
 
     Returns:
-        str: one of the names in the `machines` list below -- currently
-             'adamite' or 'califone' (califone twice, so it is picked ~2/3 of
-             the time). 'amazonite' is in the commented-out list, not the live
-             one.
+        str: Either 'adamite' or 'amazonite'
     """
     # machines = ["adamite", "califone", "amazonite"]
     machines = ["adamite", "califone", "califone"]

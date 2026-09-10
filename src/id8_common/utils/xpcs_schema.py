@@ -1,275 +1,977 @@
-"""The 8-ID NeXus schema: which fields exist in the metadata file.
+"""
+NeXus schema definition for APS 8-ID-I XPCS.
 
-Composed by *calling* the factories in ``nexus_xpcs_aps.core.*`` rather than
-spelling out 977 lines of literal dicts. This file is OURS -- it decides what
-8-ID records; the factories it calls are Miaoqi Chu's. It replaced a
-hand-written dict of the same name, kept for reference as
-``Archive/xpcs_schema.txt``, and reproduces it path for path.
-
-Rules obeyed here
------------------
-* Only ``nexus_xpcs_aps.core.*`` is imported.  ``nexus_xpcs_aps.deployment.*`` is
-  obsolete and needs apsbits -- it is never touched.
-* OUR path names win.  Where an upstream factory names a field differently we
-  rename the leaf (e.g. ``flightpath_swing_horizontal`` -> our
-  ``flightpath_swing``) so
-  that dual_acq's OVERRIDE_PATHS keep resolving.
-* Every bare upstream module-level dict used more than once is deep-copied
-  first, so no two instances are aliased to the same object.  In fact we deepcopy
-  *everything* taken from upstream, because ``update_schema_at_runtime`` mutates the
-  schema in place and aliasing would smear one detector's data onto another.
-* ``xpcs_schema`` is exported with exactly the same shape as ours.
-
-Provenance of every leaf is recorded in ``LEAF_PROVENANCE`` (``upstream:<factory>``)
-so it is possible to report how much came from upstream vs. from us. Nothing
-reads it today -- the one-off comparison script it served is gone -- but it is
-cheap to maintain and answers "where did this leaf come from?" at the prompt.
+This module defines the customized NeXus schema used for storing XPCS data at the
+APS 8-ID-I beamline. The schema follows the NXxpcs application definition and
+includes metadata about the experiment, instrument, and data collection.
 """
 
-from copy import deepcopy
+# customized NeXus schema for APS 8-ID-I XPCS
 
-# --- upstream core factories ------------------------------------------------
-# "upstream" throughout this file means the installed nexus_xpcs_aps package
-# (Miaoqi Chu's -- see the README for the checkout path). Two conventions use it:
-#
-#   _upstream_<name>   an object imported from that package and used AS IS.
-#                      The alias is not decoration: several of these names --
-#                      user, bluesky, beam_stop, incident_beam -- are also names
-#                      this module exports, so importing them bare would make
-#                      `user = _tag(deepcopy(user), ...)` a self-reference.
-#                      The prefix keeps "theirs" and "ours" apart in one file.
-#
-#   "upstream:<thing>" the LEAF_PROVENANCE label recording which upstream
-#                      factory produced a leaf, e.g. "upstream:make_slits".
-#
-# Names WITHOUT the prefix (make_slits, make_detector, ...) are upstream too --
-# they are factories we call rather than objects we reuse, so there is no
-# ours/theirs pair to keep apart.
-from nexus_xpcs_aps.core.schema import make_entry
-from nexus_xpcs_aps.core.instrument.attenuator import make_attenuator
-from nexus_xpcs_aps.core.instrument.beam_stop import beam_stop as _upstream_beam_stop
-from nexus_xpcs_aps.core.instrument.bluesky import bluesky as _upstream_bluesky
-from nexus_xpcs_aps.core.instrument.datamanagement import (
-    datamanagement as _upstream_datamanagement,
-)
-from nexus_xpcs_aps.core.instrument.detector import make_detector
-from nexus_xpcs_aps.core.instrument.diffractometer import make_diffractometer
-from nexus_xpcs_aps.core.instrument.incident_beam import (
-    incident_beam as _upstream_incident_beam,
-)
-from nexus_xpcs_aps.core.instrument.keysight_waveform_generator import (
-    keysight_waveform_generator as _upstream_keysight,
-)
-from nexus_xpcs_aps.core.instrument.monochromator import (
-    monochromator as _upstream_monochromator,
-)
-from nexus_xpcs_aps.core.instrument.slits import make_slits
-from nexus_xpcs_aps.core.instrument.undulator import make_undulator
-from nexus_xpcs_aps.core.sample import make_sample
-from nexus_xpcs_aps.core.user import user as _upstream_user
+xpcs_schema = {
+    "entry": {
+        "type": "NXentry",
+        "required": True,
+        "definition": {
+            "type": "NX_CHAR",
+            "required": True,
+            "description": ("Official NeXus NXDL schema to which this file conforms"),
+            "data": "NXxpcs",
+        },
+        "schema_version": {
+            "type": "NX_CHAR",
+            "required": True,
+            "description": ("Version of the XPCS-Nexus schema to which this file conforms"),
+            "data": "0.1.0",
+        },
+        "entry_identifier": {
+            "type": "NX_CHAR",
+            "required": True,
+            "description": ("Locally unique identifier for the experiment " "(a.k.a. run or scan)"),
+            "data": "entry_identifier",
+        },
+        "entry_identifier_uuid": {
+            "type": "NX_CHAR",
+            "required": False,
+            "description": "UUID identifier for this entry",
+            "data": "entry_identifier_uuid",
+        },
+        "beamline": {
+            "type": "NX_CHAR",
+            "required": True,
+            "description": "Beamline identifier, e.g., 8-ID-I",
+            "data": "APS-8-ID-I",
+        },
+        "scan_number": {
+            "type": "NX_INT",
+            "required": True,
+            "deprecated": True,
+            "description": ("DEPRECATED: Use the entry_identifier field. " "Scan number (must be an integer)"),
+            "data": 1,
+        },
+        "start_time": {
+            "type": "NX_DATE_TIME",
+            "required": True,
+            "description": ("Starting time of experiment, such as " '"2021-02-11 11:22:33.445566Z"'),
+            "data": "start_time",
+        },
+        "end_time": {
+            "type": "NX_DATE_TIME",
+            "required": False,
+            "description": ("Ending time of experiment, such as " '"2021-02-11 11:23:45Z"'),
+            "data": "start_time",
+        },
+        "instrument": {
+            "type": "NXinstrument",
+            "required": True,
+            "description": "XPCS instrument Metadata",
+            "detector_1": {
+                "type": "NXdetector",
+                "required": True,
+                "description": ("XPCS data is typically produced by area detector " "(likely EPICS AreaDetector)"),
+                "beam_center_x": {
+                    "type": "NX_NUMBER",
+                    "units": "NX_LENGTH",
+                    "required": True,
+                    "description": ("Position of beam center, x axis, in detector's " "coordinates"),
+                    "data": 1.0,
+                },
+                "beam_center_y": {
+                    "type": "NX_NUMBER",
+                    "units": "NX_LENGTH",
+                    "required": True,
+                    "description": ("Position of beam center, y axis, in detector's " "coordinates"),
+                    "data": 1.0,
+                },
+                "beam_center_position_x": {
+                    "type": "NX_NUMBER",
+                    "units": "NX_LENGTH",
+                    "required": True,
+                    "description": ("Position of the detector, x axis, during data " "collection"),
+                    "data": 1.0,
+                },
+                "beam_center_position_y": {
+                    "type": "NX_NUMBER",
+                    "units": "NX_LENGTH",
+                    "required": True,
+                    "description": ("Position of the detector, y axis, during data " "collection"),
+                    "data": 1.0,
+                },
+                "position_x": {
+                    "type": "NX_NUMBER",
+                    "units": "NX_LENGTH",
+                    "required": True,
+                    "description": ("Position of the detector, x axis, during data " "collection"),
+                    "data": 1.0,
+                },
+                "position_y": {
+                    "type": "NX_NUMBER",
+                    "units": "NX_LENGTH",
+                    "required": True,
+                    "description": ("Position of the detector, y axis, during data " "collection"),
+                    "data": 1.0,
+                },
+                "rotation_x": {
+                    "type": "NX_NUMBER",
+                    "units": "NX_ANGLE",
+                    "required": True,
+                    "description": ("Rotation of the detector, x axis, during data " "collection"),
+                    "data": 0.0,
+                },
+                "rotation_y": {
+                    "type": "NX_NUMBER",
+                    "units": "NX_ANGLE",
+                    "required": True,
+                    "description": ("Rotation of the detector, y axis, during data " "collection"),
+                    "data": 0.0,
+                },
+                "rotation_z": {
+                    "type": "NX_NUMBER",
+                    "units": "NX_ANGLE",
+                    "required": True,
+                    "description": ("Rotation of the detector, z axis, during data " "collection"),
+                    "data": 0.0,
+                },
+                "count_time": {
+                    "type": "NX_NUMBER",
+                    "units": "NX_TIME",
+                    "required": True,
+                    "description": "Exposure time of frames, s",
+                    "data": 1.0,
+                },
+                "detector_name": {
+                    "type": "NX_CHAR",
+                    "required": False,
+                    "description": "Detector name",
+                    "data": "Eiger4m",
+                },
+                "qmap_file": {
+                    "type": "NX_CHAR",
+                    "required": False,
+                    "description": "Qmap name",
+                    "data": "eiger4M_qmap_default.hdf",
+                },
+                "distance": {
+                    "type": "NX_NUMBER",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "Distance between sample and detector",
+                    "data": 12.0,
+                },
+                "flightpath_swing": {
+                    "type": "NX_NUMBER",
+                    "units": "NX_ANGLE",
+                    "required": False,
+                    "description": "Swing angle of the flight path",
+                    "data": 0,
+                },
+                "flightpath_swing_vertical": {
+                    "type": "NX_NUMBER",
+                    "units": "NX_ANGLE",
+                    "required": False,
+                    "description": "Vertical swing angle of the flight path",
+                    "data": 0,
+                },
+                "frame_time": {
+                    "type": "NX_NUMBER",
+                    "units": "NX_TIME",
+                    "required": True,
+                    "description": ("Exposure period (time between frame starts) of frames, s"),
+                    "data": 1.0,
+                },
+                "x_pixel_size": {
+                    "type": "NX_NUMBER",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "Length of pixel in x direction",
+                    "data": 75e-6,
+                },
+                "y_pixel_size": {
+                    "type": "NX_NUMBER",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "Length of pixel in y direction",
+                    "data": 75e-6,
+                },
+                "compression": {
+                    "type": "NX_CHAR",
+                    "required": False,
+                    "description": "Compression algorithm used for data",
+                    "data": "bslz4",
+                },
+            },
+            "incident_beam": {
+                "type": "NXbeam",
+                "description": "Incident beam Metadata",
+                "required": True,
+                "extent": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "Size (2-D) of the beam at this position",
+                    "data": 1.0e-6,
+                },
+                "incident_energy": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_ENERGY",
+                    "required": True,
+                    "description": "Incident beam line energy (either keV or eV)",
+                    "data": 12.0,
+                },
+                "incident_energy_spread": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_ENERGY",
+                    "required": False,
+                    "description": ("Spread of incident beam line energy (either keV or eV)"),
+                    "data": 0.0001,
+                },
+                "incident_polarization_type": {
+                    "type": "NX_CHAR",
+                    "required": False,
+                    "description": ("Terse description of the incident beam polarization"),
+                    "data": "linear_horizontal",
+                },
+                "incident_beam_intensity": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_ENERGY",
+                    "required": False,
+                    "description": "Incident beam intensity, aka I0",
+                    "data": 0.0001,
+                },
+                "transmitted_beam_intensity": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_ENERGY",
+                    "required": False,
+                    "description": "Transmitted beam intensity, aka I1",
+                    "data": 0.0001,
+                },
+                "ring_current": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_CURRENT",
+                    "required": True,
+                    "description": "Storage ring current in mA",
+                    "data": 0.0,
+                },
+            },
+            "undulator_1": {
+                "type": "NXinsertion_device",
+                "required": False,
+                "description": "Undulator 1 Metadata",
+                "gap": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "Undulator gap",
+                    "data": 1.0,
+                },
+                "energy": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_ENERGY",
+                    "required": False,
+                    "description": "Undulator energy",
+                    "data": 1.0,
+                },
+                "taper": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "Undulator taper",
+                    "data": 1.0,
+                },
+            },
+            "undulator_2": {
+                "type": "NXinsertion_device",
+                "required": False,
+                "description": "Undulator 2 Metadata",
+                "gap": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "Undulator gap",
+                    "data": 1.0,
+                },
+                "energy": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_ENERGY",
+                    "required": False,
+                    "description": "Undulator energy",
+                    "data": 1.0,
+                },
+                "taper": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "Undulator taper",
+                    "data": 1.0,
+                },
+            },
+            "monochromator": {
+                "type": "NXmonochromator",
+                "required": False,
+                "description": "Monochromator Metadata",
+                "energy": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_ENERGY",
+                    "required": False,
+                    "description": "Monochromator energy",
+                    "data": 1.0,
+                },
+                "wavelength": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "Monochromator wavelength",
+                    "data": 1.0,
+                },
+            },
+            "attenuator_1": {
+                "type": "NXattenuator",
+                "required": False,
+                "description": "Attenuator 1 in 8IDE Metadata",
+                "attenuator_transmission": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_DIMENSIONLESS",
+                    "required": False,
+                    "description": "Attenuator transmission",
+                    "data": 1.0,
+                },
+                "attenuator_index": {
+                    "type": "NX_INT",
+                    "units": "NX_DIMENSIONLESS",
+                    "required": False,
+                    "description": "Attenuator index",
+                    "data": 1,
+                },
+            },
+            "attenuator_2": {
+                "type": "NXattenuator",
+                "required": False,
+                "description": "Attenuator 2 in 8IDI Metadata",
+                "attenuator_transmission": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_DIMENSIONLESS",
+                    "required": False,
+                    "description": "Attenuator transmission",
+                    "data": 1.0,
+                },
+                "attenuator_index": {
+                    "type": "NX_INT",
+                    "units": "NX_DIMENSIONLESS",
+                    "required": False,
+                    "description": "Attenuator index",
+                    "data": 1,
+                },
+            },
+            "beam_stop": {
+                "type": "NXbeam_stop",
+                "required": False,
+                "description": "Beam stop Metadata",
+                "x_position": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "Beam stop x position",
+                    "data": 1.0,
+                },
+                "y_position": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "Beam stop y position",
+                    "data": 1.0,
+                },
+                "size": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "Beam stop size",
+                    "data": 1.0,
+                },
+            },
+            "datamanagement": {
+                "type": "NXnote",
+                "required": False,
+                "description": "Data management Metadata",
+                "workflow_name": {
+                    "type": "NX_CHAR",
+                    "required": False,
+                    "description": "Data management workflow name",
+                    "data": "boost_corr workflow",
+                },
+                "workflow_version": {
+                    "type": "NX_CHAR",
+                    "required": False,
+                    "description": "Data management workflow version",
+                    "data": "0.0.1",
+                },
+                "workflow_kwargs": {
+                    "type": "NX_CHAR",
+                    "required": False,
+                    "description": "input arguments for the data management workflow",
+                    "data": """{"qmap": "sample_name", "mask": "mask_name"}""",
+                },
+            },
+            "bluesky": {
+                "type": "NXnote",
+                "required": False,
+                "description": "Bluesky Metadata",
+                "scan_id": {
+                    "type": "NX_INT",
+                    "required": False,
+                    "description": "Scan ID",
+                    "data": 1,
+                },
+                "bluesky_version": {
+                    "type": "NX_CHAR",
+                    "required": False,
+                    "description": "Bluesky version",
+                    "data": "1.0.0",
+                },
+                "bluesky_plan": {
+                    "type": "NX_CHAR",
+                    "required": False,
+                    "description": "Bluesky Plan for this dataset",
+                    "data": "mesh_scan",
+                },
+                "bluesky_plan_kwargs": {
+                    "type": "NX_CHAR",
+                    "required": False,
+                    "description": ("Configration for the Bluesky Plan for this dataset"),
+                    "data": "mesh_scan_sample_kwargs",
+                },
+                "spec_file": {
+                    "type": "NX_CHAR",
+                    "required": False,
+                    "description": "spec file name for this dataset",
+                    "data": "/path/to/this/spec_file_name",
+                },
+                "parent_folder": {
+                    "type": "NX_CHAR",
+                    "required": False,
+                    "description": "parent folder of the data file",
+                    "data": "/path/to/this/spec_file_name",
+                },
+            },
+            # "fofb_s09": {
+            #     "type": "NXinstrument",
+            #     "required": False,
+            #     "description": "fofb s09",
+            #     "horizontal_loop": {
+            #         "type": "NX_NUMBER",
+            #         "units": "NX_DIMENSIONLESS",
+            #         "required": False,
+            #         "description": "Horizontal loop value of the fofb s09",
+            #         "data": 0.0,
+            #     },
+            #     "vertical_loop": {
+            #         "type": "NX_NUMBER",
+            #         "units": "NX_DIMENSIONLESS",
+            #         "required": False,
+            #         "description": "Vertical loop value of the fofb s09",
+            #         "data": 0.0,
+            #     },
+            # },
+            "sl4": {
+                "type": "NXslit",
+                "required": False,
+                "description": "Slits 4",
+                "horizontal_gap": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "Horizontal size of the slits",
+                    "data": 0.0,
+                },
+                "horizontal_center": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "Horizontal center of the slits",
+                    "data": 0.0,
+                },
+                "vertical_gap": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "vertical size of the slits",
+                    "data": 0.0,
+                },
+                "vertical_center": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "vertical center of the slits",
+                    "data": 0.0,
+                },
+            },
+            "sl7": {
+                "type": "NXslit",
+                "required": False,
+                "description": "Slits 7",
+                "horizontal_gap": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "Horizontal size of the slits",
+                    "data": 0.0,
+                },
+                "horizontal_center": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "Horizontal center of the slits",
+                    "data": 0.0,
+                },
+                "vertical_gap": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "vertical size of the slits",
+                    "data": 0.0,
+                },
+                "vertical_center": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "vertical center of the slits",
+                    "data": 0.0,
+                },
+            },
 
-BEAMLINE = "APS-8-ID-E,I"
-
-_META = frozenset({"required", "deprecated", "type", "units", "description"})
-
-# leaf NeXus path -> short provenance label
-LEAF_PROVENANCE = {}
-
-
-# --- small composition helpers ----------------------------------------------
-def _leaves(node):
-    """Yield (key, value) for direct children that are leaf datasets."""
-    for k, v in node.items():
-        if k in _META or not isinstance(v, dict):
-            continue
-        if "data" in v:
-            yield k, v
-
-
-def _tag(node, prefix, label):
-    """Record ``label`` as the provenance of every leaf under ``node``."""
-    for k, v in node.items():
-        if k in _META or not isinstance(v, dict):
-            continue
-        path = f"{prefix}/{k}"
-        if "data" in v:
-            LEAF_PROVENANCE[path] = label
-        else:
-            _tag(v, path, label)
-    return node
-
-
-def _pick(src, names):
-    """Deep-copied subset of a flat leaf dict, in the order given."""
-    return {n: deepcopy(src[n]) for n in names}
-
-
-def _drop(node, names):
-    """Deep copy of ``node`` with the named leaves removed."""
-    out = deepcopy(node)
-    for n in names:
-        out.pop(n)
-    return out
+            "wb_slit": {
+                "type": "NXslit",
+                "required": False,
+                "description": "white beam slit",
+                "horizontal_gap": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "Horizontal size of the slits",
+                    "data": 0.0,
+                },
+                "horizontal_center": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "Horizontal center of the slits",
+                    "data": 0.0,
+                },
+                "vertical_gap": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "vertical size of the slits",
+                    "data": 0.0,
+                },
+                "vertical_center": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "vertical center of the slits",
+                    "data": 0.0,
+                },
+            },
 
 
-def _rename(node, old, new, description=None):
-    """Deep copy of ``node`` with leaf ``old`` re-keyed to ``new``.
+            "mono_slit": {
+                "type": "NXslit",
+                "required": False,
+                "description": "mono beam slit",
+                "horizontal_gap": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "Horizontal size of the slits",
+                    "data": 0.0,
+                },
+                "horizontal_center": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "Horizontal center of the slits",
+                    "data": 0.0,
+                },
+                "vertical_gap": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "vertical size of the slits",
+                    "data": 0.0,
+                },
+                "vertical_center": {
+                    "type": "NX_FLOAT",
+                    "units": "NX_LENGTH",
+                    "required": False,
+                    "description": "vertical center of the slits",
+                    "data": 0.0,
+                },
+            },
 
-    Key order is preserved (the renamed leaf stays where it was), so the HDF5
-    write order is unchanged.
-    """
-    out = {}
-    for k, v in node.items():
-        if k == old:
-            leaf = deepcopy(v)
-            if description is not None:
-                leaf["description"] = description
-            out[new] = leaf
-        else:
-            out[k] = deepcopy(v)
-    return out
+        },
+        "sample": {
+            "type": "NXsample",
+            "required": False,
+            "description": "Sample environment and position metadata",
+            "short_description": {
+                "type": "NX_CHAR",
+                "required": False,
+                "description": "Short description of the sample",
+                "data": "Short sample description",
+            },
+            "full_description": {
+                "type": "NX_CHAR",
+                "required": False,
+                "description": "Full description of the sample",
+                "data": "Full sample description",
+            },
+            "huber_x": {
+                "type": "NXpositioner",
+                "required": False,
+                "description": "Huber sample position, x",
+                "units": "NX_LENGTH",
+                "data": 1.0,
+            },
+            "huber_y": {
+                "type": "NXpositioner",
+                "required": False,
+                "description": "Huber sample position, y",
+                "units": "NX_LENGTH",
+                "data": 1.0,
+            },
+            "huber_z": {
+                "type": "NXpositioner",
+                "required": False,
+                "description": "Huber sample position, z",
+                "units": "NX_LENGTH",
+                "data": 1.0,
+            },
+            "huber_nu": {
+                "type": "NXpositioner",
+                "units": "NX_ANGLE",
+                "required": True,
+                "description": "Huber nu angle",
+                "data": 0.0,
+            },
+            "huber_delta": {
+                "type": "NXpositioner",
+                "units": "NX_ANGLE",
+                "required": True,
+                "description": "Huber delta angle",
+                "data": 0.0,
+            },
+            "huber_mu": {
+                "type": "NXpositioner",
+                "units": "NX_ANGLE",
+                "required": True,
+                "description": "Huber mu angle",
+                "data": 0.0,
+            },
+            "huber_eta": {
+                "type": "NXpositioner",
+                "units": "NX_ANGLE",
+                "required": True,
+                "description": "Huber eta angle",
+                "data": 0.0,
+            },
+            "huber_chi": {
+                "type": "NXpositioner",
+                "units": "NX_ANGLE",
+                "required": True,
+                "description": "Huber chi angle",
+                "data": 0.0,
+            },
+            "huber_phi": {
+                "type": "NXpositioner",
+                "units": "NX_ANGLE",
+                "required": True,
+                "description": "Huber phi angle",
+                "data": 0.0,
+            },
+            "qnw_lakeshore": {
+                "type": "NX_NUMBER",
+                "units": "NX_TEMPERATURE",
+                "required": False,
+                "description": "backup temperature reading from lakeshore for qnw",
+                "data": 1.0,
+            },
+            "qnw1_temperature": {
+                "type": "NX_NUMBER",
+                "units": "NX_TEMPERATURE",
+                "required": False,
+                "description": "Sample temperature actual in celsius",
+                "data": 1.0,
+            },
+            "qnw1_temperature_set": {
+                "type": "NX_NUMBER",
+                "units": "NX_TEMPERATURE",
+                "required": False,
+                "description": "Sample temperature setpoint in celsius",
+                "data": 1.0,
+            },
+            "qnw2_temperature": {
+                "type": "NX_NUMBER",
+                "units": "NX_TEMPERATURE",
+                "required": False,
+                "description": "Sample temperature actual in celsius",
+                "data": 1.0,
+            },
+            "qnw2_temperature_set": {
+                "type": "NX_NUMBER",
+                "units": "NX_TEMPERATURE",
+                "required": False,
+                "description": "Sample temperature setpoint in celsius",
+                "data": 1.0,
+            },
+            "qnw3_temperature": {
+                "type": "NX_NUMBER",
+                "units": "NX_TEMPERATURE",
+                "required": False,
+                "description": "Sample temperature actual in celsius",
+                "data": 1.0,
+            },
+            "qnw3_temperature_set": {
+                "type": "NX_NUMBER",
+                "units": "NX_TEMPERATURE",
+                "required": False,
+                "description": "Sample temperature setpoint in celsius",
+                "data": 1.0,
+            },
+            "lakeshore1": {
+                "type": "NX_NUMBER",
+                "units": "NX_TEMPERATURE",
+                "required": False,
+                "description": "backup temperature reading from lakeshore1",
+                "data": 1.0,
+            },
+
+            "position_x": {
+                "type": "NXpositioner",
+                "required": False,
+                "description": "Sample position, x",
+                "units": "NX_LENGTH",
+                "data": 1.0,
+            },
+            "position_y": {
+                "type": "NXpositioner",
+                "required": False,
+                "description": "Sample position, y",
+                "units": "NX_LENGTH",
+                "data": 1.0,
+            },
+            "position_z": {
+                "type": "NXpositioner",
+                "required": False,
+                "description": "Sample position, z",
+                "units": "NX_LENGTH",
+                "data": 1.0,
+            },
+            "position_rheo_x": {
+                "type": "NXpositioner",
+                "required": False,
+                "description": "Sample position, x",
+                "units": "NX_LENGTH",
+                "data": 1.0,
+            },
+            "position_rheo_y": {
+                "type": "NXpositioner",
+                "required": False,
+                "description": "Sample position, y",
+                "units": "NX_LENGTH",
+                "data": 1.0,
+            },
+            "position_rheo_z": {
+                "type": "NXpositioner",
+                "required": False,
+                "description": "Sample position, z",
+                "units": "NX_LENGTH",
+                "data": 1.0,
+            },
+
+            "keithley_chA_SrcLevelV": {
+                "type": "NX_NUMBER",
+                "units": "NX_VOLTAGE",
+                "required": False,
+                "description": "voltage reading from keithley_chA",
+                "data": 1.0,
+            },
+            "keithley_chA_SrcLevelI": {
+                "type": "NX_NUMBER",
+                "units": "NX_CURRENT",
+                "required": False,
+                "description": "current reading from keithley_chA",
+                "data": 1.0,
+            },
+            "keithley_chB_SrcLevelV": {
+                "type": "NX_NUMBER",
+                "units": "NX_VOLTAGE",
+                "required": False,
+                "description": "voltage reading from keithley_chA",
+                "data": 1.0,
+            },
+            "keithley_chB_SrcLevelI": {
+                "type": "NX_NUMBER",
+                "units": "NX_CURRENT",
+                "required": False,
+                "description": "current reading from keithley_chA",
+                "data": 1.0,
+            },
+            "keithley_chA_MeasRangeV": {
+                "type": "NX_NUMBER",
+                "units": "NX_VOLTAGE",
+                "required": False,
+                "description": "voltage reading from keithley_chA",
+                "data": 1.0,
+            },
+            "keithley_chA_MeasRangeI": {
+                "type": "NX_NUMBER",
+                "units": "NX_CURRENT",
+                "required": False,
+                "description": "current reading from keithley_chA",
+                "data": 1.0,
+            },
+            "keithley_chB_MeasRangeV": {
+                "type": "NX_NUMBER",
+                "units": "NX_VOLTAGE",
+                "required": False,
+                "description": "voltage reading from keithley_chA",
+                "data": 1.0,
+            },
+            "keithley_chB_MeasRangeI": {
+                "type": "NX_NUMBER",
+                "units": "NX_CURRENT",
+                "required": False,
+                "description": "current reading from keithley_chA",
+                "data": 1.0,
+            },
+            "bk_pid_VAL": {
+                "type": "NX_NUMBER",
+                "units": "NX_TEMPERATURE",
+                "required": False,
+                "description": "setpoint temperature from BK Precision PID",
+                "data": 1.0,
+            },
+            "bk_pid_RDBK": {
+                "type": "NX_NUMBER",
+                "units": "NX_TEMPERATURE",
+                "required": False,
+                "description": "readback temperature from BK Precision PID",
+                "data": 1.0,
+            },
+            "keysight_func": {
+                "type": "NX_NUMBER",
+                "units": "NX_DIMENSIONLESS",
+                "required": False,
+                "description": "function setting from Keysight signal generator",
+                "data": 1.0,
+            },
+            "keysight_freq": {
+                "type": "NX_NUMBER",
+                "units": "NX_FREQUENCY",
+                "required": False,
+                "description": "frequency setting from Keysight signal generator",
+                "data": 1.0,
+            },
+            "keysight_amp": {
+                "type": "NX_NUMBER",
+                "units": "NX_VOLTAGE",
+                "required": False,
+                "description": "amplitude setting from Keysight signal generator",
+                "data": 1.0,
+            },
+            "keysight_phase": {
+                "type": "NX_NUMBER",
+                "units": "NX_DIMENSIONLESS",
+                "required": False,
+                "description": "phase setting from Keysight signal generator",
+                "data": 1.0,
+            },
+            "keysight_pulse_width": {
+                "type": "NX_NUMBER",
+                "units": "NX_TIME",
+                "required": False,
+                "description": "function setting from Keysight signal generator",
+                "data": 1.0,
+            },
+            "keysight_trigg_source": {
+                "type": "NX_NUMBER",
+                "units": "NX_DIMENSIONLESS",
+                "required": False,
+                "description": "trigger source setting from Keysight signal generator",
+                "data": 1.0,
+            },
+            "keysight_trigg_edge": {
+                "type": "NX_NUMBER",
+                "units": "NX_DIMENSIONLESS",
+                "required": False,
+                "description": "trigger edge setting from Keysight signal generator",
+                "data": 1.0,
+            },
+            "keysight_burst_count": {
+                "type": "NX_NUMBER",
+                "units": "NX_DIMENSIONLESS",
+                "required": False,
+                "description": "burst count setting from Keysight signal generator",
+                "data": 1.0,
+            },
+            "keysight_burst_mode": {
+                "type": "NX_NUMBER",
+                "units": "NX_DIMENSIONLESS",
+                "required": False,
+                "description": "burst mode setting from Keysight signal generator",
+                "data": 1.0,
+            },
+            "keysight_burst_state": {
+                "type": "NX_NUMBER",
+                "units": "NX_DIMENSIONLESS",
+                "required": False,
+                "description": "burst state setting from Keysight signal generator",
+                "data": 1.0,
+            },
+            "keysight_output": {
+                "type": "NX_NUMBER",
+                "units": "NX_DIMENSIONLESS",
+                "required": False,
+                "description": "output state setting from Keysight signal generator",
+                "data": 1.0,
+            },
 
 
-def _flatten(group, prefix):
-    """Flatten a nested upstream group into ``prefix``-named sibling leaves.
 
-    Upstream's ``make_diffractometer`` and ``keysight_waveform_generator`` model their
-    axes as children of an NXpositioner / NXnote group; our schema carries the
-    same leaves flat under /entry/sample with a name prefix.  The leaf dicts
-    themselves are upstream's, verbatim (deep-copied); only the key changes.
-    """
-    return {f"{prefix}{k}": deepcopy(v) for k, v in _leaves(group)}
-
-
-# =============================================================================
-# instrument
-# =============================================================================
-
-# detector_1 -- upstream make_detector, with the one field we name differently.
-_detector_1 = _rename(
-    make_detector(1, name="Eiger4m"),
-    "flightpath_swing_horizontal",
-    "flightpath_swing",
-    description="Swing angle of the flight path",
-)
-
-
-instrument = {
-    "type": "NXinstrument",
-    "required": True,
-    "description": "XPCS instrument Metadata",
-    "detector_1": _tag(_detector_1, "/entry/instrument/detector_1", "upstream:make_detector"),
-    "incident_beam": _tag(
-        deepcopy(_upstream_incident_beam),
-        "/entry/instrument/incident_beam",
-        "upstream:incident_beam",
-    ),
-    "undulator_1": _tag(
-        make_undulator(1), "/entry/instrument/undulator_1", "upstream:make_undulator"
-    ),
-    "undulator_2": _tag(
-        make_undulator(2), "/entry/instrument/undulator_2", "upstream:make_undulator"
-    ),
-    "monochromator": _tag(
-        deepcopy(_upstream_monochromator),
-        "/entry/instrument/monochromator",
-        "upstream:monochromator",
-    ),
-    "attenuator_1": _tag(
-        make_attenuator(1), "/entry/instrument/attenuator_1", "upstream:make_attenuator"
-    ),
-    "attenuator_2": _tag(
-        make_attenuator(2), "/entry/instrument/attenuator_2", "upstream:make_attenuator"
-    ),
-    "beam_stop": _tag(
-        deepcopy(_upstream_beam_stop), "/entry/instrument/beam_stop", "upstream:beam_stop"
-    ),
-    "datamanagement": _tag(
-        deepcopy(_upstream_datamanagement),
-        "/entry/instrument/datamanagement",
-        "upstream:datamanagement",
-    ),
-    "bluesky": _tag(
-        deepcopy(_upstream_bluesky), "/entry/instrument/bluesky", "upstream:bluesky"
-    ),
-    # Four physically distinct slit assemblies, each an independent call so the
-    # instances are never aliased.
-    "sl4": _tag(
-        make_slits(4, description="Slits 4"), "/entry/instrument/sl4", "upstream:make_slits"
-    ),
-    "sl7": _tag(
-        make_slits(7, description="Slits 7"), "/entry/instrument/sl7", "upstream:make_slits"
-    ),
-    "wb_slit": _tag(
-        make_slits("wb", description="white beam slit"),
-        "/entry/instrument/wb_slit",
-        "upstream:make_slits",
-    ),
-    "mono_slit": _tag(
-        make_slits("mono", description="mono beam slit"),
-        "/entry/instrument/mono_slit",
-        "upstream:make_slits",
-    ),
+        },
+        "user": {
+            "type": "NXuser",
+            "required": False,
+            "description": "User Metadata",
+            "name": {
+                "type": "NX_CHAR",
+                "required": True,
+                "description": "User name",
+                "data": "John Doe",
+            },
+            "email": {
+                "type": "NX_CHAR",
+                "required": True,
+                "description": "User email",
+                "data": "JohnDoe@mail.edu",
+            },
+            "institution": {
+                "type": "NX_CHAR",
+                "required": True,
+                "description": "User institution",
+                "data": "Inititution Name",
+            },
+            "cycle": {
+                "type": "NX_CHAR",
+                "required": True,
+                "description": ("Cycle during which the experiment was performed, e.g., 2025-2"),
+                "data": "cycle",
+            },
+            "proposal_id": {
+                "type": "NX_CHAR",
+                "required": True,
+                "description": "proposal_id",
+                "data": "none",
+            },
+        },
+    },
 }
-
-# =============================================================================
-# sample
-# =============================================================================
-
-# Upstream make_sample gives us base + qnw + rheometer + huber_stage + lakeshore +
-# keithley + bk_pid in one call.  We drop the two rheometer readings our schema
-# does not carry, then bolt on the flattened Huber angles and Keysight fields.
-_sample_full = make_sample(
-    qnw=True,
-    rheometer=True,
-    huber_stage=True,
-    lakeshore=True,
-    keithley=True,
-    bk_pid=True,
-    # Alicat PCD pressure controllers. This is a COUNT, not a flag: unit i
-    # contributes pcd{i}_pressure and pcd{i}_pressure_set. Two units are
-    # installed at 8-ID (8idAlicat:PCD1: and PCD2:), so 2.
-    #
-    # Upstream added pressure support in AZjk/nexus_xpcs_aps#1 at our request
-    # -- as a bool, one unnumbered pair -- then generalised it to N units in
-    # 7e2b8b7. Adopting that renamed our leaves: pressure -> pcd1_pressure and
-    # pressure_set -> pcd1_pressure_set. Metadata files written before
-    # 2026-09-09 carry the old unnumbered paths.
-    pressure=2,
-)
-_sample_core = _drop(_sample_full, ["rheometer_shear_rate", "rheometer_temperature"])
-
-# Huber goniometer angles: upstream make_diffractometer, flattened to huber_<axis>.
-_huber_angles = _flatten(make_diffractometer("Huber"), "huber_")
-
-# Keysight waveform generator: upstream module dict, flattened to keysight_<field>.
-_keysight_flat = _flatten(_upstream_keysight, "keysight_")
-
-sample = {}
-sample.update(_sample_core)
-sample.update(_huber_angles)
-sample.update(_keysight_flat)
-
-_tag(_sample_core, "/entry/sample", "upstream:make_sample")
-_tag(_huber_angles, "/entry/sample", "upstream:make_diffractometer")
-_tag(_keysight_flat, "/entry/sample", "upstream:keysight_waveform_generator")
-
-# =============================================================================
-# user
-# =============================================================================
-
-user = _tag(deepcopy(_upstream_user), "/entry/user", "upstream:user")
-
-# =============================================================================
-# entry
-# =============================================================================
-
-xpcs_schema = {"entry": make_entry(BEAMLINE, instrument, sample, user)}
-
-# entry-level scalars come from make_entry itself; tag only the ones it owns
-for _k, _v in _leaves(xpcs_schema["entry"]):
-    LEAF_PROVENANCE.setdefault(f"/entry/{_k}", "upstream:make_entry")
-
-# Nothing in this schema is hand-written: every leaf below is sourced from a
-# nexus_xpcs_aps.core factory or module-level dict.
-HANDWRITTEN_LEAVES = {}

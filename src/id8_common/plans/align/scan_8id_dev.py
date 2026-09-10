@@ -8,8 +8,7 @@ This module provides plans for scanning various motors and detectors at the
 from typing import Optional
 
 from matplotlib.pylab import det
-from id8_common.expt_config import expt
-from id8_common.registry import oregistry
+from apsbits.core.instrument_init import oregistry
 from bluesky import plan_stubs as bps
 from bluesky import plans as bp
 import bluesky.preprocessors as bpp
@@ -26,16 +25,17 @@ from id8_common.plans.acquire.ad_acq import *
 import time
 import numpy as np
 
-huber = oregistry.get("huber") # sample stage for 8-id-e
-sample = oregistry.get("sample") # sample stage for 8-id-i
-filter_beam = oregistry.get("filter_8ide")
-tetramm1 = oregistry.get("tetramm1")
-eiger4M = oregistry.get("eiger4M")
-lambda2M = oregistry.get("lambda2M")
-softglue = oregistry.get("softglue")
-softglue_8id_acq = oregistry.get("softglue_8id_acq")
-filter_beam = oregistry.get("filter_8ide")
-rheometer = oregistry.get("rheometer")
+huber = oregistry["huber"] # sample stage for 8-id-e
+sample = oregistry["sample"] # sample stage for 8-id-i
+pv_registers = oregistry["pv_registers"]
+filter_beam = oregistry["filter_8ide"]
+tetramm1 = oregistry["tetramm1"]
+eiger4M = oregistry["eiger4M"]
+lambda2M = oregistry["lambda2M"]
+softglue = oregistry["softglue"]
+softglue_8id_acq = oregistry["softglue_8id_acq"]
+filter_beam = oregistry["filter_8ide"]
+rheometer = oregistry["rheometer"]
 
 
 def att(att_ratio: Optional[float] = None):
@@ -71,7 +71,7 @@ def save_images(det, save_img, num_pts, num_frames=1, file_path=None, folder_pre
             folder_prefix = gen_folder_prefix()
 
         if file_path is None:
-            file_path = f"{expt.mount_point}{expt.cycle_name}/{expt.experiment_name}/data/bluesky"
+            file_path = "/gdata/dm/8ID/8IDE/2026-2/hung202607/data/bluesky/"
         
         is_eiger = ("eiger" in det.name.lower()) or ("eiger" in det.prefix.lower())
         is_tetramm = "tetramm" in det.name.lower()

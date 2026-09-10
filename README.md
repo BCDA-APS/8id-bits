@@ -1,113 +1,170 @@
-# 8-ID XPCS instrument
+# 8-ID-I XPCS Bluesky Instrument
 
-Beamline control for the APS 8-ID XPCS instrument. The working code is
-`src/id8_common`; this page is the way in.
+## Installation Steps
+*aps_8id_bs_instrument* can also use *conda* for dependency management, and
+*setuptools* for installation and development.
 
-Start here and follow the links. Every page is plain Markdown, so it reads on
-GitHub, in an editor, or with `less`.
-
-## Starting
-
-On a beamline host that can see the EPICS network (`pearl` or `amber`):
+First, download the package from github:
 
 ```bash
-~/bin/start_ophyd.sh      # Ophyd-only session -- devices and plans, no RunEngine
-~/bin/start_bluesky.sh    # the same, plus Bluesky (RunEngine, databroker)
+git clone https://github.com/aps-8id-dys/bluesky
+cd bluesky
 ```
 
-Either one activates the `8id_bits` conda environment and sources the APS Data
-Management setup. `start_ophyd.sh` is the normal way in; see
-[Starting a session](docs/starting-a-session.md) for what it loads and how to
-read the output.
-
-## I want to…
-
-| … | Go to |
-|---|---|
-| start a session at the beamline | [Starting a session](docs/starting-a-session.md) |
-| see what loaded, or add and remove a device | [Devices](docs/devices.md) |
-| change the experiment, or find where a setting or session state lives | [Configuration](docs/configuration.md) |
-| read or set `expt` at the prompt | [Using `expt`](docs/using-expt.md) |
-| define a protocol, run a measurement, or look up a detector mode | [Running measurements](docs/running-measurements.md) |
-| add or remove a field in the NeXus metadata file | [Adding metadata fields](docs/adding-metadata.md) |
-| plot a scan, live or afterwards | [Viewing scans](docs/viewing-scans.md) |
-| work out why something failed, including an analysis job | [Troubleshooting](docs/reference/troubleshooting.md) |
-
-## The 30-second version
-
-```
-   configs/experiment.yml          which cycle, which experiment, where data goes
-   user_plans/<cycle>/<expt>/
-       sample_info.yaml            what the samples are and where they sit
-       measurement_info.yaml       what to measure and how
-                 │
-                 ▼
-            expt  (id8_common/expt_config.py)     ← one object, everything reads it
-                 │
-                 ▼
-        run_measurement_info()      expands YAML into measurements, validates, runs
-                 │
-                 ▼
-        det_acq_series()            drives the detector, writes NeXus metadata,
-                                    submits the DM analysis job
+```bash
+export ENV_NAME=bs_8id_main
+conda create -y -n $ENV_NAME python=3.11 pyepics apsu::aps-dm-api
+conda activate $ENV_NAME
+pip install -e ."[all]"
 ```
 
-Every folder and file is named `A0061_<sample>_a0007_…`. That `0061` is
-`expt.measurement_num`, and its store is the EPICS register `8ideSoft:Reg1`, not
-a file in this repository — so a second session, or a fresh clone, carries on
-from the same number instead of restarting at 0 over existing data.
-Generated session state (sample index, mesh positions) lands in the gitignored
-`state/run_state.yml`. Both are covered in [Configuration](docs/configuration.md).
+## IPython console
+To start the bluesky instrument session in a ipython execute the below command in a terminal
+```bash
+ipython
+```
+Inside the ipython console execute
+```py
+from instrument.startup import *
+```
+## Jupyter notebook
 
-Two commands cover most days:
+Start JupyterLab, a Jupyter notebook server, or a notebook, VSCode.
 
-```python
-dry_run_measurement_info()   # validate and preview -- moves nothing
-run_measurement_info()       # go
+Start the data acquisition:
+
+```py
+from instrument.startup import *
 ```
 
-## Where the code lives
+## Sim Plan Demo
+To run some simulated plans that ensure the installation worked as expected please run the below inside an ipython session or a jupyter notebook after starting the data acquisition
+```py
+RE(sim_print_plan())
+RE(sim_count_plan())
+RE(sim_rel_scan_plan())
+```
 
-Most of what runs at 8-ID is in this repository. Two pieces are not, and both
-are installed from a checkout rather than from PyPI — so "upgrading" either one
-means pulling in that directory, and it takes effect immediately.
+See this [example](./docs/source/demo.ipynb).
 
-| | what it does | on this machine | upstream |
-|---|---|---|---|
-| **this repo** | devices, plans, configuration | `~/bluesky` | [BCDA-APS/8id-bits](https://github.com/BCDA-APS/8id-bits) |
-| **nexus_xpcs_aps** | writes the NeXus metadata file | `~/Documents/Miaoqi/nexus_xpcs_aps_95ab368`, `pip install -e` into `8id_bits` | [AZjk/nexus_xpcs_aps](https://github.com/AZjk/nexus_xpcs_aps), branch `mc_refact` |
-| **BLUETELLA** | the scan viewers | `~/Documents/BLUETELLA_9ID`, branch `8id_test` | 9-ID's, maintained by Peco Myint |
+## Configuration files
+The files that can be configured to adhere to your preferences are:
+- `configs/iconfig.yml` - configuration for data collection
+- `configs/logging.yml` - configuration for session logging to console and/or files
+- `qs/qs-config.yml`    - contains all configuration of the QS host process. See the [documentation](https://blueskyproject.io/bluesky-queueserver/manager_config.html) for more details of the configuration.
 
-Both external packages are maintained by someone else. Before changing either,
-read the "when to contact" section on the relevant page —
-[NeXus writer](docs/reference/nexus-writer.md) or
-[scan viewer](docs/reference/scan-viewer.md) — because a local-only patch is a
-fork we then maintain for ever.
+## queueserver
 
-**⚠ Neither is version-pinned.** A `git pull` in one of those directories
-changes what the beamline does, with no version bump and no warning. Treat it
-as a change to this instrument, not a routine update, and re-run one
-measurement per detector mode afterwards.
+The queueserver has a host process that manages a RunEngine. Client sessions
+will interact with that host process.
 
-## Known issues
+### Run a queueserver host process
 
-Short list of things that are known broken or unfinished. Details, with file
-and line, are on the page named in each row.
+Use the queueserver host management script to start the QS host process.  The below option stops the server (if it
+is running) and then starts it.  This is the usual way to (re)start the QS host
+process. Using the below command the process runs in the background.
 
-| | impact | where |
-|---|---|---|
-| `eiger4M` Internal Enable can hang indefinitely | stalls the session with the shutter open; intermittent | [Troubleshooting → an acquisition hangs](docs/reference/troubleshooting.md#an-acquisition-hangs) |
-| several other detector waits are unbounded | same failure mode, not yet seen | [Troubleshooting → an acquisition hangs](docs/reference/troubleshooting.md#an-acquisition-hangs) |
-| Rigaku ZDT `.bin.000` fails in DM analysis | no result file; the same data analyses fine locally | [Data Management](docs/reference/data-management.md) |
-| ~100 Rigaku 3M pixels are hot and unmasked | 88% of the dark count rate at 7 keV; raising the threshold does not remove them | [Rigaku 3M dark noise](docs/reference/rigaku-3m-dark-noise.md) |
-| no Eiger measurement has been verified with beam | plumbing proven, numbers not | — |
-| two commented-out metadata lines have no schema node | uncommenting either silently loses the whole metadata file | [Adding metadata fields](docs/adding-metadata.md) |
+```bash
+./qs/qs_host.sh restart
+```
 
-## Conventions in these pages
+### Run a queueserver client GUI
+To run the gui client for the queueserver you can use the below command inside the terminal
+```bash
+queue-monitor &
+```
 
-* `expt` is the single configuration object. If a page says "`expt.cycle_name`",
-  you can type exactly that at the session prompt.
-* Paths are relative to the top of this repository — except the shorthands
-  used throughout: `configs/…` and `plans/…` are inside `src/id8_common/`, and
-  `user_plans/…` is inside `src/`. The pages themselves live in `docs/`.
-* Anything marked **⚠** is a known trap, not a suggestion.
+### Shell script explained
+
+A [shell script](./qs/qs_host.sh) is used to start the QS host process. Below are all the command options, and what they do.
+```bash
+(bstest) $ ./qs/qs_host.sh help
+Usage: qs_host.sh {start|stop|restart|status|checkup|console|run} [NAME]
+
+    COMMANDS
+        console   attach to process console if process is running in screen
+        checkup   check that process is running, restart if not
+        restart   restart process
+        run       run process in console (not screen)
+        start     start process
+        status    report if process is running
+        stop      stop process
+
+    OPTIONAL TERMS
+        NAME      name of process (default: bluesky_queueserver-)
+```
+
+Alternatively, run the QS host's startup comand directly within the `qs/`
+subdirectory.
+
+```bash
+cd ./qs
+start-re-manager --config=./qs-config.yml
+```
+
+## Testing
+
+Use this command to run the test suite locally:
+```bash
+pytest -vvv --lf ./src
+```
+
+# Warnings
+##  For the Bluesky Queueserver.
+
+The QS host process writes files into the qs directory. This directory can be
+relocated. However, it should not be moved into the instrument package since
+that might be installed into a read-only directory.
+
+
+## OLD README (review)
+
+### Sanity check test script
+The below script will allow you to check if you are on the private subnet as
+well as check if APS Data Management tools are installed properly.
+```bash
+python3 ./scripts/user/check_environment_test.py
+```
+## Running Bluesky Session
+### With Ipython
+
+```bash
+./scripts/bs_ipy_starter.sh
+```
+
+Then Inside the ipython shell
+
+```bash
+RE(demo_sim_1d())
+```
+
+### With Queserver
+
+Inside one terminal
+
+```bash
+./scripts/bs_qs_screen_starter.sh run
+```
+
+Inside another terminal
+
+```bash
+qserver environment open
+```
+
+```bash
+qserver queue add plan '{"name": "demo_sim_1d"}'
+qserver queue start
+```
+
+## Useful Bluesky Commands
+
+command | description
+--- | ---
+`listObjects()` | show all ophyd devices available
+`device_name.component_names` | show all parts of `device_name` (such as motors)
+`device_name.summary()` | details of `device_name`
+
+## SPEC to Bluesky Cheatsheet
+Please refer to the cheatsheet below in case you need or desire to run commands directly through the ipython session
+https://bcda-aps.github.io/bluesky_training/howto/bluesky_cheat_sheet.html

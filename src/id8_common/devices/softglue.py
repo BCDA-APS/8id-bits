@@ -85,23 +85,10 @@ class SoftGlue(Device):
 
 
 class softglue_mz2(Device):
-    """Down-counter on the SoftGlue FPGA in rack 8idMZ2.
-
-    Unlike SoftGlue above, the PVs here are hardcoded in full rather than built
-    from a prefix, so configs/devices.yml instantiates this with prefix "".
-    `preset` is the value the counter counts down from; `load` is the counter's
-    LOAD input, which pulls that preset in.
-    """
 
     preset = Component(EpicsSignal, "8idMZ2:SG:DnCntr-1_PRESET")
     load = Component(EpicsSignal, "8idMZ2:SG:DnCntr-1_LOAD_Signal")
 
 class softglue_acq8id(Device):
-    """Same down-counter as softglue_mz2, on the "acq8id" SoftGlue IOC instead.
-
-    PVs are hardcoded in full here too, so its configs/devices.yml entry also
-    uses prefix "".
-    """
-
     preset = Component(EpicsSignal, "acq8id:SG:DnCntr-1_PRESET")
     load = Component(EpicsSignal, "acq8id:SG:DnCntr-1_LOAD_Signal")

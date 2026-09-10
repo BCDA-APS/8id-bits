@@ -1,10 +1,5 @@
 """
-QNW temperature controller -- the VACUUM stage.
-
-Careful: qnw_device.py in this directory declares a class with the same name,
-QnwDevice, and the same four Components. See the note there. This module is
-the one configs/devices.yml uses for qnw_vac1/2/3 on "8idiSoft:QNWvac_N:", and
-it is what plans/set/qnw_plans.set_qnw() actually drives.
+QNW temperature controller
 """
 
 from apstools.devices import PVPositionerSoftDoneWithStop
@@ -15,12 +10,11 @@ from ophyd import Signal
 
 
 class QnwDevice(PVPositionerSoftDoneWithStop):
-    """One vacuum-stage QNW temperature controller.
+    """Device representing a QNW temperature controller.
 
-    A soft positioner: `move(setpoint)` blocks until `readback` (SH_RBV) is
-    within `tolerance` of `setpoint` (TARG), since the controller has no
-    done-moving flag of its own. `ramprate` (RAMP) limits how fast it gets
-    there. Driven from plans/set/qnw_plans.py.
+    This device provides control over temperature settings and monitoring for a QNW
+    temperature controller, including readback, setpoint, tolerance, and ramp rate
+    parameters.
     """
 
     readback = Component(EpicsSignalRO, "SH_RBV", kind="hinted", auto_monitor=True)

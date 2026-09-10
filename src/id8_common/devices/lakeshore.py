@@ -8,13 +8,10 @@ from ophyd import EpicsSignalRO, EpicsSignal
 
 
 class Lakeshore(Device):
-    """One Lakeshore 336 temperature controller.
+    """Device representing a Lakeshore 336 temperature controller.
 
-    readback_ch1..4 are the four sensor inputs (read-only). setpoint_out1 and
-    setpoint_out2 are the two control-loop setpoints, and are writable.
-
-    Built from configs/devices.yml as `lakeshore1` and `lakeshore2`, prefixes
-    "8ideSoft:LS336:1:" and ":2:".
+    This device provides read-only access to temperature measurements from up to four
+    input channels of a Lakeshore 336 temperature controller.
     """
 
     readback_ch1 = Component(EpicsSignalRO, "IN1")

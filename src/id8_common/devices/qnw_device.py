@@ -1,12 +1,5 @@
 """
-QNW temperature controller -- the AIR stage.
-
-Careful: qnw_vac_device.py in this directory declares a class with the same
-name, QnwDevice, and the same four Components. The two are distinguished only
-by which one configs/devices.yml points at for which prefix -- this one builds
-qnw_env1/2/3 on "8idiSoft:QNWenv_N:", the vacuum module builds qnw_vac1/2/3 on
-"8idiSoft:QNWvac_N:". Keep them in step, or merge them deliberately; do not
-assume an edit here reaches the vacuum controllers.
+QNW temperature controller
 """
 
 from apstools.devices import PVPositionerSoftDoneWithStop
@@ -17,12 +10,11 @@ from ophyd import Signal
 
 
 class QnwDevice(PVPositionerSoftDoneWithStop):
-    """One air-stage QNW temperature controller.
+    """A device class for controlling QNW environmental control devices.
 
-    A soft positioner: `move(setpoint)` blocks until `readback` (SH_RBV) is
-    within `tolerance` of `setpoint` (TARG), since the controller has no
-    done-moving flag of its own. `ramprate` (RAMP) limits how fast it gets
-    there. Driven from plans/set/qnw_plans.py.
+    This class provides control over QNW devices used for environmental
+    control in the beamline. It includes functionality for temperature
+    control, monitoring, and other environmental parameters.
     """
 
     readback = Component(EpicsSignalRO, "SH_RBV", kind="hinted", auto_monitor=True)

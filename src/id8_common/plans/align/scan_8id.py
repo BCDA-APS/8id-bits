@@ -8,8 +8,7 @@ This module provides plans for scanning various motors and detectors at the
 from typing import Optional
 
 from matplotlib.pylab import det
-from id8_common.expt_config import expt
-from id8_common.registry import oregistry
+from apsbits.core.instrument_init import oregistry
 from bluesky import plan_stubs as bps
 from bluesky import plans as bp
 import bluesky.preprocessors as bpp
@@ -27,17 +26,18 @@ from id8_common.plans.acquire.ad_acq import *
 import time
 import numpy as np
 
-huber = oregistry.get("huber") # sample stage for 8-id-e
-sample = oregistry.get("sample") # sample stage for 8-id-i
-filter_beam = oregistry.get("filter_8ide")
-tetramm1 = oregistry.get("tetramm1")
-tetramm3 = oregistry.get("tetramm3")
-eiger4M = oregistry.get("eiger4M")
-lambda2M = oregistry.get("lambda2M")
-softglue = oregistry.get("softglue")
-softglue_8id_acq = oregistry.get("softglue_8id_acq")
-filter_beam = oregistry.get("filter_8ide")
-rheometer = oregistry.get("rheometer")
+huber = oregistry["huber"] # sample stage for 8-id-e
+sample = oregistry["sample"] # sample stage for 8-id-i
+pv_registers = oregistry["pv_registers"]
+filter_beam = oregistry["filter_8ide"]
+tetramm1 = oregistry["tetramm1"]
+tetramm3 = oregistry["tetramm3"]
+eiger4M = oregistry["eiger4M"]
+lambda2M = oregistry["lambda2M"]
+softglue = oregistry["softglue"]
+softglue_8id_acq = oregistry["softglue_8id_acq"]
+filter_beam = oregistry["filter_8ide"]
+rheometer = oregistry["rheometer"]
 
 
 def att(att_ratio: Optional[float] = None):
@@ -73,10 +73,7 @@ def save_images(det, save_img, num_pts, num_frames=1, file_path=None, folder_pre
             folder_prefix = gen_folder_prefix()
 
         if file_path is None:
-            # Derived, not hardcoded: mount_point also selects the station
-            # (8IDE vs 8IDI), and the cycle rolls over. Same source as
-            # ophyd_scan.data_folder(). Was pinned to 2026-2 until 2026-09-06.
-            file_path = f"{expt.mount_point}{expt.cycle_name}/{expt.experiment_name}/data/bluesky"
+            file_path = "/gdata/dm/8ID/8IDE/2026-2/" + pv_registers.experiment_name.get() + "/data/bluesky"
         
         is_eiger = ("eiger" in det.name.lower()) or ("eiger" in det.prefix.lower())
         is_tetramm = "tetramm" in det.name.lower()
@@ -167,7 +164,7 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
     is_lambda = ("lambda" in det.name.lower()) or ("lambda" in det.prefix.lower())
     
     folder_prefix = gen_folder_prefix() if save_img == 1 else ""
-    md = {"image_file": folder_prefix, "detectors": [det.name], "motors": [motor.name], "plan_name": "dscan", "num_points": num_pts}
+    md = {"Image file": folder_prefix, "detectors": [det.name], "motors": [motor.name], "plan_name": "dscan", "num_points": num_pts}
     
     yield from save_images(det, save_img, num_pts, folder_prefix=folder_prefix)
 
@@ -379,7 +376,7 @@ def dmesh(
     num_pts = num1 * num2
     folder_prefix = gen_folder_prefix() if save_img == 1 else ""
     md = {
-        "image_file": folder_prefix,
+        "Image file": folder_prefix,
         "detectors": [det.name],
         "motors": [motor1.name, motor2.name],
         "plan_name": "dmesh",
@@ -589,7 +586,7 @@ def mesh(
     num_pts = num1 * num2
     folder_prefix = gen_folder_prefix() if save_img == 1 else ""
     md = {
-        "image_file": folder_prefix,
+        "Image file": folder_prefix,
         "detectors": [det.name],
         "motors": [motor1.name, motor2.name],
         "plan_name": "mesh",
@@ -775,7 +772,7 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time,
     is_lambda = ("lambda" in det.name.lower()) or ("lambda" in det.prefix.lower())
     
     folder_prefix = gen_folder_prefix() if save_img == 1 else ""
-    md = {"image_file": folder_prefix, "detectors": [det.name], "motors": [motor.name], "plan_name": "dscan", "num_points": num_pts}
+    md = {"Image file": folder_prefix, "detectors": [det.name], "motors": [motor.name], "plan_name": "dscan", "num_points": num_pts}
     
     yield from save_images(det, save_img, num_pts, folder_prefix=folder_prefix)
 
@@ -977,7 +974,7 @@ def d2scan(
     is_lambda = ("lambda" in det.name.lower()) or ("lambda" in det.prefix.lower())
 
     folder_prefix = gen_folder_prefix() if save_img == 1 else ""
-    md = {"image_file": folder_prefix, "detectors": [det.name], "motors": [motor1.name, motor2.name], "plan_name": "d2scan", "num_points": num_pts}
+    md = {"Image file": folder_prefix, "detectors": [det.name], "motors": [motor1.name, motor2.name], "plan_name": "d2scan", "num_points": num_pts}
     yield from save_images(det, save_img, num_pts, folder_prefix=folder_prefix)
 
     start1 = motor1.position
@@ -1164,7 +1161,7 @@ def ascan(
     is_lambda = ("lambda" in det.name.lower()) or ("lambda" in det.prefix.lower())
 
     folder_prefix = gen_folder_prefix() if save_img == 1 else ""
-    md = {"image_file": folder_prefix, "detectors": [det.name], "motors": [motor.name], "plan_name": "ascan", "num_points": num_pts}
+    md = {"Image file": folder_prefix, "detectors": [det.name], "motors": [motor.name], "plan_name": "ascan", "num_points": num_pts}
     yield from save_images(det, save_img, num_pts, folder_prefix=folder_prefix)
 
     start_pos = motor.position
@@ -1348,7 +1345,7 @@ def a2scan(
     is_lambda = ("lambda" in det.name.lower()) or ("lambda" in det.prefix.lower())
 
     folder_prefix = gen_folder_prefix() if save_img == 1 else ""
-    md = {"image_file": folder_prefix, "detectors": [det.name], "motors": [motor1.name, motor2.name], "plan_name": "a2scan", "num_points": num_pts}
+    md = {"Image file": folder_prefix, "detectors": [det.name], "motors": [motor1.name, motor2.name], "plan_name": "a2scan", "num_points": num_pts}
     yield from save_images(det, save_img, num_pts, folder_prefix=folder_prefix)
     
     start1 = motor1.position
@@ -1827,7 +1824,7 @@ def dscan_auto(motor, rel_begin, rel_end, num_pts, count_time,
     is_lambda = ("lambda" in det.name.lower()) or ("lambda" in det.prefix.lower())
     
     folder_prefix = gen_folder_prefix() if save_img == 1 else ""
-    md = {"image_file": folder_prefix, "detectors": [det.name], "motors": [motor.name], "plan_name": "dscan", "num_points": num_pts}
+    md = {"Image file": folder_prefix, "detectors": [det.name], "motors": [motor.name], "plan_name": "dscan", "num_points": num_pts}
     yield from save_images(det, save_img, num_pts, folder_prefix=folder_prefix)
 
     if is_tetramm:

@@ -1,31 +1,14 @@
-"""hklpy2 setup for the psic diffractometer.
-
-Everything below the wavelength is specific to the sample currently mounted (named
-"BTO"): its lattice, its orientation reflections and the angle limits. Edit them when the
-sample changes -- the commented-out reflections are from earlier samples, kept for
-reference.
-"""
-
 from hklpy2.user import add_sample
 from hklpy2.user import set_diffractometer
 
 
 def configure_hklpy2(oregistry):
-    """Make psic the active hklpy2 diffractometer and load its sample and reflections.
-
-    Called from startup.py, so it runs once per session before any hkl move.
-    """
     psic = oregistry["psic"]
     set_diffractometer(psic)
 
     # undulator = oregistry["undulator"]
-    # Wavelength in Angstrom for an 8.800 keV beam (hc taken as 12.38 keV*A here).
     psic.beam.wavelength.put(12.38/8.800)
     
-    # replace=True is load-bearing, not tidiness: re-running this in a session that
-    # already has a "BTO" sample otherwise keeps the FIRST sample's solver, and the UB
-    # matrix silently stays at the old (cubic default) lattice while the lattice this
-    # call reports looks correct.
     add_sample("BTO", a=3.84, b=3.84, c=32.83, replace=True)
 
     psic.add_reflection((0, 0, 8), {"delta": 19.85, "chi": 90.445, "phi": 0, "eta": 9.925, "mu": 0, "nu": 0}, 
@@ -48,8 +31,6 @@ def configure_hklpy2(oregistry):
 
     psic.core.mode = "lifting_detector_omega"
 
-    # Constrain the solver to angles this diffractometer can actually reach, so it does
-    # not hand back a mathematically valid but unreachable solution.
     psic.core.constraints["delta"].limits = (0, 90)
     psic.core.constraints["eta"].limits   = (0, 45)
     psic.core.constraints["nu"].limits    = (0, 40)

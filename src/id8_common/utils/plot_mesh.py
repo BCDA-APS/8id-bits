@@ -7,7 +7,7 @@ module reads a run back from the databroker catalog and displays the chosen
 detector signal as a 2D image.
 
 usage (in the bluesky session):
-    from id8_common.utils.plot_mesh import plot_mesh
+    from id8_common.plans.align.plot_mesh import plot_mesh
     plot_mesh()                                  # last scan, default signal
     plot_mesh(-1, signal="lambda2M_stats2_total")
     plot_mesh("b3a4aebf")                         # by (partial) uid or scan_id

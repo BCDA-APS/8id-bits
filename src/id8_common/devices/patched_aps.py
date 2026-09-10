@@ -29,8 +29,8 @@ from ophyd import Component
 class PatchedApsCycleDM(ApsCycleDM):
     """BUGFIX for new fiscal year."""
 
-    _cycle_ends = "2026-12-31 23:59:59"  # TODO: official date; apstools needs update
-    _cycle_name = "2026-3"  # TODO: apstools needs update
+    _cycle_ends = "2025-12-31 23:59:59"  # TODO: official date in 2026-01
+    _cycle_name = "2025-3"  # TODO: apstools needs update
 
     def get(self):
         """Return the current APS cycle name."""

@@ -26,21 +26,6 @@
 #   (see id8_common/utils/nexus_utils.py) because that swing=0 assumption is baked into
 #   the db_x/db_y calibration itself.
 # registers (detectors only): dotted-path → value written via .put() before motion.
-#   These are real ophyd signals only. Until 2026-09-06 this block also carried
-#   pv_registers.det_pixel_size and pv_registers.workflow_name -- writes into the legacy
-#   EPICS registers that nothing reads any more, so the per-detector pixel size never
-#   reached the metadata and every file recorded the eiger value. Pixel size is now the
-#   `pixel_size` field below; workflow_name lives in configs/experiment.yml (a dual leg
-#   can still override it per leg).
-# pixel_size (detectors only): detector pixel size, metres. Read by
-#   id8_common/utils/nexus_utils.py and written to /entry/instrument/detector_1/x,y_pixel_size.
-# allow_motion: whether this entry's motors may be driven at all. Defaults to true when
-#   the field is absent. Set it to false to make an entry selectable but stationary —
-#   select_device() still writes registers, beam-centre and det_name, it just skips the
-#   translation move, and move_detector_axes() raises instead of driving an axis. Intended
-#   for test/commissioning, where selecting a detector must not risk a collision. For a
-#   sample_env, false also leaves the valve closed, since the valve only exists to gate
-#   motion. Honoured by id8_common/plans/set/select_device.py.
 # valve (sample_envs only): dotted path to a device whose .put(1/0) gates motion.
 # distance (detectors only): sample-to-detector distance, metres. Read by
 #   id8_common/utils/nexus_utils.py and written to /entry/instrument/detector_1/distance.
@@ -70,10 +55,10 @@ detectors:
     db_x: 716.0
     db_y: 815.0
     distance: 4.0
-    pixel_size: 75.0e-6          # metres, written to NeXus x/y_pixel_size
-    allow_motion: false
     registers:
       softglue.enable_rigaku: '0'
+      pv_registers.workflow_name: xpcs8-boost-corr
+      pv_registers.det_pixel_size: 75.0e-6    # metres
 
   rigaku3M:
     motors:
@@ -90,10 +75,10 @@ detectors:
     db_x: 1378
     db_y: 852
     distance: 22
-    pixel_size: 76.0e-6          # metres, written to NeXus x/y_pixel_size
-    allow_motion: false
     registers:
       softglue.enable_rigaku: '1'
+      pv_registers.workflow_name: xpcs8-boost-corr
+      pv_registers.det_pixel_size: 76.0e-6    # metres
 
   lambda2M:
     motors:
@@ -108,15 +93,14 @@ detectors:
     db_x: 779.0
     db_y: 987.0
     distance: 2.2
-    pixel_size: 55.0e-6          # metres, written to NeXus x/y_pixel_size
-    allow_motion: false
     registers:
       softglue.enable_rigaku: '0'
+      pv_registers.workflow_name: xpcs8-boost-corr
+      pv_registers.det_pixel_size: 55.0e-6    # metres
 
 diagnostics:
 
   microscope:
-    allow_motion: true
     motors:
       - device: cam_stage_8idi.x
         position: 155
@@ -124,7 +108,6 @@ diagnostics:
         position: 2.6
 
   pind:
-    allow_motion: true
     motors:
       - device: cam_stage_8idi.x
         position: 100
@@ -132,7 +115,6 @@ diagnostics:
         position: 2.6
 
   wavefront:
-    allow_motion: true
     motors:
       - device: cam_stage_8idi.x
         position: -19.02
@@ -142,21 +124,18 @@ diagnostics:
 sample_envs:
 
   qnw:
-    allow_motion: true
     motors:
       - device: granite.x
         position: 923.0
     valve: granite_8idi_valve.enable
 
   rheometer:
-    allow_motion: true
     motors:
       - device: granite.x
         position: 73.7
     valve: granite_8idi_valve.enable
 
   robot:
-    allow_motion: true
     motors:
       - device: granite.x
         position: 62.0

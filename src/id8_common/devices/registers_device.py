@@ -13,30 +13,6 @@ class EpicsPvStorageRegisters(Device):
     This class provides functionality for storing and retrieving values
     in EPICS PV registers. It is used for temporary storage of values
     and parameters during beamline operation.
-
-    ONE Component is still live: ``measurement_num`` (``Reg1``). It is the
-    NNNN in every folder and file name, it only ever counts up, and it is read
-    and written only through ``id8_common.expt_config.expt.measurement_num``
-    -- see PV_FIELDS there for why that one value stayed in EPICS when the
-    rest moved out.
-
-    Every other Component below is dead as far as ``id8_common`` is
-    concerned: nothing there reads or writes it any more. The static settings
-    they used to hold live in ``configs/experiment.yml``, and the
-    per-measurement and persistent values in ``state/run_state.yml``, both
-    since 2026-09-06. Do not delete them. ``id8_common_dev`` -- the parallel
-    checked-in package -- builds this same class from its own
-    ``configs/devices.yml`` and still reads most of these Components; the
-    ``pv_registers`` entry in ``id8_common/configs/devices.yml`` also has to
-    keep building unchanged; and the ``8ideSoft:`` registers stay reachable
-    from a session under the bare name the device loader binds
-    (``pv_registers.cycle_name.get()``), for anyone comparing against what a
-    non-Bluesky tool reads from the same PVs.
-
-    Treat any value read back from these as stale. No live ``id8_common`` code
-    writes them, so what they hold is whatever last wrote it -- which may be a
-    non-Bluesky tool, or ``id8_common_dev`` if someone is running that copy
-    (it still does ~29 ``.put()`` calls into this bank).
     """
 
     cycle_name = Component(EpicsSignal, "StrReg1", string=True)
@@ -47,22 +23,12 @@ class EpicsPvStorageRegisters(Device):
 
     workflow_name = Component(EpicsSignal, "StrReg6", string=True)
     use_subfolder = Component(EpicsSignal, "StrReg7", string=True)
-    file_name = Component(EpicsSignal, "StrReg8", string=True)
 
     header = Component(EpicsSignal, "StrReg11", string=True)
     sample_name = Component(EpicsSignal, "StrReg12", string=True)
     sample_move = Component(EpicsSignal, "StrReg13", string=True)
     inner_motor = Component(EpicsSignal, "StrReg14", string=True)
     outer_motor = Component(EpicsSignal, "StrReg15", string=True)
-
-    # Names of the files the currently-running scan is writing. Published so a
-    # GUI (or a shell script with caget) could find the live scan without being
-    # told where to look. StrReg21/22 were unused and empty beamline-wide; each
-    # is a 256-character waveform, so a full path fits. Commented out on
-    # 2026-09-02 -- see plans/align/OPHYD_SCAN.md; nothing declares or writes
-    # them now.
-    # scan_h5_file = Component(EpicsSignal, "StrReg21", string=True)
-    # scan_csv_file = Component(EpicsSignal, "StrReg22", string=True)
 
     det_name = Component(EpicsSignal, "StrReg16", string=True)
     det_mode = Component(EpicsSignal, "StrReg17", string=True)
@@ -74,20 +40,6 @@ class EpicsPvStorageRegisters(Device):
     acq_period = Component(EpicsSignal, "Reg3")
     num_frames = Component(EpicsSignal, "Reg4")
     num_repeats = Component(EpicsSignal, "Reg5")
-
-    # Number of external trigger pulses (eiger4M "External Series" only): each
-    # pulse fires one segment of num_frames images, so the total captured is
-    # num_frames * num_segments. Every other mode ignores this and treats
-    # num_frames as the total. Reg13/14/15 were all confirmed unused and 0
-    # beamline-wide (caget on pearl, 2026-09-02); Reg13 is the first of them.
-    num_segments = Component(EpicsSignal, "Reg13")
-
-    # Seconds between softglue trigger pulses (eiger4M "External Series" only).
-    # Independent of acq_period, which paces frames *inside* a segment: this is
-    # the gap between segments, and must exceed num_frames * acq_period or the
-    # next pulse lands while the detector is still running the previous segment
-    # and is silently dropped.
-    trigger_period = Component(EpicsSignal, "Reg14")
 
     sample_index = Component(EpicsSignal, "Reg6")
     inner_center = Component(EpicsSignal, "Reg7")

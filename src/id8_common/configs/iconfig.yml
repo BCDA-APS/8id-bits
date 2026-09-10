@@ -13,7 +13,7 @@ RUN_ENGINE:
     DEFAULT_METADATA:
         beamline_id: 8-ID-E
         instrument_name: 8-ID
-        proposal_id: commissioning 2026-3 
+        proposal_id: commissioning 2026-2 
 
     ### EPICS PV to use for the `scan_id`.
     ### Default: `RE.md["scan_id"]` (not using an EPICS PV)

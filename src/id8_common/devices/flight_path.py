@@ -10,18 +10,9 @@ from ophyd import EpicsMotor
 
 
 class FlightPath(Device):
-    """The 8-ID-I evacuated flight path between sample and detector.
+    """Device representing the flight path length control.
 
-    Built from configs/devices.yml as `flight_path_8idi`, prefix
-    "8idiSoft:FLIGHT:", so `length` is 8idiSoft:FLIGHT:m1 and so on.
-
-    `length` drives the flight-path length and `swing` the detector swing
-    angle. Treat `swing` with care: it is shared by eiger4M and rigaku3M,
-    and plans/set/select_device.py deliberately never drives it -- only an
-    explicit move_detector_axes() call does.
-
-    ds_x/ds_y/us are the beam-stop motors, the same three EPICS motors that
-    flight_tube.FlightTubeBeamStop also exposes.
+    This device controls the length of the flight path using an EPICS motor.
     """
 
     length = Component(EpicsMotor, "m1", name="length")

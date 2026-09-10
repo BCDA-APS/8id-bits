@@ -1,11 +1,3 @@
-"""A generic pair of EPICS motors addressed as .x and .y.
-
-Used where two unrelated motor records happen to form an X/Y stage, e.g. the
-8-ID-I camera stage, whose two motors live on different IOCs. That is why
-__init__ accepts either whole PV names (pass prefix="") or a shared prefix
-plus two suffixes -- see the comment in __init__.
-"""
-
 from ophyd import Device
 from ophyd import EpicsMotor
 from ophyd import FormattedComponent as FCpt

@@ -9,7 +9,6 @@ Supported modes:
 """
 
 from datetime import datetime
-import importlib.util
 import os
 import time as ttime
 import numpy as np
@@ -27,51 +26,13 @@ from id8_common.plans.set.shutter_att import shutteroff
 from id8_common.plans.set.shutter_att import post_align
 # from id8_common.plans.set.shutter_att import att
 
+from id8_common.plans.set.volt_seq import *
+
 pv_registers = oregistry["pv_registers"]
 
 # =============================================================================
 # General helpers
 # =============================================================================
-
-HOOK_FUNCTION_NAME = "run"
-active_hooks = []
-
-def load_hooks(hooks_spec):
-    
-    callables = []
-
-    if not hooks_spec:
-        return callables
-
-    for entry in hooks_spec:
-        location = entry["location"]
-
-        if not os.path.isfile(location):
-            raise FileNotFoundError(f"Hook file not found: {location}")
-
-        base = os.path.splitext(os.path.basename(location))[0]
-        spec = importlib.util.spec_from_file_location(f"_hook_{base}", location)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-
-        if not hasattr(module, HOOK_FUNCTION_NAME):
-            raise AttributeError(
-                f"Hook file {location} has no function '{HOOK_FUNCTION_NAME}'."
-            )
-
-        callables.append(getattr(module, HOOK_FUNCTION_NAME))
-
-    return callables
-
-
-def run_hooks(hook_callables):
-    """Call each loaded hook function. Safe to call with None or []."""
-    if not hook_callables:
-        return
-
-    for fn in hook_callables:
-        fn()
-
 
 def get_connected_device(device_name):
     device = oregistry[device_name]
@@ -370,7 +331,6 @@ def setup_rigaku_zdt(acq_time, num_frames, file_header, file_name):
 
     rigaku3M.cam.num_images.put(num_frames)
     rigaku3M.cam.output_control.put("Sparsified")
-    rigaku3M.cam.image_mode.put("Zero-Deadtime")
     rigaku3M.cam.output_resolution.put("2 Bit")
 
     os.makedirs(full_path, mode=0o770, exist_ok=True)
@@ -398,7 +358,6 @@ def setup_rigaku_zdt4bit(acq_time, num_frames, file_header, file_name):
 
     rigaku3M.cam.num_images.put(num_frames)
     rigaku3M.cam.output_control.put("Sparsified")
-    rigaku3M.cam.image_mode.put("Zero-Deadtime")
     rigaku3M.cam.output_resolution.put("4 Bit")
 
     os.makedirs(full_path, mode=0o770, exist_ok=True)
@@ -426,7 +385,6 @@ def setup_rigaku_zdt8bit(acq_time, num_frames, file_header, file_name):
 
     rigaku3M.cam.num_images.put(num_frames)
     rigaku3M.cam.output_control.put("Sparsified")
-    rigaku3M.cam.image_mode.put("Zero-Deadtime")
     rigaku3M.cam.output_resolution.put("8 Bit")
 
     os.makedirs(full_path, mode=0o770, exist_ok=True)
@@ -444,14 +402,16 @@ def setup_rigaku_epics(acq_time, num_frames, file_header, file_name):
 
     rigaku3M.cam.trigger_mode.put('Start with Trigger')
 
-    _, full_path = get_rigaku_file_path(file_header, file_name)
+    file_path, full_path = get_rigaku_file_path(file_header, file_name)
 
     rigaku3M.cam.acquire_time.put(acq_time)
     rigaku3M.cam.acquire_period.put(acq_time)
 
+    rigaku3M.cam.fast_file_name.put(f"{file_name}.bin")
+    rigaku3M.cam.fast_file_path.put(file_path)
+
     rigaku3M.cam.num_images.put(num_frames)
     rigaku3M.cam.output_control.put("areaDetector")
-    rigaku3M.cam.image_mode.put("Standard")
     rigaku3M.cam.output_resolution.put("16 Bit")
 
     rigaku3M.hdf1.file_name.put(file_name)
@@ -509,7 +469,7 @@ def acquire_eiger_external():
 
     while True:
         #### QZ on 2026/01/06 ####
-        # without the 0.5 s wait time, the repeating acqs go out of sync.
+        # without the 0.5 s wait time, the repeating acqs go out of sync. 
         # Don't know why and maybe the 0.5 s can be made shorter
         #### QZ on 2026/01/06 ####
         ttime.sleep(0.5)
@@ -580,8 +540,23 @@ def acquire_lambda_external():
     softglue.start_pulses.put("1!")
     softglue_8id_mz2.load.put("1!")
 
+    # '''keysight voltage sequence'''
+    # preset = softglue_8id_mz2.preset.get()
+    # #count1 = 0
+    # while lambda2M.cam.acquire.get() == 1:  
+    #     num_frames = lambda2M.hdf1.num_captured.get()
+    #     if num_frames > preset:
+    #         dpKeysight.output.put(1)  
+    #         break  
+    #     else:
+    #         ttime.sleep(0.1)
+    #         # count1 += 1
+
+    '''keithley voltage sequence'''
     while lambda2M.cam.acquire.get() == 1:
-        run_hooks(active_hooks)
+        
+        volt_cycle_single(voltage_file = np.loadtxt('/home/beams10/8IDIUSER/bluesky/src/id8_common/plans/set/voltage_program_single.txt')) 
+        # volt_cycle_series(voltage_program=np.loadtxt('/home/beams10/8IDIUSER/bluesky/src/id8_common/plans/set/voltage_program_series.txt'))
 
     while True:
         ttime.sleep(0.5)
@@ -712,7 +687,6 @@ ACQ_MODES = {
             "needs_acq_period": False,
             "required_devices": ["rigaku3M"],
             "hardware_device": "rigaku3M",
-            "min_acq_time": 0.01,
         },
     },
 }
@@ -747,7 +721,7 @@ def cleanup_acquisition(det=None, mode_info=None):
 # Main user-facing acquisition function
 # =============================================================================
 
-def det_acq_series(wait_time=0, hooks=None):
+def det_acq_series(wait_time=0):
     """
     Run repeated detector acquisitions.
 
@@ -781,13 +755,6 @@ def det_acq_series(wait_time=0, hooks=None):
     wait_time:
         Wait time before each repeated acquisition.
 
-    hooks:
-        Optional list of hook specs, e.g.
-            [{"location": "/path/to/test_hook.py"}]
-        Each file must define a function named "run" (see HOOK_FUNCTION_NAME).
-        Currently only lambda2M "External" acquisition calls the hooks, once per
-        pass of its acquire loop while frames are being collected.
-
     File naming:
         gen_folder_prefix() generates:
             A0012_G10_a0007
@@ -796,13 +763,9 @@ def det_acq_series(wait_time=0, hooks=None):
             _f001000
             _r00001
     """
-    global active_hooks
-
     det = None
     mode_info = None
     try:
-        active_hooks = load_hooks(hooks)
-
         post_align()
         shutteroff()
 

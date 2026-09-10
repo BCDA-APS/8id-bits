@@ -3,23 +3,23 @@ DM code from Hannah Parraga.
 Set up DM and submit jobs
 """
 
-import datetime
-from pathlib import Path
-
+from apsbits.core.instrument_init import oregistry
 from dm.common.utility.configurationManager import ConfigurationManager
 from dm.proc_web_service.api.workflowProcApi import WorkflowProcApi
 
 from .misc import get_machine_name
-from id8_common.expt_config import expt
+
+pv_registers = oregistry["pv_registers"]
 
 def dm_setup() -> tuple:
     """Set up the Data Management workflow API.
 
-    Credentials and the service URL come from the beamline's DM configuration, so the
-    shell running Bluesky must have sourced the DM setup script first.
+    Args:
+        process: Whether to initialize the workflow API
 
     Returns:
-        Tuple of (workflowProcApi, dmuser). Pass both straight on to dm_run_job().
+        Tuple containing (workflowProcApi, dmuser) if process is True,
+        otherwise (None, None)
     """
     # Object that tracks beamline-specific configuration
     configManager = ConfigurationManager.getInstance()
@@ -31,95 +31,25 @@ def dm_setup() -> tuple:
     return workflowProcApi, dmuser
 
 
-def dm_job_log_path() -> Path:
-    """<mount_point>/<cycle>/<experiment>/data/dm_jobs.log -- one line per job.
-
-    Inside data/, not at the experiment root. The root is dmadmin-owned and
-    mode 0750, so the beamline account can read it but not write there -- the
-    first version of this pointed at the root and every submission logged
-    "[dm_util] could not append ... Permission denied" (harmlessly, but the log
-    was never created). data/ and analysis/ are group-writable; data/ wins
-    because the measurement name in each line is a directory in that same tree,
-    and data outlives a re-run of the analysis.
-    """
-    return Path(f"{expt.mount_point}{expt.cycle_name}/{expt.experiment_name}/data/dm_jobs.log")
-
-
-def log_dm_job(job_id: str, file_name: str, filepath: str, machine_name: str, workflow_name: str):
-    """Append one line recording a submitted job, so the uuid outlives the terminal.
-
-    The uuid is the only handle on a DM job -- `dmjob.sh <uuid>` is how you ask
-    what happened to it -- and until 2026-09-07 it was printed to the session and
-    nothing more, so it was gone as soon as the scrollback was.
-
-    A plain text log rather than a field in the NeXus metadata file, for two
-    reasons: the metadata file is written BEFORE the job is submitted, so the uuid
-    does not exist yet and adding it would mean reopening a file DM has already
-    been pointed at; and one greppable file answers "which job was that?" without
-    opening sixty HDFs.
-
-        grep A0101 dm_jobs.log                 # the job for one measurement
-        awk '!/^#/{print $3}' dm_jobs.log      # every uuid
-        dmjob.sh $(tail -1 dm_jobs.log | awk '{print $3}')   # status of the last one
-
-    Never raises. A full disk or a read-only mount must not take down an
-    acquisition that has already written its data -- the line is lost, the run
-    continues, and the uuid is still on screen.
-    """
-    path = dm_job_log_path()
-    stamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-    try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        new = not path.exists()
-        with open(path, "a") as handle:
-            if new:
-                handle.write(
-                    "# Submitted DM analysis jobs, appended by id8_common.utils.dm_util.\n"
-                    "# date       time      job_uuid  measurement  machine  workflow  data_file\n"
-                )
-            handle.write(
-                f"{stamp}  {job_id}  {file_name}  {machine_name}  {workflow_name}  {filepath}\n"
-            )
-    except OSError as exc:
-        print(f"[dm_util] could not append to {path}: {exc}")
-
-
 def dm_run_job(workflowProcApi: WorkflowProcApi, dmuser: str, file_name: str):
-    """Submit one analysis job to the Data Management system for a finished measurement.
+    """Submit a job to the Data Management system."""
 
-    file_name is the measurement's base path with no suffix; the suffix that the current
-    detector actually wrote (.h5, .bin.000, ...) is appended below. Everything else --
-    experiment, qmap, workflow, analysis type -- is read from the experiment config, so
-    the caller only has to say which file to analyse.
-    """
-
-    analysis_machine = expt.analysis_machine
-    det_name = expt.det_name
+    analysis_machine = pv_registers.analysis_machine.get()
+    det_name = pv_registers.det_name.get()
 
     if analysis_machine == "none":
-        # The user turned analysis off for this experiment: write the data, submit nothing.
         pass
     else:
-        exp_name = expt.experiment_name
-        qmap_file = expt.qmap_file
-        workflow_name = expt.workflow_name
-        analysis_type = expt.analysis_type
-        use_subfolder = expt.use_subfolder
+        exp_name = pv_registers.experiment_name.get()
+        qmap_file = pv_registers.qmap_file.get()
+        workflow_name = pv_registers.workflow_name.get()
+        analysis_machine = pv_registers.analysis_machine.get()
+        analysis_type = pv_registers.analysis_type.get()
+        # file_name = pv_registers.file_name.get()
+        use_subfolder = pv_registers.use_subfolder.get()
 
         if det_name == "rigaku3M":
             filepath = f"{file_name}.bin.000"
-        elif det_name == "rigaku3M_ftf":
-            # Fast transfer now asks the IOC for a .h5 name (the contents were
-            # always HDF5 -- verified by \x89HDF magic 2026-09-03, when it was
-            # still written as .bin), so the six per-module files are
-            # <file_name>.h5.000 .. .h5.005 and this points at the first.
-            #
-            # The .000 suffix itself is verified, from runs made under the old
-            # .bin name; that the IOC appends it the same way to a .h5 name is
-            # inferred, not yet observed. Confirm on the first fast-transfer
-            # run after this change and correct here if it differs.
-            filepath = f"{file_name}.h5.000"
         elif det_name == "rigaku3M_epics":
             filepath = f"{file_name}.h5"
         elif det_name == "eiger4M":
@@ -135,12 +65,9 @@ def dm_run_job(workflowProcApi: WorkflowProcApi, dmuser: str, file_name: str):
             gpuID = 0
             machine_name = analysis_machine
         elif analysis_machine == "local":
-            # "local" does not name a machine -- get_machine_name() picks one of the
-            # beamline analysis boxes for us.
             gpuID = -2
             machine_name = get_machine_name()
         else:
-            # Any other value is taken as the hostname to run on, as typed.
             gpuID = -2
             machine_name = analysis_machine
 
@@ -168,9 +95,4 @@ def dm_run_job(workflowProcApi: WorkflowProcApi, dmuser: str, file_name: str):
         }
         
         job = workflowProcApi.startProcessingJob(dmuser, f"{workflow_name}", argsDict=argsDict)
-        job_id = job["id"]
-        print(f"Job {job_id}")
-
-        log_dm_job(job_id, file_name, filepath, machine_name, workflow_name)
-
-        return job_id
+        print(f"Job {job['id']}")

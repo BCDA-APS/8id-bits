@@ -1,17 +1,3 @@
-"""
-Bluesky plans that drive the UR5 arm through a liquid-handling sequence.
-
-The arm picks a pipette off its dock, draws liquid from a vial, dispenses it
-into the sample capillary, and puts the pipette back. Every waypoint below is
-a taught position of the real cell: they are not computed, so if the cell is
-rebuilt they all have to be re-measured. move_to() waits for each move to
-finish before the next one starts, which is what keeps the arm from cutting a
-corner through the capillary.
-
-Coordinates are in the units of the UR5's Control:Pose*Cmd PVs
-(see id8_common/devices/ur5_robot.py).
-"""
-
 import bluesky.plan_stubs as bps
 from apsbits.core.instrument_init import oregistry
 
@@ -43,18 +29,15 @@ def move_to(coords):
 
 
 def home_pipette():
-    """Drive the pipette plunger to its reference position."""
     yield from bps.abs_set(ur5.pipette.home, 1, wait=True)
 
 
 def aspirate(volume=20):
-    """Draw `volume` into the pipette. Set the volume first, then trigger."""
     yield from bps.abs_set(ur5.pipette.set_volume, volume, wait=True)
     yield from bps.abs_set(ur5.pipette.aspirate, 1, wait=True)
 
 
 def dispense(volume=20):
-    """Push `volume` out of the pipette. Set the volume first, then trigger."""
     yield from bps.abs_set(ur5.pipette.set_volume, volume, wait=True)
     yield from bps.abs_set(ur5.pipette.dispense, 1, wait=True)
 
