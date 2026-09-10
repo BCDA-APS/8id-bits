@@ -37,19 +37,14 @@ are ordinary function calls.
 
 ## Quick start
 
-Two sessions, both on Pearl, and **the scans have different names in each**:
+Start a session on Pearl, then call a scan directly:
 
 ```bash
-~/bin/start_ophyd.sh      # Ophyd only.   dscan(...)        <- plain names
-~/bin/start_bluesky.sh    # full Bluesky. dscan_ophyd(...)  <- suffixed names
+~/bin/start_ophyd.sh
 ```
 
 ```python
-# in the Ophyd-only session
 dscan(huber.delta, -0.5, 0.5, 41, 1.0, det=lambda2M, att_ratio=1e4)
-
-# the same scan in the other session
-dscan_ophyd(huber.delta, -0.5, 0.5, 41, 1.0, det=lambda2M, att_ratio=1e4)
 ```
 
 **Always pass `att_ratio`.** It is how many times the beam is weakened, applied
@@ -62,14 +57,7 @@ damage a detector. **lambda2M must not be run below `1e4`.** The pind
 (`tetramm1_current3`, inserted by `pre_align()`) has a much smaller dynamic
 range but tolerates `att_ratio=1`.
 
-See [Two sessions, two sets of names](#two-sessions-two-sets-of-names) for why.
-Everything else on this page is identical in both — except the lups, which only
-the **Bluesky** session has, from `scan_8id.py`; see
-[The lups are not here](#the-lups-are-not-here). The plain names are used from
-here on.
-
-> NB **not** `start_bluesky_8ide.sh` — that one is stale. It still does
-> `from id8_e.startup import *`, and `id8_e` was merged into `id8_common`.
+The lups are not here; see [The lups are not here](#the-lups-are-not-here).
 
 A scan writes, in the experiment's `data/bluesky` folder:
 
@@ -162,7 +150,7 @@ Ophyd translation of it the way there is for the six scans above. What a lup
 what `dscan` does:
 
 ```python
-x_lup(-3, 3, 60)                       # scan_8id.py, Bluesky session
+x_lup(-3, 3, 60)                       # scan_8id.py's version
 dscan(sample.x, -3, 3, 60, 0.1, det=tetramm1, save_img=0)   # the same thing here
 ```
 
@@ -197,37 +185,6 @@ Not a scan and it writes no file. It takes short pilot exposures on `eiger4M` or
 the peak count rate lands in `[rate_limit * grace_factor, rate_limit]`. The beam
 is opened, so it runs under the same interrupt guard as a scan: a Ctrl+C blocks
 the beam and restores `acquire_time`/`acquire_period` before returning.
-
-In the Bluesky session it is `auto_att_ophyd`. Plain `auto_att` exists there
-too, but it is `scan_8id.py`'s own copy — same signature, no interrupt guard.
-
-## Two sessions, two sets of names
-
-| session | started by | scan names |
-|---|---|---|
-| Ophyd only | `~/bin/start_ophyd.sh` | `dscan`, `ascan`, `d2scan`, `a2scan`, `dmesh`, `mesh`, `auto_att` |
-| Bluesky | `~/bin/start_bluesky.sh` | `dscan_ophyd`, `ascan_ophyd`, `d2scan_ophyd`, `a2scan_ophyd`, `dmesh_ophyd`, `mesh_ophyd`, `auto_att_ophyd`, plus everything `scan_8id.py` defines — including the lups, see [The lups are not here](#the-lups-are-not-here) |
-
-Both names are the **same function object**; the aliases are assigned at the
-bottom of [ophyd_scan.py](../src/id8_common/plans/align/ophyd_scan.py).
-
-The reason for the suffix is that `startup.py` also does
-`from .plans.align.scan_8id import *`, and Sam's module defines `dscan`,
-`ascan`, `d2scan`, `a2scan`, `dmesh` and `mesh` too, in a form that is *started*
-rather than called. If the scans here won those names in that session, a call
-written the other way round would not fail cleanly: Python evaluates arguments
-before it calls anything, so the **entire scan would run** — motor moved,
-shutter opened, sample exposed, `.h5` written, a measurement number burned —
-and only then would the caller raise. The user reads "error", runs it again,
-and double-exposes the sample.
-
-`ophyd_scan.py`'s `__all__` therefore exports only the suffixed names, so a
-`import *` cannot shadow Sam's. The plain names stay available to an explicit
-`from ... import dscan` — which is what `startup_ophyd.py` does, and that session
-never imports `scan_8id` at all.
-
-The `.csv` records the **bare** name either way: `scan_type` is `dscan`, and
-`command` reads `dscan(...)`, never `dscan_ophyd(...)`.
 
 ## Annotating a scan
 
@@ -586,9 +543,8 @@ overlay two colour maps, so it plots one file at a time.
 
 Tick **Follow latest**. Once a second the viewer re-lists the directory,
 switches to the **highest-numbered** file as soon as one appears, and re-reads
-only that one file as it grows. Leave it open, start a `dscan_ophyd()` from your
-Bluesky session (or plain `dscan()` from the Ophyd-only one), and watch the plot
-fill in point by point. Nothing needs restarting between scans.
+only that one file as it grows. Leave it open, start a `dscan()` from your
+session, and watch the plot fill in point by point. Nothing needs restarting between scans.
 
 **A live scan is safe to open.** The `.csv` is closed after every point, and the
 viewer tolerates catching it mid-write: a new file that is still header-only is
@@ -1339,8 +1295,7 @@ makes a new scan behave like the six under Ctrl+C.
   startup fails at the call that needs it rather than poisoning the import.
   `ophyd_scan` still binds `softglue` and `softglue_8id_acq` at module scope,
   so it must be imported after `make_devices()` — as `startup.py` does.
-- **`scan_8id.py` is untouched** and still works. The Bluesky session imports
-  both; Sam's generators keep the plain names there. Everything `ophyd_scan.py`
+- **`scan_8id.py` is untouched** and still works. Everything `ophyd_scan.py`
   does differently is marked `# CHANGED (n):` in its source, with the reason.
 
 ## Verified on hardware
