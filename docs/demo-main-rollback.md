@@ -188,8 +188,8 @@ StrReg7  no                   use_subfolder     current
 ```
 
 `dev` reads `analysis_machine` from `configs/experiment.yml`, which now says
-`adamite`. The register still says `polaris`. A demo acquisition that submits a
-DM job would submit it to polaris — which, per
+`local` (resolved to adamite or amazonite at submit time). The register still
+says `polaris`. A demo acquisition that submits a DM job would submit it to polaris — which, per
 `project_gladier_boost_corr_bug`, silently produces nothing while DM reports
 SUCCEEDED.
 
