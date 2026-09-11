@@ -98,6 +98,15 @@ from id8_common.plans.set.shutter_att import shutteron
 #: the old 600 x 0.1 s poll budget, now enforced rather than abandoned.
 HDF_DRAIN_TIMEOUT = 60.0
 
+#: ADStatus, for messages. Only 6/9/10 are terminal (acq_wait.STATE_FAILED);
+#: the rest reach Idle by themselves and must be waited out, not interrupted.
+STATE_NAMES = {0: "Idle", 1: "Acquire", 2: "Readout", 3: "Correct", 4: "Saving",
+               5: "Aborting", 6: "Error", 7: "Waiting", 8: "Initializing",
+               9: "Disconnected", 10: "Aborted"}
+
+#: How long to let a transient state finish before treating it as stuck.
+EIGER_SETTLE_TIMEOUT = 20.0
+
 #: Longest to spend on each step of returning the camera to Idle.
 EIGER_DISARM_TIMEOUT = 5.0
 EIGER_RECOVER_TIMEOUT = 15.0
@@ -155,11 +164,29 @@ def recover_eiger_idle(eiger4M=None):
         except Exception:
             return None
 
-    if state() == STATE_IDLE:
+    now = state()
+    if now == STATE_IDLE:
         return False
 
-    name = STATE_FAILED.get(state(), state())
-    print(f"eiger4M is in {name}, not Idle -- clearing it before arming.")
+    # Only Error, Disconnected and Aborted are terminal. Everything else --
+    # Acquire, Readout, Correct, Saving, Aborting, Waiting, Initializing --
+    # reaches Idle on its own, and intervening is actively harmful: this runs at
+    # the top of every setup, so in a repeat series it can catch the PREVIOUS
+    # repeat still reading out or saving, and cam.acquire.put(0) there truncates
+    # that repeat's file. The first version tested only "not Idle" and so took a
+    # throwaway frame after a perfectly healthy acquisition (reported 2026-09-10).
+    if now not in STATE_FAILED:
+        try:
+            wait_until(lambda: state() == STATE_IDLE,
+                       timeout=EIGER_SETTLE_TIMEOUT,
+                       what=f"eiger4M finishing {STATE_NAMES.get(now, now)}")
+            return False          # settled by itself; nothing to clear
+        except DetectorWaitError:
+            print(f"eiger4M stuck in {STATE_NAMES.get(state(), state())} for "
+                  f"{EIGER_SETTLE_TIMEOUT:g}s -- clearing it before arming.")
+    else:
+        print(f"eiger4M is in {STATE_NAMES.get(now, now)}, not Idle -- "
+              f"clearing it before arming.")
 
     # --- 1. disarm -------------------------------------------------------
     try:
@@ -190,7 +217,8 @@ def recover_eiger_idle(eiger4M=None):
                    timeout=EIGER_RECOVER_TIMEOUT, what="eiger4M recovery frame")
     except DetectorWaitError as exc:
         raise RuntimeError(
-            f"eiger4M will not leave {name}: {exc}. Arming anyway is the hang this "
+            f"eiger4M will not leave {STATE_NAMES.get(state(), state())}: {exc}. "
+            f"Arming anyway is the hang this "
             f"check exists to prevent. Restart the Eiger IOC, or put cam.acquire to 0 "
             f"by hand and confirm DetectorState_RBV reads Idle."
         ) from exc
