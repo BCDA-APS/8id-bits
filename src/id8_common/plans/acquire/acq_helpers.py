@@ -220,7 +220,9 @@ def gen_folder_prefix():
 
     header, sample_name = _name_and_header()
     meas_num = expt.measurement_num
-    att_level = int(filter_beam.attenuation.readback.get())
+    # round, not int: the set is discrete, so a request for 2 can land on 1.8, and
+    # truncating names that a0001 -- indistinguishable from an unattenuated run.
+    att_level = round(filter_beam.attenuation.readback.get())
 
     folder_prefix = f"{header}{meas_num:04d}_{sample_name}_a{att_level:04d}"
 

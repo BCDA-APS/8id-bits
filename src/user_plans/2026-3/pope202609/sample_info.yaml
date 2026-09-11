@@ -8,15 +8,18 @@ defaults:
 
 samples:
 
+  # Attenuation test: one fixed spot, no mesh. Every protocol in
+  # dual_measurement_info.yaml sets sample_move: no, so nothing moves during the
+  # run -- the single point below is only what select_sample(1) drives to.
   sample_1:
     sample_name: EHEA-Mesh
     header: E
-    inner_center: -0.198
-    outer_center: 21.26
-    inner_range: 0.1
-    outer_range: 0.1
-    inner_pts: 20
-    outer_pts: 20
+    inner_center: -0.208
+    outer_center: 21.295
+    inner_range: 0.0
+    outer_range: 0.0
+    inner_pts: 1
+    outer_pts: 1
 
   # sample_2:
   #   sample_name: HEA

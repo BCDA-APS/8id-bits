@@ -5,14 +5,18 @@ loop_order: sample_major
 runs:
  - name: dual_att_series
    samples: [1]
-   protocols: [dual_att1]
+   protocols: [dual_att5, dual_att2, dual_att1]
    repeats: 1
 
 ###### Change here to change measurement conditions #######
 
-# The five protocols below are identical apart from att_level, and run in the order listed in
-# the run block above: 20, 10, 5, 2, 1. There is no YAML anchor here on purpose, so a change
-# to acq_time, num_frames or a qmap has to be made in all five.
+# The three protocols below are identical apart from att_level, and run in the order listed in
+# the run block above: 5, 2, 1. There is no YAML anchor here on purpose, so a change
+# to acq_time, num_frames or a qmap has to be made in all three.
+#
+# att_level 10 was dropped on 2026-09-11: a stuck filter left attenuation_actual at 1.78
+# with the setpoint at 10, so E0160 ran at the wrong attenuation. Restore the dual_att10
+# block once the filter set is fixed.
 #
 # Eiger beam-centre metadata: with no geometry block the Eiger's metadata comes from the
 # eiger4M entry in device_position.yaml -- db_x 716, db_y 815, distance 11.5 m -- which was
@@ -22,56 +26,6 @@ runs:
 # a geometry: block to the eiger4M leg -- fields are documented at the bottom of this file.
 
 protocols:
-
-  dual_att20:
-    att_level: 20
-    num_repeats: 1
-    wait_time: 0
-    sample_move: no
-    position_reset: yes
-    detectors:
-      - device: rigaku3M_epics
-        mode: EPICS
-        acq_time: 1
-        num_frames: 3000
-        qmap_file: rigaku3m_qmap_Sq360_Dq18_Sphi16_Dphi1_lin.hdf
-        analysis_type: Both
-        select_device: yes
-        shutter_owner: yes
-        start_timeout: 30
-        hdf_timeout: 600
-      - device: eiger4M
-        mode: Internal Series
-        acq_time: 1
-        num_frames: 3000
-        qmap_file: eiger4m_qmap_Sq360_Sphi9_Dq3_Dphi1_WAXPCS_lin.hdf
-        analysis_type: Both
-        hdf_timeout: 600
-
-  dual_att10:
-    att_level: 10
-    num_repeats: 1
-    wait_time: 0
-    sample_move: no
-    position_reset: yes
-    detectors:
-      - device: rigaku3M_epics
-        mode: EPICS
-        acq_time: 1
-        num_frames: 3000
-        qmap_file: rigaku3m_qmap_Sq360_Dq18_Sphi16_Dphi1_lin.hdf
-        analysis_type: Both
-        select_device: yes
-        shutter_owner: yes
-        start_timeout: 30
-        hdf_timeout: 600
-      - device: eiger4M
-        mode: Internal Series
-        acq_time: 1
-        num_frames: 3000
-        qmap_file: eiger4m_qmap_Sq360_Sphi9_Dq3_Dphi1_WAXPCS_lin.hdf
-        analysis_type: Both
-        hdf_timeout: 600
 
   dual_att5:
     att_level: 5
@@ -84,56 +38,6 @@ protocols:
         mode: EPICS
         acq_time: 1
         num_frames: 3000
-        qmap_file: rigaku3m_qmap_Sq360_Dq18_Sphi16_Dphi1_lin.hdf
-        analysis_type: Both
-        select_device: yes
-        shutter_owner: yes
-        start_timeout: 30
-        hdf_timeout: 600
-      - device: eiger4M
-        mode: Internal Series
-        acq_time: 1
-        num_frames: 3000
-        qmap_file: eiger4m_qmap_Sq360_Sphi9_Dq3_Dphi1_WAXPCS_lin.hdf
-        analysis_type: Both
-        hdf_timeout: 600
-
-  dual_att2:
-    att_level: 2
-    num_repeats: 9
-    wait_time: 0
-    sample_move: yes
-    position_reset: yes
-    detectors:
-      - device: rigaku3M_epics
-        mode: EPICS
-        acq_time: 1
-        num_frames: 3000
-        qmap_file: rigaku3m_qmap_Sq360_Dq18_Sphi16_Dphi1_lin.hdf
-        analysis_type: Both
-        select_device: yes
-        shutter_owner: yes
-        start_timeout: 30
-        hdf_timeout: 600
-      - device: eiger4M
-        mode: Internal Series
-        acq_time: 1
-        num_frames: 3000
-        qmap_file: eiger4m_qmap_Sq360_Sphi9_Dq3_Dphi1_WAXPCS_lin.hdf
-        analysis_type: Both
-        hdf_timeout: 600
-
-  dual_att1:
-    att_level: 1
-    num_repeats: 1
-    wait_time: 0
-    sample_move: no
-    position_reset: no
-    detectors:
-      - device: rigaku3M_epics
-        mode: EPICS
-        acq_time: 0.01
-        num_frames: 1000
         qmap_file: rigaku3m_qmap_Sq360_Dq36_NoStreak_lin.hdf
         analysis_type: Multitau
         select_device: yes
@@ -142,8 +46,58 @@ protocols:
         hdf_timeout: 600
       - device: eiger4M
         mode: Internal Series
-        acq_time: 0.01
-        num_frames: 1000
+        acq_time: 1
+        num_frames: 3000
+        qmap_file: eiger4m_qmap_Sx72_Dx6.hdf
+        analysis_type: Multitau
+        hdf_timeout: 600
+
+  dual_att2:
+    att_level: 2
+    num_repeats: 1
+    wait_time: 0
+    sample_move: no
+    position_reset: yes
+    detectors:
+      - device: rigaku3M_epics
+        mode: EPICS
+        acq_time: 1
+        num_frames: 3000
+        qmap_file: rigaku3m_qmap_Sq360_Dq36_NoStreak_lin.hdf
+        analysis_type: Multitau
+        select_device: yes
+        shutter_owner: yes
+        start_timeout: 30
+        hdf_timeout: 600
+      - device: eiger4M
+        mode: Internal Series
+        acq_time: 1
+        num_frames: 3000
+        qmap_file: eiger4m_qmap_Sx72_Dx6.hdf
+        analysis_type: Multitau
+        hdf_timeout: 600
+
+  dual_att1:
+    att_level: 1
+    num_repeats: 1
+    wait_time: 0
+    sample_move: no
+    position_reset: yes
+    detectors:
+      - device: rigaku3M_epics
+        mode: EPICS
+        acq_time: 1
+        num_frames: 3000
+        qmap_file: rigaku3m_qmap_Sq360_Dq36_NoStreak_lin.hdf
+        analysis_type: Multitau
+        select_device: yes
+        shutter_owner: yes
+        start_timeout: 30
+        hdf_timeout: 600
+      - device: eiger4M
+        mode: Internal Series
+        acq_time: 1
+        num_frames: 3000
         qmap_file: eiger4m_qmap_Sx72_Dx6.hdf
         analysis_type: Multitau
         hdf_timeout: 600
@@ -166,16 +120,27 @@ _instructions: |
   What this file currently does
   ---------------------------------------------------------------------------
 
-  Sample 1, five measurements, in this order:
+  An ATTENUATION TEST. Sample 1, one fixed spot, three measurements in this order:
 
-    att_level 20 -> 10 -> 5 -> 2 -> 1        (most attenuated first)
+    att_level 5 -> 2 -> 1                    (most attenuated first)
+
+  att_level 10 removed 2026-09-11 -- stuck filter, see the comment above the protocols.
+
+  The four protocols are byte-identical apart from att_level, so the only variable across
+  the series is the attenuation. Every one sets sample_move: no, so the sample never moves
+  and all four sample the same illuminated volume. Drive to the spot first:
+
+    select_sample(1)      # huber.x -> -0.208, huber.y -> 21.295
+
+  sample_info.yaml sample_1 is a single point (inner_pts / outer_pts 1, ranges 0), not the
+  21 x 21 EHEA mesh -- restore that block before going back to the grid map.
 
   Each runs BOTH detectors in parallel at 1 s per frame, 3000 frames:
 
     3000 s = 50 min of beam per attenuation step
-    5 steps = 4 h 10 min total
+    3 steps = 2 h 30 min total
 
-  Run serially that would be 8 h 20 min, so this halves it. dry_run prints both numbers.
+  Run serially that would be 5 h, so this halves it. dry_run prints both numbers.
 
   Each step produces two folders, sharing one run number:
 
