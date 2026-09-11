@@ -15,10 +15,50 @@ On a beamline host that can see the EPICS network (`pearl` or `amber`):
 ~/bin/start_bluesky.sh    # the same, plus Bluesky (RunEngine, databroker)
 ```
 
-Either one activates the `8id_bits` conda environment and sources the APS Data
-Management setup. `start_ophyd.sh` is the normal way in; see
-[Starting a session](docs/starting-a-session.md) for what it loads and how to
-read the output.
+Either one activates the `8ide_bits_test` conda environment (see the note
+below) and sources the APS Data Management setup. `start_ophyd.sh` is the
+normal way in; see [Starting a session](docs/starting-a-session.md) for what it
+loads and how to read the output.
+
+### Which conda environment
+
+**`8ide_bits_test` is the environment that runs.** The name says "test"; it is
+not. Three environments exist and only this one is real for our purposes:
+
+| env | what it is |
+|---|---|
+| `8idi_bits_test` | the original, 2025-12-04. Used by `start_bluesky_8idi.sh`. |
+| `8ide_bits_test` | `conda create --clone` of the above. **What every session actually runs.** |
+| `8id_bits` | a filesystem copy of `8ide_bits_test`. Supplies a launcher script and nothing else. |
+
+`8id_bits` was copied rather than cloned -- its `conda-meta/history` carries
+only the parent's lineage, with no `--clone` line of its own -- so the copy kept
+`8ide_bits_test`'s shebang:
+
+```
+$ conda activate 8id_bits
+$ head -1 $(which ipython)
+#!/home/beams/8IDIUSER/.conda/envs/8ide_bits_test/bin/python3.11
+```
+
+So until 2026-09-11 the launchers activated `8id_bits`, and then `ipython`
+handed the session straight to `8ide_bits_test`'s interpreter and
+site-packages. `python` and `ipython` in the same shell read different
+`site-packages` directories.
+
+Nothing was ever missing: the two are identical today -- 79 conda packages with
+the same fingerprint, 277 pip dist-infos, zero difference either way, and both
+`.pth` files pointing at the same `bluesky/src` and the same
+`nexus_xpcs_aps_95ab368/src`. The hazard is the future one. A `pip install` into
+`8id_bits` reports success and changes nothing about what runs, and the two
+environments would then disagree with no symptom until an import fails.
+
+`start_bluesky.sh`, `start_ophyd.sh` and `start_bluesky_main.sh` now activate
+`8ide_bits_test` directly, which is self-consistent: `python` and `ipython`
+resolve to the same interpreter and the same `site-packages`.
+**Install into `8ide_bits_test`, and check `head -1 $(which ipython)` after any
+`conda create --clone` -- a clone that keeps its parent's shebang is exactly how
+this happened.**
 
 ## I want to…
 
@@ -75,7 +115,7 @@ means pulling in that directory, and it takes effect immediately.
 | | what it does | on this machine | upstream |
 |---|---|---|---|
 | **this repo** | devices, plans, configuration | `~/bluesky` | [BCDA-APS/8id-bits](https://github.com/BCDA-APS/8id-bits) |
-| **nexus_xpcs_aps** | writes the NeXus metadata file | `~/Documents/Miaoqi/nexus_xpcs_aps_95ab368`, `pip install -e` into `8id_bits` | [AZjk/nexus_xpcs_aps](https://github.com/AZjk/nexus_xpcs_aps), branch `mc_refact` |
+| **nexus_xpcs_aps** | writes the NeXus metadata file | `~/Documents/Miaoqi/nexus_xpcs_aps_95ab368`, `pip install -e` into `8ide_bits_test` | [AZjk/nexus_xpcs_aps](https://github.com/AZjk/nexus_xpcs_aps), branch `mc_refact` |
 | **BLUETELLA** | the scan viewers | `~/Documents/BLUETELLA_9ID`, branch `8id_test` | 9-ID's, maintained by Peco Myint |
 
 Both external packages are maintained by someone else. Before changing either,

@@ -10,7 +10,7 @@
 
 That is the whole thing. It sources the APS Data Management setup
 (`/home/dm_id/etc/dm.setup.sh` — `utils/dm_util.py` imports the `dm` package to
-submit analysis jobs), activates the `8id_bits` conda environment, adds the
+submit analysis jobs), activates the `8ide_bits_test` conda environment (see README.md, "Which conda environment"), adds the
 robocart IOC to `EPICS_CA_ADDR_LIST`, and drops you into IPython with the
 instrument loaded.
 

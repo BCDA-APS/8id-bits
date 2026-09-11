@@ -54,7 +54,7 @@ Plans are organised as `id8_common/plans/{acquire,align,set}/`. Both startup fil
 
 **This code only runs on a host that can see the beamline PVs** — `pearl` or `amber`, not `kouga`. The checkout is NFS-shared, so an edit made anywhere is live on `pearl` immediately; check for a running session before changing anything mid-beamtime.
 
-The two entry points, both using the `8id_bits` conda environment and both sourcing `/home/dm_id/etc/dm.setup.sh` for APS Data Management:
+The two entry points, both using the `8ide_bits_test` conda environment and both sourcing `/home/dm_id/etc/dm.setup.sh` for APS Data Management. The environment is **`8ide_bits_test`** despite the name -- `8id_bits` is a filesystem copy whose `ipython` shebangs back into it, so installing there changes nothing about what runs. See README.md, "Which conda environment":
 
 ```bash
 ~/bin/start_bluesky.sh     # ipython -i -c "from id8_common.startup import *"
@@ -63,8 +63,8 @@ The two entry points, both using the `8id_bits` conda environment and both sourc
 
 Conda environment, if it ever has to be rebuilt:
 ```bash
-conda create -y -n 8id_bits python=3.11 pyepics apsu::aps-dm-api
-conda activate 8id_bits
+conda create -y -n 8ide_bits_test python=3.11 pyepics apsu::aps-dm-api
+conda activate 8ide_bits_test
 pip install -e ."[all]"
 ```
 
