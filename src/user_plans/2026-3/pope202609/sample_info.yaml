@@ -9,14 +9,14 @@ defaults:
 samples:
 
   sample_1:
-    sample_name: EHEA-SampleScan
-    header: A
-    inner_center: -1.65
-    outer_center: 44.71
-    inner_range: 0.5
-    outer_range: 0.5
-    inner_pts: 3 
-    outer_pts: 3
+    sample_name: EHEA-Mesh
+    header: E
+    inner_center: -0.198
+    outer_center: 21.26
+    inner_range: 0.1
+    outer_range: 0.1
+    inner_pts: 20
+    outer_pts: 20
 
   # sample_2:
   #   sample_name: HEA

@@ -162,7 +162,8 @@ def dm_run_job(workflowProcApi: WorkflowProcApi, dmuser: str, file_name: str):
             "saveG2": "False",
             "download": "False",
             "useSubdir": use_subfolder_flag,
-            "normalizeFrame": "False"
+            "normalizeFrame": "False",
+            "numPartialG2": 4
             #"suffix": "suffix_added",
             # "downloadDirectory": f"/home/8-id-i/{cycle_name}/{exp_name}/analysis/{analysis_type}/"
         }

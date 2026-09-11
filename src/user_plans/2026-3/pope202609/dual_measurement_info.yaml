@@ -125,15 +125,15 @@ protocols:
 
   dual_att1:
     att_level: 1
-    num_repeats: 5
+    num_repeats: 1
     wait_time: 0
     sample_move: no
     position_reset: no
     detectors:
       - device: rigaku3M_epics
         mode: EPICS
-        acq_time: 1
-        num_frames: 50
+        acq_time: 0.01
+        num_frames: 1000
         qmap_file: rigaku3m_qmap_Sq360_Dq36_NoStreak_lin.hdf
         analysis_type: Multitau
         select_device: yes
@@ -142,9 +142,9 @@ protocols:
         hdf_timeout: 600
       - device: eiger4M
         mode: Internal Series
-        acq_time: 1
-        num_frames: 50
-        qmap_file: eiger4m_qmap_4m.hdf
+        acq_time: 0.01
+        num_frames: 1000
+        qmap_file: eiger4m_qmap_Sx72_Dx6.hdf
         analysis_type: Multitau
         hdf_timeout: 600
 
