@@ -142,6 +142,28 @@ from id8_common.devices.area_detector import ad_setup
 if "eiger4M" in oregistry:
     ad_setup(oregistry["eiger4M"], iconfig)
     print("[startup_ophyd] eiger4M area-detector plugins configured")
+
+    # Priming leaves the camera in Aborted. apstools' AD_prime_plugin2() fires a
+    # single exposure to prime the HDF plugin and then tears the settings down
+    # without letting the series finish, so ALLOW_AREA_DETECTOR_WARMUP=True means
+    # every session starts with the eiger in a TERMINAL state. The first
+    # measurement afterwards then cleared it and said so, which read as a fault
+    # when it was only startup tidying up after itself.
+    #
+    # Clear it here, where the mess is made. "eiger4M is in Aborted" during a run
+    # then means something has actually gone wrong, instead of being routine noise
+    # that gets ignored. Reported 2026-09-10.
+    #
+    # Never fatal: one detector must not stop the session starting, which is the
+    # whole point of safe_make_devices above.
+    from id8_common.plans.acquire.eiger4m_modes import recover_eiger_idle
+
+    try:
+        if recover_eiger_idle(oregistry["eiger4M"]):
+            print("[startup_ophyd] eiger4M returned to Idle after plugin priming")
+    except Exception as exc:  # noqa: BLE001 -- startup must survive anything here
+        print(f"\033[91m[startup_ophyd] eiger4M could not be returned to Idle: "
+              f"{exc}\033[0m")
 if "lambda2M" in oregistry:
     ad_setup(oregistry["lambda2M"], iconfig)
     print("[startup_ophyd] lambda2M area-detector plugins configured")

@@ -125,6 +125,17 @@ from id8_common.devices.area_detector import ad_setup
 # ComponentNotFound instead of doing a membership test.
 if "eiger4M" in shared_oregistry:
     ad_setup(shared_oregistry["eiger4M"], iconfig)
+
+    # Priming leaves the camera in Aborted -- see the same block in
+    # startup_ophyd.py for why. Cleared here so a session never starts in a
+    # terminal state, and never fatal: one detector must not stop the session.
+    from id8_common.plans.acquire.eiger4m_modes import recover_eiger_idle
+
+    try:
+        if recover_eiger_idle(shared_oregistry["eiger4M"]):
+            print("[startup] eiger4M returned to Idle after plugin priming")
+    except Exception as exc:  # noqa: BLE001 -- startup must survive anything here
+        print(f"\033[91m[startup] eiger4M could not be returned to Idle: {exc}\033[0m")
 if "lambda2M" in shared_oregistry:
     ad_setup(shared_oregistry["lambda2M"], iconfig)
 # rigaku3M: plugin config yes, warmup/priming no.
