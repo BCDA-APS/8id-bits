@@ -83,8 +83,13 @@ _env_warned = set()
 _metadata_warned = set()
 
 
-def _resolve(deferred, schema):
+def _resolve_runtime_values(deferred, schema):
     """Evaluate the deferred runtime values, dropping any that cannot be read.
+
+    NOTE the name: this module imports ``_resolve`` from plans.set.select_device
+    to turn a dotted device path into an object. A second ``_resolve`` defined
+    here shadowed that import and broke every motor lookup -- caught on a dual
+    acquisition, 2026-09-10. Nothing defined here may collide with an import.
 
     Each entry in ``deferred`` is a zero-argument callable rather than a value,
     which is the whole point: the dict used to be a literal, so the FIRST device
@@ -424,7 +429,7 @@ def create_runtime_metadata_dict(
     }
     # Sample environments -- three QNW cells and two Alicat PCD controllers.
     # Kept as its own table because those five share one shape and one guard;
-    # everything else is guarded per field by _resolve() below.
+    # everything else is guarded per field by _resolve_runtime_values() below.
     for _label, _fields in _SAMPLE_ENV_UNITS:
         deferred.update(
             {path: (lambda v=value: v)
@@ -432,8 +437,8 @@ def create_runtime_metadata_dict(
         )
 
     # Read every field, skipping the ones that cannot be read or that the schema
-    # does not declare. See _resolve().
-    runtime_updates = _resolve(deferred, xpcs_schema)
+    # does not declare. See _resolve_runtime_values().
+    runtime_updates = _resolve_runtime_values(deferred, xpcs_schema)
 
     runtime_metadata.update(runtime_updates)
     if additional_metadata is not None:
