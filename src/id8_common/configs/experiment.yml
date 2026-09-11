@@ -36,7 +36,7 @@ experiment_name: "pope202609"
 # ["adamite", "califone", "califone"] and califone (10.54.116.22) is not one of
 # the workflow's accepted machines, so "local" handed DM an unusable machine
 # about two times in three. Name a machine explicitly if you care which runs it.
-analysis_machine: "adamite"
+analysis_machine: "local"
 
 # DM workflow to submit to.
 workflow_name: "xpcs8-boost-corr"
