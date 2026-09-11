@@ -13,7 +13,7 @@ Rules obeyed here
 * OUR path names win.  Where an upstream factory names a field differently we
   rename the leaf (e.g. ``flightpath_swing_horizontal`` -> our
   ``flightpath_swing``) so
-  that dual_acq's OVERRIDE_PATHS keep resolving.
+  that trio_acq's OVERRIDE_PATHS keep resolving.
 * Every bare upstream module-level dict used more than once is deep-copied
   first, so no two instances are aliased to the same object.  In fact we deepcopy
   *everything* taken from upstream, because ``update_schema_at_runtime`` mutates the

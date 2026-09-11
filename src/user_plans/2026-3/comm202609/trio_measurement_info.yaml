@@ -3,9 +3,9 @@
 loop_order: sample_major
 
 runs:
- - name: dual_att_series
+ - name: trio_att_series
    samples: [1]
-   protocols: [dual_att2]
+   protocols: [trio_att2]
    repeats: 1
 
 ###### Change here to change measurement conditions #######
@@ -16,14 +16,14 @@ runs:
 #
 # Eiger beam-centre metadata: with no geometry block the Eiger's metadata comes from the
 # eiger4M entry in device_position.yaml -- db_x 716, db_y 815, distance 11.5 m -- which was
-# calibrated with the Aerotech stage at detector.x 256, detector.y 77. In a dual run the
+# calibrated with the Aerotech stage at detector.x 256, detector.y 77. In a trio run the
 # Rigaku owns that stage and it sits at -250 / 170, so those numbers probably do not describe
 # this measurement. Raw frames are unaffected; only the _metadata.hdf is. To correct it, add
 # a geometry: block to the eiger4M leg -- fields are documented at the bottom of this file.
 
 protocols:
 
-  dual_att20:
+  trio_att20:
     att_level: 20
     num_repeats: 1
     wait_time: 0
@@ -48,7 +48,7 @@ protocols:
         analysis_type: Both
         hdf_timeout: 600
 
-  dual_att10:
+  trio_att10:
     att_level: 10
     num_repeats: 1
     wait_time: 0
@@ -73,7 +73,7 @@ protocols:
         analysis_type: Both
         hdf_timeout: 600
 
-  dual_att5:
+  trio_att5:
     att_level: 5
     num_repeats: 1
     wait_time: 0
@@ -98,7 +98,7 @@ protocols:
         analysis_type: Both
         hdf_timeout: 600
 
-  dual_att2:
+  trio_att2:
     att_level: 2
     num_repeats: 9
     wait_time: 0
@@ -123,7 +123,7 @@ protocols:
         analysis_type: Both
         hdf_timeout: 600
 
-  dual_att1:
+  trio_att1:
     att_level: 1
     num_repeats: 1
     wait_time: 0
@@ -157,8 +157,8 @@ _instructions: |
 
   To run:
 
-    dry_run_dual_measurement_info(check_hardware=True)    # validate + preview, moves nothing
-    run_dual_measurement_info()                           # go
+    dry_run_trio_measurement_info(check_hardware=True)    # validate + preview, moves nothing
+    run_trio_measurement_info()                           # go
 
   Both are imported by startup.py, so they are available in the session already.
 
@@ -193,12 +193,12 @@ _instructions: |
   list in the run block to match. They execute in the order listed there.
 
   ---------------------------------------------------------------------------
-  Motion: what a dual run moves, and what it will refuse to move
+  Motion: what a trio run moves, and what it will refuse to move
   ---------------------------------------------------------------------------
 
   Moves, in this order, once per measurement:
 
-    huber.delta -> 10         setup_huber_for_dual() in dual_master_plan_eiger4m_rigaku3m.py, before any
+    huber.delta -> 10         setup_huber_for_trio() in trio_master_plan_rigaku3m_eiger4m_lambda2m.py, before any
     huber.nu    ->  0         acquisition starts
     filter_8ide.attenuation   to att_level
     detector.x  -> -250.0     via select_device("rigaku3M_epics")
@@ -206,13 +206,13 @@ _instructions: |
 
   Never moves during acquisition, and is refused if you ask:
 
-    Once setup_huber_for_dual() has run, huber.delta and huber.nu are off limits. They are
+    Once setup_huber_for_trio() has run, huber.delta and huber.nu are off limits. They are
     rejected in a leg's motors: block -- at validation time and again at run time -- and
-    rejected as sample_info.yaml's inner_motor / outer_motor. To change where a dual run
-    acquires, edit DUAL_HUBER_DELTA / DUAL_HUBER_NU in dual_master_plan_eiger4m_rigaku3m.py, not this file.
+    rejected as sample_info.yaml's inner_motor / outer_motor. To change where a trio run
+    acquires, edit TRIO_HUBER_DELTA / TRIO_HUBER_NU in trio_master_plan_rigaku3m_eiger4m_lambda2m.py, not this file.
 
-    Note setup_huber_for_dual() is independent of master_plan.py's placeholder_rigaku3M().
-    Changing the serial Rigaku placeholder does not move the dual geometry, and vice versa.
+    Note setup_huber_for_trio() is independent of master_plan.py's placeholder_rigaku3M().
+    Changing the serial Rigaku placeholder does not move the trio geometry, and vice versa.
 
     flight_path_8idi.swing is never touched: select_device() only drives horizontal/vertical.
 
@@ -229,7 +229,7 @@ _instructions: |
   runs / protocols / samples / sample_range / repeats / loop_order behave exactly as in
   measurement_info.yaml -- the expansion code is shared. See that file for those options.
 
-  What differs is the protocol body. A dual protocol splits its settings in two:
+  What differs is the protocol body. A trio protocol splits its settings in two:
 
     Protocol level, shared, because there is one beam and one sample:
       att_level, num_repeats, wait_time, sample_move, position_reset
@@ -260,14 +260,14 @@ _instructions: |
 
   The Rigaku is the natural owner: its trigger path needs softglue.enable_rigaku = '1', which
   select_device("rigaku3M_epics") and setup_rigaku_epics() both set. Do not run pre_align()
-  during a dual run -- it sets that MUX back to '0'.
+  during a trio run -- it sets that MUX back to '0'.
 
   ---------------------------------------------------------------------------
   Detector options
   ---------------------------------------------------------------------------
 
     device / mode:
-      Only these pairs are supported for dual acquisition:
+      Only these pairs are supported for trio acquisition:
         eiger4M         / Internal Series
         rigaku3M_epics  / EPICS
 
@@ -315,11 +315,11 @@ _instructions: |
 
   Optional, and so is every field inside it. Omit the block entirely and this leg's metadata
   comes from device_position.yaml exactly as a single-detector run would. State a field only
-  to override it -- useful because in a dual run at most one detector can be at its
+  to override it -- useful because in a trio run at most one detector can be at its
   calibrated preset.
 
   Every field takes a literal number or a dotted ophyd path. A path is read live at metadata
-  time, so 'huber.nu' records wherever setup_huber_for_dual() left it. (Reading nu is fine --
+  time, so 'huber.nu' records wherever setup_huber_for_trio() left it. (Reading nu is fine --
   it is moving it from inside the acquisition that is forbidden.)
 
     db_x, db_y:              Direct-beam pixel position.

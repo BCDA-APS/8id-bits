@@ -9,7 +9,7 @@ defaults:
 samples:
 
   # Attenuation test: one fixed spot, no mesh. Every protocol in
-  # dual_measurement_info.yaml sets sample_move: no, so nothing moves during the
+  # trio_measurement_info.yaml sets sample_move: no, so nothing moves during the
   # run -- the single point below is only what select_sample(1) drives to.
   sample_1:
     sample_name: EHEA-Mesh

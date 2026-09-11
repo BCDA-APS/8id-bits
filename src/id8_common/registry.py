@@ -142,7 +142,7 @@ def get_ophyd_object(dotted, registry=oregistry):
     are both valid.
 
     Used wherever a YAML file names a motor or a signal as a string --
-    sample_info.yaml's ``inner_motor``, a dual protocol's ``motors:`` block,
+    sample_info.yaml's ``inner_motor``, a trio protocol's ``motors:`` block,
     a geometry field given as a live PV rather than a number.
 
     Deliberately strict: the root must be CONNECTED, not merely registered.
@@ -153,8 +153,8 @@ def get_ophyd_object(dotted, registry=oregistry):
     keyword here instead.
 
     This is the only definition. ``acq_helpers`` re-exports it, and both
-    ``master_plan`` and ``dual_master_plan_eiger4m_rigaku3m`` reach it through
-    the same ``validators.validate_sample_motion``, so the serial and dual
+    ``master_plan`` and ``trio_master_plan_rigaku3m_eiger4m_lambda2m`` reach it through
+    the same ``validators.validate_sample_motion``, so the serial and trio
     paths cannot drift apart again.
 
     One holdout, if you are auditing: ``plans/set/select_device._resolve``

@@ -14,7 +14,7 @@ to use it):
 
 This module assembles those into ACQ_MODES and provides the shared
 acquisition loop (det_acq_series) and its cleanup helper. det_acq_series() is
-the usual entry point but not the only caller: dual_acq_series() pulls each
+the usual entry point but not the only caller: trio_acq_series() pulls each
 leg's setup callable straight out of ACQ_MODES and runs it, and reuses
 cleanup_acquisition().
 

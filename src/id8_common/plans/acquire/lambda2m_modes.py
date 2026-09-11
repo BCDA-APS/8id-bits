@@ -1,16 +1,21 @@
 """
 Lambda2M mode definitions: setup/acquire functions plus LAMBDA2M_MODES, the
-table ad_acq.py assembles into ACQ_MODES. Nothing here runs on its own --
-det_acq_series() in ad_acq.py is what actually calls these.
+table ad_acq.py assembles into ACQ_MODES. Nothing here runs on its own. The
+callers are det_acq_series() in ad_acq.py, and trio_acq_series() for the
+("lambda2M", "Internal") trio leg.
 
 Modes:
 
     Internal (trigger_mode="Internal")
-        No external hardware. Free-running internal timing.
+        No external hardware. Free-running internal timing. The only mode a
+        parallel run can use: it needs nothing from softglue, so it can share
+        one beam window with a Rigaku-owned shutter.
 
     External (trigger_mode="External_ImagePer")
         Uses softglue to generate one pulse per frame, same pattern as
-        Eiger's External Enable.
+        Eiger's External Enable. NOT usable as a trio leg -- softglue gates the
+        shutter per pulse, which cannot coexist with a single shutter window
+        held open by another detector.
 """
 
 import time as ttime
@@ -21,6 +26,7 @@ from id8_common.plans.acquire.acq_helpers import get_connected_device
 from id8_common.plans.acquire.acq_wait import cam_fault
 from id8_common.plans.acquire.acq_wait import hdf_frames_written
 from id8_common.plans.acquire.acq_wait import hdf_progress
+from id8_common.plans.acquire.acq_wait import stop_acquiring
 from id8_common.plans.acquire.acq_wait import wait_until
 from id8_common.plans.set.shutter_att import blockbeam
 from id8_common.plans.set.shutter_att import showbeam
@@ -29,6 +35,31 @@ from id8_common.plans.set.shutter_att import shutteron
 
 #: Seconds to let the HDF plugin finish writing after the cam stops.
 HDF_DRAIN_TIMEOUT = 60.0
+
+#: Seconds to give the Lambda to drop out of live/TV mode before it is armed.
+LIVE_STOP_TIMEOUT = 5.0
+
+
+def stop_lambda_live(lambda2M=None):
+    """Disarm the Lambda so the next arm is not swallowed. Raises if it will not stop.
+
+    Thin Lambda-flavoured wrapper over acq_wait.stop_acquiring(), which carries
+    the full explanation of why a camera left in live/TV mode has to be stopped
+    before its exposure time is written.
+
+    Both acquire_* functions below already do this immediately before arming, so
+    for the serial path this is a harmless second write. It exists as its own
+    function because the TRIO path never calls them: trio_acq_series() takes only
+    the setup half of the mode table and arms the detector itself.
+
+    Called from setup_lambda_internal(), which runs BEFORE the shutter opens --
+    the only safe place for a wait that is allowed to fail.
+    """
+    if lambda2M is None:
+        lambda2M = get_connected_device("lambda2M")
+
+    return stop_acquiring(lambda2M.cam, "lambda2M", timeout=LIVE_STOP_TIMEOUT)
+
 
 # =============================================================================
 # Detector setup functions
@@ -43,6 +74,10 @@ HDF_DRAIN_TIMEOUT = 60.0
 def setup_lambda_internal(acq_time, num_frames, file_header, file_name):
     """Configure the Lambda for "Internal". Return the metadata file path."""
     lambda2M = get_connected_device("lambda2M")
+    # Live/TV mode has to be off before the detector is armed. The trio path
+    # never reaches acquire_lambda_internal(), which is where that used to be
+    # the only time it happened -- see stop_lambda_live().
+    stop_lambda_live(lambda2M)
     file_path = get_common_file_path(file_header, file_name)
 
     lambda2M.hdf1.enable.put(1)

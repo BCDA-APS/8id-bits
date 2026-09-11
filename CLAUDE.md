@@ -9,7 +9,7 @@ Bluesky/Ophyd instrument control for the APS 8-ID beamline (XPCS). Originally bu
 Packages under `src/`:
 
 - `id8_common/` — **the live code.** Devices, plans, utilities, configs, and both session entry points (`startup.py`, `startup_ophyd.py`). Almost all work happens here.
-- `user_plans/<cycle>/<experiment>/` — per-experiment YAML (`sample_info.yaml`, `measurement_info.yaml`, `dual_measurement_info.yaml`) and beamtime scripts. Which folder is live comes from `configs/experiment.yml`, not from a hardcoded path.
+- `user_plans/<cycle>/<experiment>/` — per-experiment YAML (`sample_info.yaml`, `measurement_info.yaml`, `trio_measurement_info.yaml`) and beamtime scripts. Which folder is live comes from `configs/experiment.yml`, not from a hardcoded path.
 - `legacy/id8_i/`, `legacy/id8_e/` — the former per-instrument packages. Nothing live imports them. Don't edit them, and don't take them as a model.
 - `id8_common_dev/` — parallel staging copy of `id8_common`, and by now well behind it. Treat it as stale rather than as a sibling to keep in sync; ask before touching it.
 
@@ -79,7 +79,7 @@ Tests: the README documents `pytest -vvv --lf ./src` and `pyproject.toml` config
 
 ## Things not to do silently
 
-- Don't verify a change by claiming the tests pass. There is no unit-test suite; the real check is a session boot plus a dry run on `pearl` (`dry_run_measurement_info()` / `dry_run_dual_measurement_info()`), which validate everything and move nothing.
+- Don't verify a change by claiming the tests pass. There is no unit-test suite; the real check is a session boot plus a dry run on `pearl` (`dry_run_measurement_info()` / `dry_run_trio_measurement_info()`), which validate everything and move nothing.
 - Don't add your own try/except around device loading — `safe_make_devices` already isolates every entry, and a second layer just hides which device failed. A disconnected device is *expected* to load-and-skip: the beamline must start with hardware missing, and the error must surface when that specific device is used, not at startup for everything else. That is also why several entries in `devices.yml` are commented out rather than deleted.
 - Don't reorder the startup blocks. Plan modules resolve devices at import time and rely on `safe_make_devices` having already run. The order of the star-imports also matters: it decides which module a name at the interactive prompt comes from.
 - Don't push to a `*_dev` package thinking it's a feature branch — `id8_common_dev` is checked-in source code. It is now well behind `id8_common`; ask before touching it rather than mirroring changes into it by reflex.

@@ -27,7 +27,7 @@ points at it, and deleting it costs nothing.
 
 The August tree gives you: `scan_8id.py` for all scans (Sam's code, driven
 through `RE(...)`), the in-tree `nexus_utils.py` NeXus writer, `pv_registers`
-instead of `expt_config`, and `dual_master_plan.py`. It does **not** contain
+instead of `expt_config`, and `trio_master_plan.py`. It does **not** contain
 `ophyd_scan.py`, `expt_config.py`, or `startup_ophyd.py`.
 
 ---
@@ -88,7 +88,7 @@ To leave, `exit` the ipython session as usual. Nothing to clean up.
 
 ```python
 dry_run_measurement_info()
-dry_run_dual_measurement_info()
+dry_run_trio_measurement_info()
 ```
 
 These validate the whole plan structure and move no hardware. This is the right
@@ -98,7 +98,7 @@ thing to show for "here is how a measurement is described."
 
 ```python
 run_measurement_info()
-run_dual_measurement_info()
+run_trio_measurement_info()
 ```
 
 **Do not run in a demo:**
@@ -140,7 +140,7 @@ To demo them, stage copies at the flat path:
 
 ```bash
 cd ~/bluesky/src/user_plans/2026-3/pope202609
-cp sample_info.yaml measurement_info.yaml dual_measurement_info.yaml ../../
+cp sample_info.yaml measurement_info.yaml trio_measurement_info.yaml ../../
 ```
 
 This is safe: the `dev` tree resolves plan files through
@@ -148,7 +148,7 @@ This is safe: the `dev` tree resolves plan files through
 flat copies. Remove them afterwards anyway, so nobody finds two versions later:
 
 ```bash
-rm ~/bluesky/src/user_plans/{sample,measurement,dual_measurement}_info.yaml
+rm ~/bluesky/src/user_plans/{sample,measurement,trio_measurement}_info.yaml
 ```
 
 Whether the August parser accepts the *current* YAML schema is untested —
@@ -241,7 +241,7 @@ and it moves nothing.
 
 ```bash
 rm -rf ~/bluesky_main ~/bin/start_bluesky_main.sh
-rm -f  ~/bluesky/src/user_plans/{sample,measurement,dual_measurement}_info.yaml
+rm -f  ~/bluesky/src/user_plans/{sample,measurement,trio_measurement}_info.yaml
 ```
 
 Nothing else references either. `~/bluesky` is untouched throughout.

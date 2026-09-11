@@ -1,42 +1,49 @@
 """
-Parallel two-detector acquisition for 8-ID.
+Parallel multi-detector acquisition for 8-ID.
 
-Runs Eiger and Rigaku in the same beam window instead of back to back, so a pair of long
-measurements costs roughly the slower one rather than the sum of both. The two detectors are
-NOT frame-synced -- they just overlap. Each writes its own file, its own NeXus metadata, and
-submits its own DM job.
+Runs the Rigaku, the Eiger and the Lambda in the same beam window instead of back to back, so
+a set of long measurements costs roughly the slowest one rather than the sum of all of them.
+The detectors are NOT frame-synced -- they just overlap, and the ones armed after the shutter
+owner start a second or two late by construction. Each writes its own file into its own
+folder, its own NeXus metadata, and submits its own DM job.
+
+"Trio" names the three detectors this was built for, not a hard limit. Everything here is
+written over the leg list, so any number of legs works, from one upwards -- a one-leg
+`detectors:` list is the supported way to smoke-test a single detector. Adding a fourth
+detector means one entry in TRIO_LEGS below and nothing else; that is how the Lambda was added
+to the original Eiger+Rigaku pair on 2026-09-11.
 
 This module changes nothing in the serial acquisition path. It reuses the setup half of
 ad_acq.ACQ_MODES verbatim and replaces only the acquire half, which in the serial code
 interleaves showbeam()/blockbeam() with a blocking wait and so cannot be run twice at once.
 
-Normally you drive this through dual_master_plan_eiger4m_rigaku3m.run_dual_measurement_info(), which reads
-dual_measurement_info.yaml in expt.user_plan_dir. dual_acq_series() below is the
+Normally you drive this through trio_master_plan_rigaku3m_eiger4m_lambda2m.run_trio_measurement_info(), which reads
+trio_measurement_info.yaml in expt.user_plan_dir. trio_acq_series() below is the
 lower-level entry point.
 
 Shutter contract (the reason this module exists rather than calling the serial acquire
 functions twice):
 
-    * The shutter opens before either detector is armed, and closes only after BOTH cams
-      report done. showbeam()/blockbeam() appear exactly once per repeat, outside the per-leg
+    * The shutter opens before any detector is armed, and closes only after EVERY cam
+      reports done. showbeam()/blockbeam() appear exactly once per repeat, outside the per-leg
       loop -- no leg-level code touches the shutter.
     * One leg is the shutter owner -- whichever leg sets ``shutter_owner`` in the protocol;
       exactly one must, and a single-leg run defaults to itself. It is armed first, and the
       other legs are armed only after it confirms it is acquiring, so no detector can
       integrate against a closed shutter. Make it the Rigaku, as the shipped
-      dual_measurement_info.yaml does: its internal staging takes seconds, so the shutter is
+      trio_measurement_info.yaml does: its internal staging takes seconds, so the shutter is
       comfortably open by the time the other legs start.
-    * DM submission waits for both HDF plugins, not just the leg that finished first.
+    * DM submission waits for every HDF plugin, not just the leg that finished first.
 
 How the overlap actually works -- there are NO THREADS anywhere in this module, and nothing
 here runs out of order. Arming a detector is an EPICS put that tells the hardware to start and
-returns immediately; it does not wait for the acquisition. So dual_acq_series() arms one leg,
-then arms the next, and from that moment both detectors are integrating at the same time while
-the Python side sits in a single polling loop (wait_all) asking every leg "are you still
-busy?" until none of them is. Read the code top to bottom like any other plan: the only thing
+returns immediately; it does not wait for the acquisition. So trio_acq_series() arms one leg,
+then the next, then the next, and from that moment every detector is integrating at the same
+time while the Python side sits in a single polling loop (wait_all) asking every leg "are you
+still busy?" until none of them is. Read the code top to bottom like any other plan: the only thing
 happening concurrently is the hardware.
 
-Supported (device, mode) pairs are the keys of DUAL_LEGS. Anything else is rejected.
+Supported (device, mode) pairs are the keys of TRIO_LEGS. Anything else is rejected.
 """
 
 import time as ttime
@@ -51,9 +58,12 @@ from id8_common.plans.acquire.ad_acq import get_connected_device
 from id8_common.registry import get_ophyd_object
 from id8_common.plans.acquire.ad_acq import sample_mesh_move
 from id8_common.plans.set.select_device import select_device
+from id8_common.plans.acquire.acq_wait import DEFAULT_STOP_TIMEOUT
 from id8_common.plans.acquire.acq_wait import STATE_ACQUIRE
 from id8_common.plans.acquire.acq_wait import STATE_IDLE
+from id8_common.plans.acquire.acq_wait import acq_time_mismatch
 from id8_common.plans.acquire.acq_wait import cam_fault
+from id8_common.plans.acquire.acq_wait import stop_acquiring
 from id8_common.plans.set.shutter_att import blockbeam
 from id8_common.plans.set.shutter_att import post_align
 from id8_common.plans.set.shutter_att import showbeam
@@ -79,10 +89,16 @@ CAM_TIMEOUT_FLOOR = 60.0
 DEFAULT_START_TIMEOUT = 30.0
 DEFAULT_HDF_TIMEOUT = 300.0
 
+# How long to wait for a camera's acquire_time readback to catch up with what
+# setup just wrote. A put and its RBV are not simultaneous, so a single read
+# straight after setup can still show the old value; this is a settling
+# allowance, not a hardware timeout.
+ACQ_TIME_SETTLE_TIMEOUT = 10.0
+
 # huber axes that nothing inside an acquisition may drive.
 #
 # Both are positioned exactly once per measurement, before acquisition starts, by
-# dual_master_plan_eiger4m_rigaku3m.setup_huber_for_dual(). From that point on nothing may touch them: not a
+# trio_master_plan_rigaku3m_eiger4m_lambda2m.setup_huber_for_trio(). From that point on nothing may touch them: not a
 # leg's `motors:` block, not the sample mesh. Both routes are refused at validation time and
 # again here at run time.
 FORBIDDEN_MOTORS = ("huber.delta", "huber.nu")
@@ -99,8 +115,8 @@ FORBIDDEN_MOTORS = ("huber.delta", "huber.nu")
 # The cost of that is these path strings duplicating ones that live in nexus_utils.py. If a
 # path is renamed there, an override would silently stop applying and the file would get the
 # wrong detector's geometry. Instead, drift is caught twice: a warning at import (below) and
-# _assert_override_paths(), which dual_acq_series() calls before it touches anything, so a
-# dual run refuses to start. update_schema_at_runtime() walks xpcs_schema, so xpcs_schema is
+# _assert_override_paths(), which trio_acq_series() calls before it touches anything, so a
+# trio run refuses to start. update_schema_at_runtime() walks xpcs_schema, so xpcs_schema is
 # what a path has to exist in.
 
 OVERRIDE_PATHS = {
@@ -143,9 +159,9 @@ def _assert_override_paths():
 
     if missing:
         raise RuntimeError(
-            "dual_acq_eiger4m_rigaku3m.py writes NeXus fields that no longer exist in xpcs_schema: "
+            "trio_acq_rigaku3m_eiger4m_lambda2m.py writes NeXus fields that no longer exist in xpcs_schema: "
             f"{missing}. The schema changed under this module -- update OVERRIDE_PATHS "
-            "to match id8_common/utils/nexus_utils.py before running a dual acquisition."
+            "to match id8_common/utils/nexus_utils.py before running a trio acquisition."
         )
 
 
@@ -154,8 +170,8 @@ def _assert_override_paths():
 # not use any of this. Schema drift must not be able to do that.
 if missing_override_paths():
     warnings.warn(
-        f"dual_acq_eiger4m_rigaku3m: NeXus override paths missing from xpcs_schema: {missing_override_paths()}. "
-        "Dual acquisition will refuse to run until OVERRIDE_PATHS is updated. "
+        f"trio_acq: NeXus override paths missing from xpcs_schema: {missing_override_paths()}. "
+        "Trio acquisition will refuse to run until OVERRIDE_PATHS is updated. "
         "Single-detector acquisition is unaffected.",
         RuntimeWarning,
         stacklevel=2,
@@ -178,8 +194,19 @@ if missing_override_paths():
 # left to right, and the tuple itself is discarded. Their order is deliberate -- the HDF plugin
 # is put into capture first so it is already listening when the cam starts producing frames.
 
-DUAL_LEGS = {
+TRIO_LEGS = {
     ("eiger4M", "Internal Series"): {
+        "arm": lambda d: (d.hdf1.capture.put(1), d.cam.acquire.put(1)),
+        "started": lambda d: d.cam.acquire.get() == 1,
+        "cam_busy": lambda d: d.cam.acquire.get() == 1,
+        "hdf_busy": lambda d: d.hdf1.capture.get() == 1,
+    },
+    ("lambda2M", "Internal"): {
+        # Same shape as the Eiger's: an ADCore cam whose acquire PV is both the
+        # arm and the busy flag. The one thing the Lambda needs that the Eiger
+        # does not -- being taken out of live/TV mode first -- is done in
+        # setup_lambda_internal() via stop_lambda_live(), so it happens before
+        # the shutter opens rather than inside the beam window.
         "arm": lambda d: (d.hdf1.capture.put(1), d.cam.acquire.put(1)),
         "started": lambda d: d.cam.acquire.get() == 1,
         "cam_busy": lambda d: d.cam.acquire.get() == 1,
@@ -199,15 +226,15 @@ DUAL_LEGS = {
 }
 
 
-def dual_leg_behaviour(device, mode):
+def trio_leg_behaviour(device, mode):
     """Look up the arm/poll callables for a (device, mode) pair."""
     key = (device, mode)
 
-    if key not in DUAL_LEGS:
-        supported = ", ".join(f"{d}/{m}" for d, m in sorted(DUAL_LEGS))
-        raise ValueError(f"'{device}' in mode '{mode}' is not supported for dual acquisition. Supported: {supported}")
+    if key not in TRIO_LEGS:
+        supported = ", ".join(f"{d}/{m}" for d, m in sorted(TRIO_LEGS))
+        raise ValueError(f"'{device}' in mode '{mode}' is not supported for trio acquisition. Supported: {supported}")
 
-    return DUAL_LEGS[key]
+    return TRIO_LEGS[key]
 
 
 # =============================================================================
@@ -245,7 +272,7 @@ def wait_all(legs, key, timeout, description):
     Fault-aware since 2026-09-06: each leg contributes a cam_fault() check, so a
     detector that reaches Error/Disconnected/Aborted raises within one poll
     instead of reading as "busy" until `timeout` expires. This loop runs with
-    the shutter OPEN (see dual_acq_series), which is why waiting out a
+    the shutter OPEN (see trio_acq_series), which is why waiting out a
     multi-minute timeout on a dead detector was the wrong behaviour.
     """
     faults = []
@@ -255,7 +282,7 @@ def wait_all(legs, key, timeout, description):
             faults.append(cam_fault(leg["det"].cam, leg["label"]))
 
     def every_leg_finished():
-        # `key` names one of the per-leg callables in DUAL_LEGS -- "cam_busy" or
+        # `key` names one of the per-leg callables in TRIO_LEGS -- "cam_busy" or
         # "hdf_busy" -- so this asks each detector in turn "still working?" and
         # stops at the first one that says yes.
         for leg in legs:
@@ -269,6 +296,58 @@ def wait_all(legs, key, timeout, description):
         timeout=timeout,
         what=description,
         faults=tuple(faults),
+    )
+
+
+def stop_live_mode(legs):
+    """Take every leg out of live/TV mode, and confirm it, BEFORE any setup runs.
+
+    This is the guard for a bug that cost real measurements: a detector left
+    free-running from its GUI ("TV mode") ignores a write to acquire_time, so
+    the setup function returns happily and the acquisition then runs at the live
+    view's exposure rather than the protocol's. Nothing downstream notices --
+    the frames are written, the metadata records the REQUESTED value, and the
+    exposure the data was actually taken at is simply lost.
+
+    Ordering is the whole point. This must run before leg["setup"]() pushes
+    acquire_time, and both must run before showbeam(), so a camera that refuses
+    to stop costs a raised exception rather than beam on the sample.
+
+    Cheap and idempotent: a camera already idle is a single PV read.
+    """
+    for leg in legs:
+        if stop_acquiring(leg["det"].cam, leg["label"], timeout=leg["stop_timeout"]):
+            print(f"{timestamp()}, {leg['label']} was still acquiring (live/TV mode?) -- stopped it")
+
+
+def confirm_acq_time(legs, timeout=ACQ_TIME_SETTLE_TIMEOUT):
+    """Prove every leg's camera is holding the exposure its protocol asked for.
+
+    The second half of the live-mode guard above: stop_live_mode() removes the
+    known cause, this one checks the symptom directly, so any OTHER reason a
+    write did not stick is caught too. Reads the acquire_time readback, i.e.
+    what the detector believes, not what we asked for.
+
+    Polls rather than reading once, because a put and its RBV are not
+    simultaneous. Raises when a leg is still wrong after `timeout`; called
+    before showbeam(), so that costs nothing but the run.
+    """
+
+    def mismatches():
+        found = []
+
+        for leg in legs:
+            reason = acq_time_mismatch(leg["det"].cam, leg["acq_time"], leg["label"])
+
+            if reason:
+                found.append(reason)
+
+        return found
+
+    _wait_until(
+        lambda: not mismatches(),
+        timeout=timeout,
+        what=lambda: "exposure time did not take on " + "; ".join(mismatches()),
     )
 
 
@@ -303,7 +382,7 @@ def metadata_overrides(leg):
         # detector_name is what tells a downstream reader which OUTPUT FORMAT
         # produced the file -- .h5 for rigaku3M_epics vs sparsified .bin for
         # rigaku3M. The single-detector path records the full device key, and
-        # until 2026-09-06 the dual path silently recorded the aliased one, so
+        # until 2026-09-06 the trio path silently recorded the aliased one, so
         # the same acquisition was described differently by the two paths.
         "detector_name": leg["device"],
         "qmap_file": leg["qmap_file"],
@@ -351,16 +430,16 @@ def swapped_registers(leg):
     override argument, and create_runtime_metadata_dict() needs det_name to resolve to a real
     device_position.yaml key before its additional_metadata override is applied. Both calls
     happen after the parallel window, one leg at a time, so the values are never contended --
-    and they are restored afterwards so a dual run leaves no trace.
+    and they are restored afterwards so a trio run leaves no trace.
 
     Snapshot and restore both on `expt`. Until 2026-09-06 this saved from the EPICS
     registers, set on expt, and restored to the registers -- so the restore never touched
-    what the readers actually read, and after a dual run every later measurement in the
+    what the readers actually read, and after a trio run every later measurement in the
     session was stamped with the last leg's detector, qmap and analysis type.
     """
     names = ["det_name", "qmap_file", "analysis_type", "workflow_name"]
 
-    # snapshot_run(), not getattr(): in a dual run these fields have no global
+    # snapshot_run(), not getattr(): in a trio run these fields have no global
     # value between legs, and a plain getattr would raise AttributeError on the
     # very first leg. The sentinel lets restore_run() put "absent" back.
     saved = expt.snapshot_run(names)
@@ -381,15 +460,15 @@ def swapped_registers(leg):
 def move_leg_motors(leg):
     """Move whatever the leg's `motors` block names. Absent axes are left alone.
 
-    huber.delta and huber.nu are refused here even though dual_master_plan_eiger4m_rigaku3m already rejects
-    them at validation time -- dual_acq_series() can be driven directly, bypassing that.
+    huber.delta and huber.nu are refused here even though trio_master_plan_rigaku3m_eiger4m_lambda2m already rejects
+    them at validation time -- trio_acq_series() can be driven directly, bypassing that.
     """
     for dotted, position in (leg.get("motors") or {}).items():
         if dotted in FORBIDDEN_MOTORS:
             raise ValueError(
-                f"Leg '{leg['label']}': '{dotted}' cannot be moved by a dual acquisition. "
+                f"Leg '{leg['label']}': '{dotted}' cannot be moved by a trio acquisition. "
                 f"Both huber axes are positioned once before acquisition by "
-                f"dual_master_plan_eiger4m_rigaku3m.setup_huber_for_dual()."
+                f"trio_master_plan_rigaku3m_eiger4m_lambda2m.setup_huber_for_trio()."
             )
 
         motor = get_ophyd_object(dotted)
@@ -400,10 +479,10 @@ def move_leg_motors(leg):
 def write_leg_metadata(leg):
     """Write one leg's NeXus metadata, then clear the path so it is written only once.
 
-    Self-contained on purpose -- it does its own swapped_registers(), so cleanup_dual() can call it
+    Self-contained on purpose -- it does its own swapped_registers(), so cleanup_trio() can call it
     without the caller having set anything up first. The swap and the per-leg overrides are
     both required: without them the file is stamped with whatever detector
-    expt.det_name happens to name, which in a dual run is the other leg half the time.
+    expt.det_name happens to name, which in a trio run is the other leg half the time.
     That is also why cleanup cannot write these files through cleanup_acquisition's
     metadata_fname argument, which knows nothing about legs.
 
@@ -427,7 +506,7 @@ def write_leg_metadata(leg):
     leg["metadata_fname"] = None
 
 
-def cleanup_dual(legs):
+def cleanup_trio(legs):
     """Close the shutter, stop every leg, write metadata for whatever was in flight.
 
     Safe to call from a partially-started state.
@@ -460,7 +539,7 @@ def prepare_legs(leg_specs):
     Everything that can fail without touching hardware fails here, before any motion.
     """
     if not leg_specs:
-        raise ValueError("A dual acquisition needs at least one detector leg.")
+        raise ValueError("A trio acquisition needs at least one detector leg.")
 
     legs = []
 
@@ -479,10 +558,11 @@ def prepare_legs(leg_specs):
             get_connected_device(device_name)
 
         leg["mode_info"] = mode_info
-        leg["behaviour"] = dual_leg_behaviour(device, mode)
+        leg["behaviour"] = trio_leg_behaviour(device, mode)
         leg["setup"] = mode_info["setup"]
         leg["det"] = get_connected_device(mode_info.get("hardware_device", device))
         leg["start_timeout"] = float(leg.get("start_timeout", DEFAULT_START_TIMEOUT))
+        leg["stop_timeout"] = float(leg.get("stop_timeout", DEFAULT_STOP_TIMEOUT))
         leg["hdf_timeout"] = float(leg.get("hdf_timeout", DEFAULT_HDF_TIMEOUT))
 
         legs.append(leg)
@@ -511,24 +591,26 @@ def prepare_legs(leg_specs):
 # =============================================================================
 
 
-def dual_acq_series(leg_specs, num_repeats=1, wait_time=0.0, cam_timeout=None):
+def trio_acq_series(leg_specs, num_repeats=1, wait_time=0.0, cam_timeout=None):
     """Run several detectors in parallel, repeated num_repeats times in lockstep.
 
     Args:
         leg_specs: One dict per detector. Required keys: device, mode, label, acq_time,
             num_frames, qmap_file, analysis_type. Optional: geometry (only needed when the
             detector is not at the mount device_position.yaml describes), motors,
-            select_device, shutter_owner, start_timeout, hdf_timeout, workflow_name.
-        num_repeats: Repeats for the pair. Both detectors run every repeat; the faster one
-            idles until the slower one finishes before the next repeat starts.
+            select_device, shutter_owner, start_timeout, stop_timeout, hdf_timeout,
+            workflow_name.
+        num_repeats: Repeats for the set. Every detector runs every repeat; the faster ones
+            idle until the slowest finishes before the next repeat starts.
         wait_time: Delay before each repeat.
         cam_timeout: Override the computed per-repeat cam allowance, in seconds.
 
-    File naming, with the measurement number incremented ONCE for the whole pair so both
-    detectors carry the same run number:
+    File naming, with the measurement number incremented ONCE for the whole set so every
+    detector carries the same run number, and one folder per detector:
 
+        A0012_Bismuth_a0010_f001000_rigaku3M_r00001
         A0012_Bismuth_a0010_f001000_eiger4M_r00001
-        A0012_Bismuth_a0010_f003000_rigaku3M_r00001
+        A0012_Bismuth_a0010_f001000_lambda2M_r00001
     """
     # Enforced here rather than at import: this module loads at startup, and schema drift must
     # not be able to break a session that only ever runs single-detector acquisitions.
@@ -545,14 +627,14 @@ def dual_acq_series(leg_specs, num_repeats=1, wait_time=0.0, cam_timeout=None):
             if leg.get("select_device"):
                 select_device(leg["device"])
 
-        # The huber was already positioned by dual_master_plan_eiger4m_rigaku3m.setup_huber_for_dual(), before
+        # The huber was already positioned by trio_master_plan_rigaku3m_eiger4m_lambda2m.setup_huber_for_trio(), before
         # this function was called. Nothing from here on may touch huber.delta or huber.nu.
         for leg in legs:
             move_leg_motors(leg)
 
         workflow_proc_api, dmuser = dm_setup()
 
-        # Once for the pair, so both detectors share a run number and measurement_num is
+        # Once for the set, so every detector shares a run number and measurement_num is
         # only bumped once.
         folder_prefix = gen_folder_prefix()
 
@@ -560,15 +642,15 @@ def dual_acq_series(leg_specs, num_repeats=1, wait_time=0.0, cam_timeout=None):
             leg["file_header"] = f"{folder_prefix}_f{int(leg['num_frames']):06d}_{leg['label']}"
 
         # Published to the `persistent:` block of state/run_state.yml (expt.file_name), so
-        # a GUI or a shell script can see which pair is running. It used to go to
+        # a GUI or a shell script can see which set is running. It used to go to
         # 8ideSoft:StrReg8; nothing writes that PV any more.
         # The legs' names agree right up to the detector label
         # (..._f003000_eiger4M_r00001 / ..._f003000_rigaku3M_r00001), so the shared stem
-        # names the pair without naming either detector. It stops before the label, so
+        # names the set without naming any one detector. It stops before the label, so
         # the _rNNNNN repeat suffix -- which comes after it -- is not part of the stem.
-        # num_frames is per leg and nothing requires the two to agree, so fall back to
+        # num_frames is per leg and nothing requires the legs to agree, so fall back to
         # the run prefix when they differ rather than publishing a truncated frame count
-        # that matches neither file.
+        # that matches no file.
         frame_counts = set()
 
         for leg in legs:
@@ -588,14 +670,19 @@ def dual_acq_series(leg_specs, num_repeats=1, wait_time=0.0, cam_timeout=None):
         else:
             effective_cam_timeout = cam_timeout_for(legs)
 
-        # One repeat, start to finish: set both legs up -> open the shutter ->
-        # arm the owner and wait for it to confirm it is acquiring -> arm the
-        # others -> wait for every cam -> close the shutter -> wait for every HDF
-        # plugin -> write metadata and submit the DM job, one leg at a time.
+        # One repeat, start to finish: stop any live/TV mode -> set every leg up
+        # -> confirm the exposure took -> open the shutter -> arm the owner and
+        # wait for it to confirm it is acquiring -> arm the others -> wait for
+        # every cam -> close the shutter -> wait for every HDF plugin -> write
+        # metadata and submit the DM job, one leg at a time.
         for rep in range(int(num_repeats)):
             ttime.sleep(wait_time)
 
             sample_mesh_move()
+
+            # Before setup, never after: a running camera silently swallows the
+            # acquire_time write that setup is about to make.
+            stop_live_mode(legs)
 
             for leg in legs:
                 leg["file_name"] = f"{leg['file_header']}_r{rep + 1:05d}"
@@ -605,6 +692,10 @@ def dual_acq_series(leg_specs, num_repeats=1, wait_time=0.0, cam_timeout=None):
                     file_header=leg["file_header"],
                     file_name=leg["file_name"],
                 )
+
+            # ... and after setup, prove it took. Still before showbeam(), so a
+            # wrong exposure costs the run and no beam.
+            confirm_acq_time(legs)
 
             names = ", ".join(leg["file_name"] for leg in legs)
             print(f"\n{timestamp()}, Starting parallel measurement: {names}")
@@ -643,7 +734,7 @@ def dual_acq_series(leg_specs, num_repeats=1, wait_time=0.0, cam_timeout=None):
             hdf_timeout = max(leg["hdf_timeout"] for leg in legs)
             wait_all(legs, "hdf_busy", hdf_timeout, "all HDF plugins to finish writing")
 
-            # Both files are closed, so metadata and DM can run one leg at a time.
+            # Every file is closed, so metadata and DM can run one leg at a time.
             for leg in legs:
                 write_leg_metadata(leg)
 
@@ -654,8 +745,8 @@ def dual_acq_series(leg_specs, num_repeats=1, wait_time=0.0, cam_timeout=None):
             print(f"{timestamp()}, Complete measurement, repeat {rep + 1} of {int(num_repeats)}")
 
     except KeyboardInterrupt as exc:
-        cleanup_dual(legs)
+        cleanup_trio(legs)
         raise RuntimeError("\n Bluesky plan stopped by user (Ctrl+C).") from exc
     except Exception:
-        cleanup_dual(legs)
+        cleanup_trio(legs)
         raise

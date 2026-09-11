@@ -1,25 +1,29 @@
 """
-YAML front end for parallel two-detector acquisition.
+YAML front end for parallel multi-detector acquisition.
 
-The dual counterpart to master_plan.py. Reads dual_measurement_info.yaml from expt.user_plan_dir, validates
+The trio counterpart to master_plan.py. Reads trio_measurement_info.yaml from expt.user_plan_dir, validates
 it hard enough that nothing can move before an error surfaces, and hands per-detector "legs" to
-dual_acq_eiger4m_rigaku3m.dual_acq_series().
+trio_acq_rigaku3m_eiger4m_lambda2m.trio_acq_series().
+
+The three detectors in the file name -- Rigaku, Eiger, Lambda -- are what this is built and
+tested for, not a hard limit: everything here is written over the protocol's `detectors:` list
+rather than over a fixed set. The supported (device, mode) pairs are the keys of TRIO_LEGS.
 
 Imported by startup.py, so these are already in the session (the __all__ at the bottom of
 this file is the full list `import *` brings across):
 
-    dry_run_dual_measurement_info(check_hardware=True)   # validate and preview, moves nothing
-    run_dual_measurement_info()                          # go
+    dry_run_trio_measurement_info(check_hardware=True)   # validate and preview, moves nothing
+    run_trio_measurement_info()                          # go
 
 Importing this alongside master_plan.py is safe: the two export no names in common, both
-having an __all__. They do share one thing -- the `expt` run state -- and a dual run is
+having an __all__. They do share one thing -- the `expt` run state -- and a trio run is
 careful with it: it sets only the sample fields and sample_move globally, while the per-leg
 fields (det_name, qmap_file, analysis_type, workflow_name) are swapped in one leg at a time
-by dual_acq_eiger4m_rigaku3m.swapped_registers(), after the parallel window has closed, and restored
+by trio_acq_rigaku3m_eiger4m_lambda2m.swapped_registers(), after the parallel window has closed, and restored
 afterwards. So single-detector acquisition behaves exactly as it did before.
 
 Run expansion (runs/protocols/samples/loop_order) is reused wholesale from master_plan.py, so
-the two files behave identically there. What differs is the protocol body: a dual protocol
+the two files behave identically there. What differs is the protocol body: a trio protocol
 carries a `detectors:` list, and the acquisition settings that are per-detector live inside it
 rather than at protocol level.
 
@@ -28,9 +32,9 @@ sample_info.yaml is shared with the serial path and read unchanged.
 
 from pathlib import Path
 
-from id8_common.plans.acquire.dual_acq_eiger4m_rigaku3m import DUAL_LEGS
-from id8_common.plans.acquire.dual_acq_eiger4m_rigaku3m import FORBIDDEN_MOTORS
-from id8_common.plans.acquire.dual_acq_eiger4m_rigaku3m import dual_acq_series
+from id8_common.plans.acquire.trio_acq_rigaku3m_eiger4m_lambda2m import TRIO_LEGS
+from id8_common.plans.acquire.trio_acq_rigaku3m_eiger4m_lambda2m import FORBIDDEN_MOTORS
+from id8_common.plans.acquire.trio_acq_rigaku3m_eiger4m_lambda2m import trio_acq_series
 from id8_common.plans.acquire.master_plan import expand_measurements
 from id8_common.plans.acquire.master_plan import get_sample
 from id8_common.plans.acquire.master_plan import reload_experiment_config
@@ -55,9 +59,10 @@ from id8_common.registry import get_ophyd_object
 # this file. No plan path is hardcoded here. (This note describes the plan
 # files; the constants immediately below are unrelated to it.)
 
-# Huber position a dual Eiger+Rigaku measurement acquires at.
-DUAL_HUBER_DELTA = 10.0
-DUAL_HUBER_NU = 0.0
+# Huber position a trio measurement acquires at. Not applied -- setup_huber_for_trio() below
+# has its motion commented out, so a trio run acquires wherever the diffractometer already is.
+TRIO_HUBER_DELTA = 10.0
+TRIO_HUBER_NU = 0.0
 
 REQUIRED_PROTOCOL_FIELDS = [
     "att_level",
@@ -152,7 +157,7 @@ def validate_geometry(geometry, label):
 
 
 def validate_leg(leg):
-    """Check one detector leg of a dual protocol.
+    """Check one detector leg of a trio protocol.
 
     Resolves devices and motors, so this needs a live session -- it is the part
     the dry run skips unless asked for with check_hardware=True.
@@ -167,10 +172,10 @@ def validate_leg(leg):
 
     validators.validate_detector_mode(device, mode, where=where)
 
-    if (device, mode) not in DUAL_LEGS:
-        supported = ", ".join(f"{d}/{m}" for d, m in sorted(DUAL_LEGS))
+    if (device, mode) not in TRIO_LEGS:
+        supported = ", ".join(f"{d}/{m}" for d, m in sorted(TRIO_LEGS))
         raise ValueError(
-            f"Leg '{label}': {device}/{mode} is not supported for dual acquisition. Supported: {supported}"
+            f"Leg '{label}': {device}/{mode} is not supported for trio acquisition. Supported: {supported}"
         )
 
     validate_acq_time(leg["acq_time"], device, mode, where=where)
@@ -190,9 +195,9 @@ def validate_leg(leg):
     for dotted in motors:
         if dotted in FORBIDDEN_MOTORS:
             raise ValueError(
-                f"Leg '{label}': '{dotted}' cannot appear in a dual protocol's motors block. "
+                f"Leg '{label}': '{dotted}' cannot appear in a trio protocol's motors block. "
                 f"Both huber axes are positioned once before acquisition by "
-                f"setup_huber_for_dual() (delta {DUAL_HUBER_DELTA}, nu {DUAL_HUBER_NU})."
+                f"setup_huber_for_trio() (delta {TRIO_HUBER_DELTA}, nu {TRIO_HUBER_NU})."
             )
         get_ophyd_object(dotted)
 
@@ -202,10 +207,10 @@ def validate_leg(leg):
 
 
 def validate_shutter_owner(legs):
-    """Exactly one leg of a dual protocol must set shutter_owner: yes.
+    """Exactly one leg of a trio protocol must set shutter_owner: yes.
 
     The owner is armed first and everyone else waits for it -- see the shutter
-    contract at the top of dual_acq_eiger4m_rigaku3m.py. A single-leg protocol
+    contract at the top of trio_acq_rigaku3m_eiger4m_lambda2m.py. A single-leg protocol
     may leave it unset and owns the shutter by default; prepare_legs() marks it
     as the owner at run time.
     """
@@ -229,20 +234,20 @@ def validate_shutter_owner(legs):
 
 
 def validate_sample_motion(measurement, sample):
-    # FORBIDDEN_MOTORS is the dual-only part: the mesh is the other way
+    # FORBIDDEN_MOTORS is the trio-only part: the mesh is the other way
     # huber.delta / huber.nu could be driven, via sample_info.yaml's
     # inner_motor / outer_motor. Refuse it for the same reason as a leg's
-    # motors block -- setup_huber_for_dual() owns both axes.
+    # motors block -- setup_huber_for_trio() owns both axes.
     validators.validate_sample_motion(measurement, sample, forbidden_motors=FORBIDDEN_MOTORS)
 
 
-def normalize_dual_measurement(measurement):
+def normalize_trio_measurement(measurement):
     """Coerce the protocol's yes/no fields to their string form, in place."""
     normalize_yes_no(measurement)
 
 
-def validate_dual_measurement(measurement, sample, check_hardware=True):
-    """Check one expanded dual measurement: protocol level first, then leg by leg.
+def validate_trio_measurement(measurement, sample, check_hardware=True):
+    """Check one expanded trio measurement: protocol level first, then leg by leg.
 
     check_hardware=False skips validate_leg(), which is the part that resolves
     devices and so needs a live session. The sample-mesh check runs either way
@@ -252,7 +257,7 @@ def validate_dual_measurement(measurement, sample, check_hardware=True):
     require_fields(measurement, REQUIRED_PROTOCOL_FIELDS, "protocol")
     require_fields(sample, ["sample_name", "header"], "sample")
 
-    normalize_dual_measurement(measurement)
+    normalize_trio_measurement(measurement)
 
     legs = measurement["detectors"]
 
@@ -287,7 +292,7 @@ def validate_dual_measurement(measurement, sample, check_hardware=True):
 
 
 def build_leg_specs(measurement):
-    """Turn validated YAML detector blocks into the dicts dual_acq_series() consumes."""
+    """Turn validated YAML detector blocks into the dicts trio_acq_series() consumes."""
     specs = []
 
     for leg in measurement["detectors"]:
@@ -373,37 +378,37 @@ def print_measurement_header(measurement, sample, sample_index, extra=None):
 # =============================================================================
 # Huber setup
 # =============================================================================
-# The dual analogue of master_plan.py's DETECTOR_PLACEHOLDERS hooks, called from the same
+# The trio analogue of master_plan.py's DETECTOR_PLACEHOLDERS hooks, called from the same
 # point in the sequence: once per measurement, before any acquisition starts.
 #
 # Deliberately does not reuse placeholder_rigaku3M(). That hook belongs to the serial path and
 # should stay free to change for it -- if the two shared one function, editing it for a serial
-# Rigaku run would silently move the dual geometry too.
+# Rigaku run would silently move the trio geometry too.
 
 
-def setup_huber_for_dual():
-    """Huber positioning hook for a dual run. Motion is DISABLED: this moves nothing.
+def setup_huber_for_trio():
+    """Huber positioning hook for a trio run. Motion is DISABLED: this moves nothing.
 
     As it stands the function only prints the delta 10 / nu 0 position it would have moved to
     -- see the comment below. Position the diffractometer yourself before the run.
 
-    When the motion is re-enabled, these two axes are the only huber motion in a dual run, and
+    When the motion is re-enabled, these two axes are the only huber motion in a trio run, and
     once this returns nothing in the acquisition may touch them -- see FORBIDDEN_MOTORS in
-    dual_acq_eiger4m_rigaku3m.py, which refuses both a leg's motors block and the sample mesh.
+    trio_acq_rigaku3m_eiger4m_lambda2m.py, which refuses both a leg's motors block and the sample mesh.
     """
-    # DISABLED 2026-09-06 for testing: no motor motion. The dual geometry is
+    # DISABLED 2026-09-06 for testing: no motor motion. The trio geometry is
     # whatever the diffractometer is already at, so a leg's metadata may not
     # describe the true beam path -- see the geometry: block in
-    # dual_measurement_info.yaml for how to override it per leg.
+    # trio_measurement_info.yaml for how to override it per leg.
     # Re-enable by uncommenting the three lines below.
     #
     # huber = oregistry["huber"]
-    # print(f"Moving huber.delta to {DUAL_HUBER_DELTA}, huber.nu to {DUAL_HUBER_NU}")
-    # huber.delta.move(DUAL_HUBER_DELTA, wait=True)
-    # huber.nu.move(DUAL_HUBER_NU, wait=True)
+    # print(f"Moving huber.delta to {TRIO_HUBER_DELTA}, huber.nu to {TRIO_HUBER_NU}")
+    # huber.delta.move(TRIO_HUBER_DELTA, wait=True)
+    # huber.nu.move(TRIO_HUBER_NU, wait=True)
     print(
-        f"setup_huber_for_dual: motion DISABLED -- leaving huber where it is "
-        f"(would have moved delta to {DUAL_HUBER_DELTA}, nu to {DUAL_HUBER_NU})"
+        f"setup_huber_for_trio: motion DISABLED -- leaving huber where it is "
+        f"(would have moved delta to {TRIO_HUBER_DELTA}, nu to {TRIO_HUBER_NU})"
     )
 
 
@@ -412,22 +417,22 @@ def setup_huber_for_dual():
 # =============================================================================
 
 
-def run_dual_measurement(measurement, sample_info):
+def run_trio_measurement(measurement, sample_info):
     """Validate one expanded measurement, set up the sample, and run both detectors."""
     sample_index = int(measurement["sample_index"])
     sample = get_sample(sample_info, sample_index)
 
-    validate_dual_measurement(measurement, sample)
+    validate_trio_measurement(measurement, sample)
 
     # Populate the SAMPLE half of the run state. Added 2026-09-06: without it
     # expt.header and expt.sample_name are never set, and the first call to
     # gen_folder_prefix() raises AttributeError before any hardware moves.
-    # master_plan.run_measurement() has always done this; the dual path was
+    # master_plan.run_measurement() has always done this; the trio path was
     # missed when the pv_registers -> expt migration landed.
     #
     # Only the sample half. The measurement half (det_name, mode, acq_time,
-    # qmap_file, analysis_type) is PER LEG in a dual run and is applied one leg
-    # at a time by swapped_registers() in dual_acq_eiger4m_rigaku3m -- setting it globally here
+    # qmap_file, analysis_type) is PER LEG in a trio run and is applied one leg
+    # at a time by swapped_registers() in trio_acq_rigaku3m_eiger4m_lambda2m -- setting it globally here
     # would stamp both legs with whichever leg happened to be written last.
     expt.sample_index = sample_index
     expt.set_measurement(sample=sample)
@@ -439,9 +444,9 @@ def run_dual_measurement(measurement, sample_info):
 
     print_measurement_header(measurement, sample, sample_index)
 
-    setup_huber_for_dual()
+    setup_huber_for_trio()
 
-    dual_acq_series(
+    trio_acq_series(
         leg_specs=build_leg_specs(measurement),
         num_repeats=int(measurement["num_repeats"]),
         wait_time=float(measurement.get("wait_time", 0)),
@@ -449,21 +454,21 @@ def run_dual_measurement(measurement, sample_info):
     )
 
 
-def run_dual_measurement_info(
+def run_trio_measurement_info(
     measurement_info_file=None,
     sample_info_file=None,
 ):
-    """Expand dual_measurement_info.yaml and run every measurement it describes."""
+    """Expand trio_measurement_info.yaml and run every measurement it describes."""
     # None, not a default argument: a default binds once at import and could not
     # follow an experiment.yml edit or expt.reload().
     # experiment.yml is cached by expt; re-read it so an edit takes effect
     # without a restart, and BEFORE the paths below are resolved from it.
     reload_experiment_config()
 
-    measurement_info_file = measurement_info_file or expt.dual_measurement_info_file
+    measurement_info_file = measurement_info_file or expt.trio_measurement_info_file
     sample_info_file = sample_info_file or expt.sample_info_file
 
-    print(f"Reading dual plans from {Path(measurement_info_file).parent}")
+    print(f"Reading trio plans from {Path(measurement_info_file).parent}")
 
     sample_info = read_yaml(sample_info_file)
     measurement_info = read_yaml(measurement_info_file)
@@ -471,11 +476,11 @@ def run_dual_measurement_info(
     measurements = expand_measurements(measurement_info)
 
     print("")
-    print(f"Loaded {len(measurements)} expanded dual-measurement blocks.")
+    print(f"Loaded {len(measurements)} expanded trio-measurement blocks.")
     print("")
 
     for measurement in measurements:
-        run_dual_measurement(measurement=measurement, sample_info=sample_info)
+        run_trio_measurement(measurement=measurement, sample_info=sample_info)
 
 
 # =============================================================================
@@ -483,7 +488,7 @@ def run_dual_measurement_info(
 # =============================================================================
 
 
-def dry_run_dual_measurement_info(
+def dry_run_trio_measurement_info(
     measurement_info_file=None,
     sample_info_file=None,
     check_hardware=False,
@@ -500,7 +505,7 @@ def dry_run_dual_measurement_info(
     # experiment.yml is cached by expt; re-read it so an edit takes effect
     # without a restart, and BEFORE the paths below are resolved from it.
     reload_experiment_config()
-    measurement_info_file = measurement_info_file or expt.dual_measurement_info_file
+    measurement_info_file = measurement_info_file or expt.trio_measurement_info_file
     sample_info_file = sample_info_file or expt.sample_info_file
 
     sample_info = read_yaml(sample_info_file)
@@ -509,7 +514,7 @@ def dry_run_dual_measurement_info(
     measurements = expand_measurements(measurement_info)
 
     print("")
-    print(f"Total dual measurements planned: {len(measurements)}")
+    print(f"Total trio measurements planned: {len(measurements)}")
     print("")
 
     total_parallel = 0.0
@@ -519,7 +524,7 @@ def dry_run_dual_measurement_info(
         sample_index = int(measurement["sample_index"])
         sample = get_sample(sample_info, sample_index)
 
-        validate_dual_measurement(measurement, sample, check_hardware=check_hardware)
+        validate_trio_measurement(measurement, sample, check_hardware=check_hardware)
 
         legs = measurement["detectors"]
         num_repeats = int(measurement["num_repeats"])
@@ -553,27 +558,27 @@ def dry_run_dual_measurement_info(
 # =============================================================================
 
 # 1. Edit sample_info.yaml (shared with the serial path).
-# 2. Edit dual_measurement_info.yaml.
+# 2. Edit trio_measurement_info.yaml.
 # 3. In IPython/Bluesky:
 #
-#       from id8_common.plans.acquire.dual_master_plan_eiger4m_rigaku3m import dry_run_dual_measurement_info
-#       from id8_common.plans.acquire.dual_master_plan_eiger4m_rigaku3m import run_dual_measurement_info
+#       from id8_common.plans.acquire.trio_master_plan_rigaku3m_eiger4m_lambda2m import dry_run_trio_measurement_info
+#       from id8_common.plans.acquire.trio_master_plan_rigaku3m_eiger4m_lambda2m import run_trio_measurement_info
 #
-#       dry_run_dual_measurement_info(check_hardware=True)
-#       run_dual_measurement_info()
+#       dry_run_trio_measurement_info(check_hardware=True)
+#       run_trio_measurement_info()
 #
 # To point at a different file:
 #
-#       run_dual_measurement_info(
+#       run_trio_measurement_info(
 #           measurement_info_file="/home/beams10/8IDIUSER/bluesky/src/user_plans/my_dual.yaml",
 #       )
 
 __all__ = [
-    "DUAL_HUBER_DELTA",
-    "DUAL_HUBER_NU",
+    "TRIO_HUBER_DELTA",
+    "TRIO_HUBER_NU",
     "build_leg_specs",
-    "dry_run_dual_measurement_info",
-    "run_dual_measurement",
-    "run_dual_measurement_info",
-    "setup_huber_for_dual",
+    "dry_run_trio_measurement_info",
+    "run_trio_measurement",
+    "run_trio_measurement_info",
+    "setup_huber_for_trio",
 ]

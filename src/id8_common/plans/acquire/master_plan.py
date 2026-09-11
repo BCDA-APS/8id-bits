@@ -54,7 +54,7 @@ _TIME_EPS = 1e-9
 
 
 # read_yaml, yes_no and get_ophyd_object used to be defined here. They are now
-# imported above -- from validators.py and registry.py -- so the dual path and
+# imported above -- from validators.py and registry.py -- so the trio path and
 # this one cannot drift apart again. None of the three is in this module's
 # __all__, so `import *` in startup.py no longer carries them to the prompt;
 # import them by name from validators.py / registry.py instead.
@@ -411,7 +411,7 @@ def validate_counts(measurement):
 
 
 def validate_sample_motion(measurement, sample):
-    # No forbidden_motors: the serial path may mesh on any axis. The dual path
+    # No forbidden_motors: the serial path may mesh on any axis. The trio path
     # passes FORBIDDEN_MOTORS to the same check.
     validators.validate_sample_motion(measurement, sample)
 
@@ -613,7 +613,7 @@ def run_measurement_info(
     # None, not a default argument: a default is bound once at import, so it
     # could not follow an experiment.yml edit or expt.reload().
     # Path(), because the caller may pass a plain string -- the usage examples
-    # and the dual module's docstring both show one -- and .parent below is a
+    # and the trio module's docstring both show one -- and .parent below is a
     # Path method. expt.measurement_info_file is already a Path; Path() on a
     # Path is a no-op.
     # experiment.yml is cached by expt; re-read it so an edit takes effect
@@ -756,7 +756,7 @@ def dry_run_measurement_info(measurement_info_file=None, sample_info_file=None):
 #:
 #: The rule: list what a scientist would type, keep everything else internal.
 #: Nothing below is required for the module to work -- ``__all__`` affects
-#: ``import *`` only. dual_master_plan_eiger4m_rigaku3m.py's explicit
+#: ``import *`` only. trio_master_plan_rigaku3m_eiger4m_lambda2m.py's explicit
 #: ``from master_plan import expand_measurements`` is unaffected, and so is
 #: anything else that imports a name from here by name.
 __all__ = [

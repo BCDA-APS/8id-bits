@@ -3,9 +3,10 @@
 loop_order: sample_major
 
 runs:
- - name: dual_att_series
+ - name: trio_att_series
    samples: [1]
-   protocols: [dual_att5, dual_att2, dual_att1]
+  #  protocols: [trio_att5, trio_att2, trio_att1]
+   protocols: [trio_att1]
    repeats: 1
 
 ###### Change here to change measurement conditions #######
@@ -15,19 +16,28 @@ runs:
 # to acq_time, num_frames or a qmap has to be made in all three.
 #
 # att_level 10 was dropped on 2026-09-11: a stuck filter left attenuation_actual at 1.78
-# with the setpoint at 10, so E0160 ran at the wrong attenuation. Restore the dual_att10
+# with the setpoint at 10, so E0160 ran at the wrong attenuation. Restore the trio_att10
 # block once the filter set is fixed.
 #
-# Eiger beam-centre metadata: with no geometry block the Eiger's metadata comes from the
-# eiger4M entry in device_position.yaml -- db_x 716, db_y 815, distance 11.5 m -- which was
-# calibrated with the Aerotech stage at detector.x 256, detector.y 77. In a dual run the
-# Rigaku owns that stage and it sits at -250 / 170, so those numbers probably do not describe
-# this measurement. Raw frames are unaffected; only the _metadata.hdf is. To correct it, add
-# a geometry: block to the eiger4M leg -- fields are documented at the bottom of this file.
+# THREE detectors per protocol since 2026-09-11: rigaku3M_epics, eiger4M and lambda2M all run
+# in one beam window. The Rigaku still owns the shutter and is armed first; the other two are
+# armed once it confirms it is acquiring, so they start a second or two late. That offset is
+# accepted -- nothing here is frame-synced.
+#
+# Before the first three-detector run, check that lambda2m_qmap_default.hdf really is in the
+# experiment data folder. dry_run_trio_measurement_info() now checks every leg's qmap and will
+# say so if it is missing or named differently; fix the name here rather than running without.
+#
+# Beam-centre metadata for the two non-Rigaku legs: with no geometry block their metadata comes
+# from device_position.yaml -- eiger4M db_x 716, db_y 815, distance 4 m; lambda2M db_x 779,
+# db_y 987, distance 2.2 m. Those were calibrated with the Aerotech stage at the detector's own
+# preset. In a trio run the Rigaku owns that stage and it sits at -275 / 170, so those numbers
+# probably do not describe this measurement. Raw frames are unaffected; only the _metadata.hdf
+# is. To correct it, add a geometry: block to the leg -- fields documented at the bottom.
 
 protocols:
 
-  dual_att5:
+  trio_att5:
     att_level: 5
     num_repeats: 1
     wait_time: 0
@@ -37,7 +47,7 @@ protocols:
       - device: rigaku3M_epics
         mode: EPICS
         acq_time: 1
-        num_frames: 3000
+        num_frames: 10
         qmap_file: rigaku3m_qmap_Sq360_Dq36_NoStreak_lin.hdf
         analysis_type: Multitau
         select_device: yes
@@ -47,12 +57,19 @@ protocols:
       - device: eiger4M
         mode: Internal Series
         acq_time: 1
-        num_frames: 3000
+        num_frames: 20
         qmap_file: eiger4m_qmap_Sx72_Dx6.hdf
         analysis_type: Multitau
         hdf_timeout: 600
+      - device: lambda2M
+        mode: Internal
+        acq_time: 1
+        num_frames: 30
+        qmap_file: lambda2m_qmap_default.hdf
+        analysis_type: Multitau
+        hdf_timeout: 600
 
-  dual_att2:
+  trio_att2:
     att_level: 2
     num_repeats: 1
     wait_time: 0
@@ -76,8 +93,15 @@ protocols:
         qmap_file: eiger4m_qmap_Sx72_Dx6.hdf
         analysis_type: Multitau
         hdf_timeout: 600
+      - device: lambda2M
+        mode: Internal
+        acq_time: 1
+        num_frames: 3000
+        qmap_file: lambda2m_qmap_default.hdf
+        analysis_type: Multitau
+        hdf_timeout: 600
 
-  dual_att1:
+  trio_att1:
     att_level: 1
     num_repeats: 1
     wait_time: 0
@@ -87,7 +111,7 @@ protocols:
       - device: rigaku3M_epics
         mode: EPICS
         acq_time: 1
-        num_frames: 3000
+        num_frames: 10
         qmap_file: rigaku3m_qmap_Sq360_Dq36_NoStreak_lin.hdf
         analysis_type: Multitau
         select_device: yes
@@ -97,24 +121,61 @@ protocols:
       - device: eiger4M
         mode: Internal Series
         acq_time: 1
-        num_frames: 3000
-        qmap_file: eiger4m_qmap_Sx72_Dx6.hdf
+        num_frames: 10
+        qmap_file: eiger4m_qmap_4m.hdf
+        analysis_type: Multitau
+        hdf_timeout: 600
+      - device: lambda2M
+        mode: Internal
+        acq_time: 1
+        num_frames: 10
+        qmap_file: lambda2m_qmap_default.hdf
         analysis_type: Multitau
         hdf_timeout: 600
 
 ###### Change here to change measurement conditions #######
 
 _instructions: |
-  Runs the Eiger and the Rigaku in the same beam window instead of back to back. The pair is
-  NOT frame-synced -- the acquisitions overlap, so a pair of long measurements costs roughly
-  the slower one rather than the sum of both.
+  Runs the Rigaku, the Eiger and the Lambda in the same beam window instead of back to back.
+  They are NOT frame-synced -- the acquisitions merely overlap, so a set of long measurements
+  costs roughly the slowest one rather than the sum of all of them. The Rigaku owns the
+  shutter and is armed first; the Eiger and the Lambda follow a second or two later, once it
+  confirms it is acquiring. That offset is deliberate and is not corrected for.
 
   To run:
 
-    dry_run_dual_measurement_info(check_hardware=True)    # validate + preview, moves nothing
-    run_dual_measurement_info()                           # go
+    dry_run_trio_measurement_info(check_hardware=True)    # validate + preview, moves nothing
+    run_trio_measurement_info()                           # go
 
   Both are imported by startup.py, so they are available in the session already.
+
+  ---------------------------------------------------------------------------
+  Live/TV mode: stop it, or your exposure time is silently wrong
+  ---------------------------------------------------------------------------
+
+  A detector left free-running -- from its own GUI, or from tv_mode() -- IGNORES a write to
+  acquire_time. Before this was guarded, a measurement started on top of a live view ran at
+  the LIVE VIEW's exposure, wrote its frames, and recorded the exposure you asked for in the
+  metadata. Nothing looked wrong; the real exposure was simply lost.
+
+  Every repeat now does two things about it, both before the shutter opens, so a failure
+  costs no beam:
+
+    1. Presses Stop on all three detectors and waits for them (stop_timeout, default 10 s).
+    2. Reads each camera's acquire_time READBACK and refuses to run if it is not what this
+       file asked for (5% tolerance, for the detectors' own rounding).
+
+  So you no longer have to remember to close the TV view first. If a detector will not stop,
+  the run aborts and names it.
+
+  tv_mode() itself is the supported way to run a live view on all three at once. It writes
+  nothing and consumes no measurement number:
+
+    tv_mode()                              # 5000 frames of 1 s on all three
+    tv_mode(detectors=["lambda2M"])        # just one
+
+  It opens the beam and blocks the session -- set att() first -- and Ctrl+C presses Stop on
+  every detector and closes the shutter.
 
   ---------------------------------------------------------------------------
   What this file currently does
@@ -135,17 +196,19 @@ _instructions: |
   sample_info.yaml sample_1 is a single point (inner_pts / outer_pts 1, ranges 0), not the
   21 x 21 EHEA mesh -- restore that block before going back to the grid map.
 
-  Each runs BOTH detectors in parallel at 1 s per frame, 3000 frames:
+  Each runs ALL THREE detectors in parallel at 1 s per frame, 3000 frames:
 
     3000 s = 50 min of beam per attenuation step
     3 steps = 2 h 30 min total
 
-  Run serially that would be 5 h, so this halves it. dry_run prints both numbers.
+  Run serially that would be 7 h 30 min, so this cuts it to a third. dry_run prints both
+  numbers.
 
-  Each step produces two folders, sharing one run number:
+  Each step produces three folders, sharing one run number:
 
     data/A0058_HEA-0GPa_a0022_f003000_rigaku3M/..._r00001.h5
     data/A0058_HEA-0GPa_a0022_f003000_eiger4M/..._r00001.h5
+    data/A0058_HEA-0GPa_a0022_f003000_lambda2M/..._r00001.h5
 
   Each gets its own _metadata.hdf and its own DM job.
 
@@ -158,33 +221,38 @@ _instructions: |
   list in the run block to match. They execute in the order listed there.
 
   ---------------------------------------------------------------------------
-  Motion: what a dual run moves, and what it will refuse to move
+  Motion: what a trio run moves, and what it will refuse to move
   ---------------------------------------------------------------------------
 
-  Moves, in this order, once per measurement:
+  NO DETECTOR IS MOVED by this file as it stands. Position all three yourself before running.
 
-    huber.delta -> 10         setup_huber_for_dual() in dual_master_plan_eiger4m_rigaku3m.py, before any
-    huber.nu    ->  0         acquisition starts
-    filter_8ide.attenuation   to att_level
-    detector.x  -> -250.0     via select_device("rigaku3M_epics")
-    detector.y  ->  170.0     same
+  What would move, if it were enabled:
+
+    huber.delta -> 10         setup_huber_for_trio() in trio_master_plan_rigaku3m_eiger4m_lambda2m.py --
+    huber.nu    ->  0         its motion is COMMENTED OUT, so neither axis moves today
+    filter_8ide.attenuation   to att_level -- this one does happen, every measurement
+    detector.x  -> -275.0     via select_device("rigaku3M_epics") -- but rigaku3M has
+    detector.y  ->  170.0     allow_motion: false in device_position.yaml, so it does not move
+
+  So the only thing a run actually drives is the attenuator. All three detectors have
+  allow_motion: false, and no leg below has a motors: block.
 
   Never moves during acquisition, and is refused if you ask:
 
-    Once setup_huber_for_dual() has run, huber.delta and huber.nu are off limits. They are
+    Once setup_huber_for_trio() has run, huber.delta and huber.nu are off limits. They are
     rejected in a leg's motors: block -- at validation time and again at run time -- and
-    rejected as sample_info.yaml's inner_motor / outer_motor. To change where a dual run
-    acquires, edit DUAL_HUBER_DELTA / DUAL_HUBER_NU in dual_master_plan_eiger4m_rigaku3m.py, not this file.
+    rejected as sample_info.yaml's inner_motor / outer_motor. To change where a trio run
+    acquires, edit TRIO_HUBER_DELTA / TRIO_HUBER_NU in trio_master_plan_rigaku3m_eiger4m_lambda2m.py, not this file.
 
-    Note setup_huber_for_dual() is independent of master_plan.py's placeholder_rigaku3M().
-    Changing the serial Rigaku placeholder does not move the dual geometry, and vice versa.
+    Note setup_huber_for_trio() is independent of master_plan.py's placeholder_rigaku3M().
+    Changing the serial Rigaku placeholder does not move the trio geometry, and vice versa.
 
     flight_path_8idi.swing is never touched: select_device() only drives horizontal/vertical.
 
   Note detector.x / detector.y is the stage shared with the Eiger. If the Eiger is bolted to
   it, that move carries the Eiger too -- which is what the geometry comment above is about.
-  If both detectors are already positioned, set select_device: no on the Rigaku leg and
-  nothing but the attenuator and the two huber axes will move. That is safe for the trigger
+  If all three detectors are already positioned, set select_device: no on the Rigaku leg and
+  nothing but the attenuator will move. That is safe for the trigger
   path: setup_rigaku_epics() sets softglue.enable_rigaku = '1' itself.
 
   ---------------------------------------------------------------------------
@@ -194,7 +262,7 @@ _instructions: |
   runs / protocols / samples / sample_range / repeats / loop_order behave exactly as in
   measurement_info.yaml -- the expansion code is shared. See that file for those options.
 
-  What differs is the protocol body. A dual protocol splits its settings in two:
+  What differs is the protocol body. A trio protocol splits its settings in two:
 
     Protocol level, shared, because there is one beam and one sample:
       att_level, num_repeats, wait_time, sample_move, position_reset
@@ -202,20 +270,22 @@ _instructions: |
     detectors[] level, because these differ per detector:
       device, mode, acq_time, num_frames, qmap_file, analysis_type, geometry, motors
 
-  num_repeats is shared. Repeats run in lockstep: both detectors start each repeat together
-  and the faster one waits for the slower before the next begins.
+  num_repeats is shared. Repeats run in lockstep: every detector starts each repeat together
+  and the faster ones wait for the slowest before the next begins.
 
   ---------------------------------------------------------------------------
   Shutter and start order
   ---------------------------------------------------------------------------
 
-  Exactly one detector must set shutter_owner: yes. Per repeat:
+  Exactly one detector must set shutter_owner: yes -- the Rigaku, here. Per repeat:
 
     1. Shutter opens.
     2. The shutter owner is armed.
     3. Wait until the owner confirms it is acquiring (Rigaku: detector_state reaches 1).
        This takes a few seconds of internal staging, with the shutter already open.
-    4. Only then are the other detectors armed.
+    4. Only then are the other detectors armed, in the order they are listed above. Each arm
+       is a single EPICS put, so the Eiger and the Lambda start within a moment of each other,
+       both of them a second or two after the Rigaku.
     5. Wait for ALL cams to finish, then close the shutter.
     6. Wait for ALL HDF plugins to finish, then write metadata and submit DM for each leg.
 
@@ -225,16 +295,20 @@ _instructions: |
 
   The Rigaku is the natural owner: its trigger path needs softglue.enable_rigaku = '1', which
   select_device("rigaku3M_epics") and setup_rigaku_epics() both set. Do not run pre_align()
-  during a dual run -- it sets that MUX back to '0'.
+  during a trio run -- it sets that MUX back to '0'.
 
   ---------------------------------------------------------------------------
   Detector options
   ---------------------------------------------------------------------------
 
     device / mode:
-      Only these pairs are supported for dual acquisition:
+      Only these pairs are supported for trio acquisition:
         eiger4M         / Internal Series
+        lambda2M        / Internal
         rigaku3M_epics  / EPICS
+
+      lambda2M / External is deliberately NOT supported: it gates the shutter through
+      softglue, one pulse per frame, which cannot coexist with a Rigaku-owned shutter window.
 
     acq_time, num_frames:
       Per detector. They do not have to match; here they deliberately do.
@@ -253,7 +327,9 @@ _instructions: |
     select_device:
       Optional, default no. Whether to call select_device(), which moves the detector to its
       device_position.yaml preset. Yes for the Rigaku, which owns the Aerotech translation
-      stage. Leave it off for the second detector -- both presets cannot be satisfied at once.
+      stage. Leave it off for the other legs -- their presets cannot all be satisfied at once.
+      (With allow_motion: false on all three entries it currently moves nothing either way; it
+      still writes the entry's registers: block and sets expt.det_name.)
 
     motors:
       Optional. Dotted ophyd paths moved before acquisition, e.g. detector.x: -250. Axes not
@@ -265,6 +341,10 @@ _instructions: |
 
     start_timeout:
       Optional, default 30. Seconds to wait for the owner to confirm it is acquiring.
+
+    stop_timeout:
+      Optional, default 10. Seconds to wait for this detector to come OUT of live/TV mode
+      before its parameters are written. See the live-mode note at the bottom of this file.
 
     hdf_timeout:
       Optional, default 300. Seconds to wait for HDF plugins to finish writing after the cams
@@ -280,11 +360,11 @@ _instructions: |
 
   Optional, and so is every field inside it. Omit the block entirely and this leg's metadata
   comes from device_position.yaml exactly as a single-detector run would. State a field only
-  to override it -- useful because in a dual run at most one detector can be at its
+  to override it -- useful because in a trio run at most one detector can be at its
   calibrated preset.
 
   Every field takes a literal number or a dotted ophyd path. A path is read live at metadata
-  time, so 'huber.nu' records wherever setup_huber_for_dual() left it. (Reading nu is fine --
+  time, so 'huber.nu' records wherever setup_huber_for_trio() left it. (Reading nu is fine --
   it is moving it from inside the acquisition that is forbidden.)
 
     db_x, db_y:              Direct-beam pixel position.

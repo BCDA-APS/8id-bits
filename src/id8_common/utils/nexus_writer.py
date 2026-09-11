@@ -49,7 +49,7 @@ def create_nexus_format_metadata(
     Args:
         filename: full path of the .hdf to write
         det: the detector object the measurement used
-        additional_metadata: {nexus_path: value} merged last, used by the dual
+        additional_metadata: {nexus_path: value} merged last, used by the trio
             path to give each leg its own geometry
     """
     # `upstream` is his package; everything else in this function is ours.

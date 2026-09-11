@@ -2,7 +2,7 @@
 
 One polling loop behind the "wait until the hardware finishes" steps in the
 acquisition path -- used by eiger4m_modes, lambda2m_modes and
-dual_acq_eiger4m_rigaku3m. It exists because the same loop had been written
+trio_acq_rigaku3m_eiger4m_lambda2m. It exists because the same loop had been written
 five times with five different levels of care, and the differences were real
 bugs:
 
@@ -10,7 +10,7 @@ bugs:
   the moment the detector reached a terminal state. It is the model this module
   generalises, though rigaku3m_modes still runs its own bounded copy rather than
   importing from here.
-* ``dual_acq``'s ``cam_busy`` for the same detector tested ``detector_state != 0``,
+* ``trio_acq``'s ``cam_busy`` for the same detector tested ``detector_state != 0``,
   which is true for Error/Disconnected/Aborted, so a dead detector counted as
   *busy* until a multi-minute timeout expired -- with the shutter open.
 * ``acquire_eiger_external`` and ``acquire_lambda_external`` polled 600 times and
@@ -18,7 +18,7 @@ bugs:
   write NeXus metadata and submit a DM job for a dataset it had no reason to
   believe was complete.
 
-Porting is only partial. dual_acq_eiger4m_rigaku3m routes every wait through
+Porting is only partial. trio_acq_rigaku3m_eiger4m_lambda2m routes every wait through
 here; eiger4m_modes and lambda2m_modes use it only for the HDF drain at the end
 of their External modes. Their cam waits, and the Internal modes end to end,
 are still hand-rolled ``while ... get() == 1: sleep()`` loops with no timeout
@@ -168,6 +168,76 @@ def cam_fault(cam, label=""):
         return None
 
     return check
+
+
+# =============================================================================
+# Live/TV mode guard
+# =============================================================================
+# A camera left free-running from the detector GUI ("TV mode") does not merely
+# delay the next measurement. Writes to acquire_time on a RUNNING ADCore camera
+# do not stick, so the setup function appears to succeed and the acquisition
+# then runs at the live view's exposure instead of the protocol's -- silently,
+# with the wrong number in every frame's timing and in the NeXus metadata.
+#
+# The two functions below are the paired halves of the fix: stop it, then prove
+# the exposure actually took. Both are used by trio_acq_series() and by
+# tv_mode(); stop_acquiring() is also what lambda2m_modes.stop_lambda_live()
+# delegates to.
+
+#: Seconds to give a camera to come out of live/TV mode when told to stop.
+DEFAULT_STOP_TIMEOUT = 10.0
+
+#: Fractional tolerance when checking that a camera took the exposure it was
+#: given. Detectors quantise the value, so an exact match is not expected; what
+#: this has to catch is a live-mode exposure surviving into a measurement,
+#: which is wrong by whole factors, not by a rounding step.
+ACQ_TIME_REL_TOL = 0.05
+
+
+def stop_acquiring(cam, label="", timeout=DEFAULT_STOP_TIMEOUT):
+    """Press Stop and wait until the camera reports it is no longer acquiring.
+
+    Returns True if it had to stop something, False if the camera was already
+    idle. Raises DetectorTimeout if it will not stop -- deliberately, since
+    every caller runs this BEFORE opening the shutter, where failing is free.
+    """
+    if cam.acquire.get() == 0:
+        return False
+
+    cam.acquire.put(0)
+
+    wait_until(
+        lambda: cam.acquire.get() == 0,
+        timeout=timeout,
+        what=f"{label + ' ' if label else ''}to stop acquiring (left in live/TV mode?)",
+    )
+
+    return True
+
+
+def acq_time_mismatch(cam, requested, label="", rel_tol=ACQ_TIME_REL_TOL):
+    """Reason string when the camera is not holding the exposure it was given, else None.
+
+    Reads acquire_time, which on an EpicsSignalWithRBV is the readback, so this
+    is what the DETECTOR believes -- not what we asked for.
+    """
+    try:
+        actual = float(cam.acquire_time.get())
+    except Exception:
+        # No readback to compare against. Not this check's job to fail the run;
+        # cam_fault() and the waits below cover a camera that is really broken.
+        return None
+
+    requested = float(requested)
+    tolerance = max(abs(requested) * rel_tol, 1e-9)
+
+    if abs(actual - requested) <= tolerance:
+        return None
+
+    return (
+        f"{label + ' ' if label else ''}acquire_time reads {actual:g} s, not the "
+        f"{requested:g} s it was set to"
+    )
 
 
 def hdf_frames_written(hdf):

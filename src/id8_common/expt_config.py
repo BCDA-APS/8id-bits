@@ -102,7 +102,7 @@ RUN_FIELDS = {
     "qmap_file": str,
     "analysis_type": str,
     # Also a STATIC_FIELDS key: experiment.yml gives the default, and a
-    # protocol (or a dual-acquisition leg) may override it for one measurement.
+    # protocol (or a trio-acquisition leg) may override it for one measurement.
     # Reads prefer the run state and fall back to the static value.
     "workflow_name": str,
     # from the sample block of sample_info.yaml
@@ -149,7 +149,7 @@ PERSISTENT_FIELDS = {
 # read only to catch the register itself going backwards, never as the store.
 #
 # One counter, TWO naming streams -- worth knowing before checking what number
-# is already taken. det_acq_series() and dual_acq_series() name their output
+# is already taken. det_acq_series() and trio_acq_series() name their output
 # <...>/data/A####..., while the align scans in plans/align/ (ophyd_scan.py,
 # scan_8id.py, scan_8id_dev.py) name theirs <...>/data/bluesky/A####...; all
 # of them go through acq_helpers.gen_folder_prefix(), which increments this
@@ -175,7 +175,7 @@ PERSISTENT_DEFAULTS = {
 #: snapshot_run() marker for a run-state key that had no value to save, so
 #: restore_run() removes it again instead of writing one back. Used but never
 #: defined until 2026-09-07 -- snapshot_run() raised NameError on any unset
-#: field, which is precisely the dual-acquisition case it was written for.
+#: field, which is precisely the trio-acquisition case it was written for.
 _ABSENT = object()
 
 #: `_pv_dev` before the first lookup -- distinct from None, which records that
@@ -338,15 +338,15 @@ class ExperimentConfig:
         return self.user_plan_dir / "measurement_info.yaml"
 
     @property
-    def dual_measurement_info_file(self):
-        return self.user_plan_dir / "dual_measurement_info.yaml"
+    def trio_measurement_info_file(self):
+        return self.user_plan_dir / "trio_measurement_info.yaml"
 
     def snapshot_run(self, names):
         """Capture run-state values for `names`, for later restore_run().
 
         A name that has no run-state value yet is recorded as absent rather than
         raising, so a caller can temporarily set fields that were never
-        populated -- which is exactly what a dual acquisition does: it sets
+        populated -- which is exactly what a trio acquisition does: it sets
         det_name/qmap_file/analysis_type one leg at a time and they have no
         meaningful global value in between.
         """

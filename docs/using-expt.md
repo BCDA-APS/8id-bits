@@ -55,7 +55,7 @@ Out[1]: <ExperimentConfig 'comm202609' cycle='2026-3' run_keys=0>
 `run_keys=0` is the answer to "why did `expt.det_name` raise?".
 
 **⚠ Nonzero does not mean your field is set.** `run_keys` is just how many of the
-21 run fields have values. A dual acquisition loads only the sample half
+21 run fields have values. A trio acquisition loads only the sample half
 (`run_keys=10`) and leaves `det_name` unset on purpose, because it is per leg.
 Zero is proof that nothing is loaded; anything else proves nothing in
 particular.
@@ -77,7 +77,7 @@ yet, so `expt` says so rather than handing back a stale one from last week.
 **⚠ `dry_run_measurement_info()` does not fix this.** It validates and prints
 the whole queue without loading any of it into `expt` — that is the point of a
 dry run: it changes nothing. The two things that do call `set_measurement()` are
-`run_measurement()` (everything) and `run_dual_measurement()` (the sample half
+`run_measurement()` (everything) and `run_trio_measurement()` (the sample half
 only).
 
 To populate it without acquiring anything:
@@ -125,7 +125,7 @@ Everything else — the path helpers and the verbs — is in the table.
 | `expt.cycle_name` | property → `'2026-3'` |
 | `expt.measurement_info_file` | property → `PosixPath('…/measurement_info.yaml')` |
 | `expt.sample_info_file` | property → `PosixPath('…/sample_info.yaml')` |
-| `expt.dual_measurement_info_file` | property → `PosixPath('…/dual_measurement_info.yaml')` |
+| `expt.trio_measurement_info_file` | property → `PosixPath('…/trio_measurement_info.yaml')` |
 | `expt.user_plan_dir` | property → the folder those three live in |
 
 **⚠ The four path entries raise `FileNotFoundError`, not `None`,** when

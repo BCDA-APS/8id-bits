@@ -175,7 +175,7 @@ fixed by its device and recoverable by looking at the device.
 ## Per-measurement overrides
 
 `create_nexus_format_metadata(..., additional_metadata={path: value})` merges
-last. The dual path uses it for a leg with a `geometry:` block. The path must
+last. The trio path uses it for a leg with a `geometry:` block. The path must
 already exist in the schema — this overrides a value, it does not create a field.
 
 ## Local patches currently carried

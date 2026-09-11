@@ -88,7 +88,7 @@ def _resolve_runtime_values(deferred, schema):
 
     NOTE the name: this module imports ``_resolve`` from plans.set.select_device
     to turn a dotted device path into an object. A second ``_resolve`` defined
-    here shadowed that import and broke every motor lookup -- caught on a dual
+    here shadowed that import and broke every motor lookup -- caught on a trio
     acquisition, 2026-09-10. Nothing defined here may collide with an import.
 
     Each entry in ``deferred`` is a zero-argument callable rather than a value,

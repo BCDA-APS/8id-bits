@@ -55,7 +55,7 @@ area detectors and `psic` are the exceptions, and the reason is below.
 `get_ophyd_object("huber.x")`. The last one resolves its first segment through
 `get_connected_device` and then walks plain attributes, which is how a device
 named as a string in YAML — `inner_motor: huber.x` in `sample_info.yaml`, a
-dual protocol's `motors:` block — becomes an object. `plans/set/select_device.py`
+trio protocol's `motors:` block — becomes an object. `plans/set/select_device.py`
 is the holdout: it resolves `device_position.yaml`'s dotted paths with its own
 private `_resolve()`, which does not check `.connected`.
 

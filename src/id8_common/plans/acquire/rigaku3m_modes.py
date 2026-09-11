@@ -2,8 +2,8 @@
 Rigaku3M mode definitions: setup/acquire functions plus RIGAKU3M_BIN_MODES,
 RIGAKU3M_FTF_MODES and RIGAKU3M_EPICS_MODES, the tables ad_acq.py assembles
 into ACQ_MODES. Nothing here runs on its own: det_acq_series() in ad_acq.py
-calls these, and dual_acq_series() runs setup_rigaku_epics() for the
-("rigaku3M_epics", "EPICS") dual leg.
+calls these, and trio_acq_series() runs setup_rigaku_epics() for the
+("rigaku3M_epics", "EPICS") trio leg.
 
 The three tables are separate ACQ_MODES *detector* keys rather than one table,
 because BIN and FTF offer the same three mode names (ZDT2bit / ZDT4bit /

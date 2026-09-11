@@ -1,8 +1,8 @@
-"""Field checks shared by the single- and dual-detector YAML front ends.
+"""Field checks shared by the single- and trio-detector YAML front ends.
 
-``master_plan.py`` and ``dual_master_plan_eiger4m_rigaku3m.py`` keep their own
+``master_plan.py`` and ``trio_master_plan_rigaku3m_eiger4m_lambda2m.py`` keep their own
 acquire loops and their own top-level ``validate_*`` entry points on purpose --
-a dual protocol's shape (a ``detectors:`` list of legs, each with its own
+a trio protocol's shape (a ``detectors:`` list of legs, each with its own
 timing) really is different from a serial one, and folding them together would
 make both harder to read.
 
@@ -14,7 +14,7 @@ below, and ``registry.get_ophyd_object`` -- so they live here now.
 
 Every check takes plain values plus an optional ``where`` label, so the caller
 owns the error prefix: the serial path raises ``acq_time must be > 0.`` and the
-dual path raises ``Leg 'eiger4M': acq_time must be > 0.`` from the same call.
+trio path raises ``Leg 'eiger4M': acq_time must be > 0.`` from the same call.
 
 Import direction is one-way: this module imports ``ad_acq`` (for the ACQ_MODES
 table) and is imported by the two master-plan modules. Nothing in ``ad_acq`` or
@@ -163,11 +163,11 @@ def require_mode_devices(detector, mode, where=""):
 
     * ``ad_acq.det_acq_series`` -- required_devices AND hardware_device,
       through ``get_connected_device``.
-    * ``dual_acq_eiger4m_rigaku3m.dual_acq_series`` -- same, the good one.
+    * ``trio_acq_rigaku3m_eiger4m_lambda2m.trio_acq_series`` -- same, the good one.
     * ``master_plan.validate_required_devices_connected`` -- required_devices
       only, through a bare ``oregistry[name]``, so a device skipped at startup
       raised a naked ``KeyError('softglue')`` with no hint where to look.
-    * ``dual_master_plan_eiger4m_rigaku3m.validate_leg`` -- hardware_device only, so a dual
+    * ``trio_master_plan_rigaku3m_eiger4m_lambda2m.validate_leg`` -- hardware_device only, so a trio
       protocol with an eiger4M External Series leg never checked softglue at
       validation time and only failed once the run was already underway.
 
@@ -205,7 +205,7 @@ def validate_qmap_exists(qmap_file, where=""):
 
     Until 2026-09-08 the only check was that the name was a non-empty string, so
     a typo -- or a qmap that was simply never copied into the experiment -- stayed
-    invisible until the analysis stage. The production dual plan named two qmaps
+    invisible until the analysis stage. The production trio plan named two qmaps
     that did not exist and dry-ran clean; a 7.5 hour acquisition would have
     completed and then produced nothing. This turns that into a dry-run error.
     """
@@ -267,8 +267,8 @@ def validate_acq_time(acq_time, detector, mode, where=""):
 def validate_sample_motion(measurement, sample, forbidden_motors=()):
     """Prove the mesh is runnable before anything is allowed to move.
 
-    ``forbidden_motors`` is the dual path's lockout: ``huber.delta`` and
-    ``huber.nu`` are positioned once by ``setup_huber_for_dual()`` and must not
+    ``forbidden_motors`` is the trio path's lockout: ``huber.delta`` and
+    ``huber.nu`` are positioned once by ``setup_huber_for_trio()`` and must not
     also be driven as mesh axes. The serial path passes nothing and allows any
     axis.
     """

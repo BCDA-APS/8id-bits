@@ -1,8 +1,8 @@
 """
 Eiger4M mode definitions: setup/acquire functions plus EIGER4M_MODES, the
 table ad_acq.py assembles into ACQ_MODES. Nothing here runs on its own. The
-callers are det_acq_series() in ad_acq.py; dual_acq_series(), for the
-("eiger4M", "Internal Series") dual leg; and scan_8id.py / scan_8id_dev.py,
+callers are det_acq_series() in ad_acq.py; trio_acq_series(), for the
+("eiger4M", "Internal Series") trio leg; and scan_8id.py / scan_8id_dev.py,
 which call setup_eiger_internal() directly.
 
 Modes (matching the TriggerMode enum on 8idEiger4M:cam1):

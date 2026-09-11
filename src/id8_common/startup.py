@@ -216,9 +216,13 @@ from .plans.acquire.ad_acq import *
 from .plans.acquire.tetramm_acq import *
 from .plans.acquire.master_plan import *
 
-# Parallel two-detector acquisition (Eiger + Rigaku in one beam window). Separate from the
-# serial path above and shares no state with it -- single-detector runs are unaffected.
-from .plans.acquire.dual_master_plan_eiger4m_rigaku3m import *
+# Parallel three-detector acquisition (Rigaku + Eiger + Lambda in one beam window). Separate
+# from the serial path above and shares no state with it -- single-detector runs are unaffected.
+from .plans.acquire.trio_master_plan_rigaku3m_eiger4m_lambda2m import *
+
+# tv_mode(): a live view on all three detectors, writing nothing. Imported last of the
+# acquire plans so its names are the ones at the prompt.
+from .plans.acquire.tv_mode import *
 
 # The prompt's `oregistry` is the id8_common registry, not the guarneri object
 # bound at the top of this file: it supports `in`, len() and iteration, which

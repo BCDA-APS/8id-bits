@@ -210,7 +210,7 @@ def gen_folder_prefix():
     The measurement number increments once per call. Its store is the EPICS
     register 8ideSoft:Reg1, not state/run_state.yml -- see PV_FIELDS in
     expt_config.py for why, and for the trap that follows from it: ONE counter
-    feeds TWO naming streams. det_acq_series() and dual_acq_series() name their
+    feeds TWO naming streams. det_acq_series() and trio_acq_series() name their
     output <experiment>/data/A####..., while the align scans (ophyd_scan.py,
     scan_8id.py) call this same function and name theirs
     <experiment>/data/bluesky/A####..., so the highest number already on disk
