@@ -5,8 +5,8 @@
 # Every scan run by ophyd_scan.py writes ONE .csv file, named after the
 # detector .h5 file it goes with:
 #
-#     /gdata/dm/8ID/8IDE/<cycle>/<experiment>/data/bluesky/A0201_Test_a0010.h5
-#     /gdata/dm/8ID/8IDE/<cycle>/<experiment>/data/bluesky/A0201_Test_a0010.csv
+#     /gdata/dm/8ID/8IDE/<cycle>/<experiment>/data/bluesky/S01459_HuberDelta_Lambda2M-a1345678-1s.h5
+#     /gdata/dm/8ID/8IDE/<cycle>/<experiment>/data/bluesky/S01459_HuberDelta_Lambda2M-a1345678-1s.csv
 #
 # The file has two parts, and this template controls both:
 #
@@ -36,8 +36,8 @@
 # the scan starts rather than halfway through.
 #
 # Add   skip_if_empty: true   to leave the line out entirely when the value
-# comes back blank -- used for the comment, so an unnamed scan has no empty
-# comment line.
+# comes back blank -- used for motor2, shape, num1 and num2, so a one-motor
+# scan gets no empty two-motor lines.
 #
 # -----------------------------------------------------------------------------
 # Dotted paths
@@ -60,16 +60,16 @@
 #
 #   {start_time}   "2026-08-26 14:32:07", when the scan started
 #   {epoch}        the same instant as a unix timestamp
-#   {h5_name}      just the NAME of that .h5 file, e.g. "A0201_Test_a0010.h5".
+#   {h5_name}      just the NAME of that .h5 file, e.g. "S01459_HuberDelta_Lambda2M-a1345678-1s.h5".
 #                  Empty when save_img=0.
 #   {h5_file}      FULL PATH of the detector .h5 file for this scan.  It is
 #                  NOT an argument to dscan_ophyd().  The scan builds it:
-#                  gen_folder_prefix() combines expt.header +
-#                  expt.measurement_num + expt.sample_name + the current
-#                  attenuation into e.g. "A0201_Test_a0010", and that goes in
-#                  the experiment's data/bluesky folder.  Empty when
+#                  scan_file_name() combines expt.measurement_num + the motors
+#                  swept + the detector + the attenuation readback + the count
+#                  time into e.g. "S01459_HuberDelta_Lambda2M-a1345678-1s", and
+#                  that goes in the experiment's data/bluesky folder.  A raster
+#                  (dmesh/mesh) adds "2D" after the number.  Empty when
 #                  save_img=0.
-#   {comment}      the comment="..." argument of the scan
 #   {command}      the call that produced this file, e.g.
 #                  "dscan(huber_delta, -0.5, 0.5, 41, 1.0, det=lambda2M)"
 #   {scan_type}    "dscan" -- the bare name, never the _ophyd alias
@@ -104,7 +104,6 @@ lines:
   - {label: start_time, value: "{start_time}"}
   - {label: h5_file,    value: "{h5_file}"}   # full path to the images
   - {label: h5_name,    value: "{h5_name}"}   # just the file name
-  - {label: comment,    value: "{comment}", skip_if_empty: true}
 
   # What the scan was.
   - {label: command,     value: "{command}"}

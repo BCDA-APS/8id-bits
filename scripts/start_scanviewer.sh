@@ -5,13 +5,17 @@
 #   start_scanviewer.sh                  # 1D: this experiment's bluesky data folder
 #   start_scanviewer.sh --mesh           # 2D: same folder, X/Y coloured by Z
 #   start_scanviewer.sh --dir <folder>   # some other folder
-#   start_scanviewer.sh --scan-prefix S  # override the "A" this script adds
+#   start_scanviewer.sh --scan-prefix A  # older scans, named before 2026-09-12
 #   start_scanviewer.sh --help           # the viewer's own options
 #
-# 8-ID writes BLUETELLA's own extended CSV format, so the stock 9-ID viewers
-# read our scans with no 8-ID-specific code in them. The one local difference is
-# the filename prefix -- ours is "A", BLUETELLA's is "S" -- so this script adds
-# --scan-prefix A for you. Pass your own --scan-prefix and it is used instead.
+# 8-ID writes BLUETELLA's own extended CSV format AND, since 2026-09-12, its
+# "S" filename prefix, so the stock 9-ID viewers read our scans with no
+# 8-ID-specific code in them and no flags on this command line.
+#
+# Scans written BEFORE that date took the sample's header letter instead, so a
+# single folder can hold A, C and D files. The viewer browses one prefix at a
+# time, so reach those with --scan-prefix A (or C, or D). Nothing was renamed.
+# See ophyd_scan.SCAN_FILE_HEADER for why the letter is fixed now.
 #
 # --mesh selects meshviewer.py, for the 2-motor rasters dmesh/mesh. A scan whose
 # header declares a raster shape is drawn as a filled grid, each cell binned by
@@ -54,24 +58,27 @@
 
 # --mesh picks the 2D viewer. It must be stripped before the exec: meshviewer.py's
 # argparse does not accept it and would exit "unrecognized arguments: --mesh".
+#
+# No --scan-prefix is added here any more. 8-ID and BLUETELLA now agree on S, so
+# the viewer's own default is right; --scan-prefix is passed straight through for
+# the pre-2026-09-12 files that still carry a sample header.
 VIEWER_PY="scanviewer.py"
 ARGS=()
-WANT_PREFIX=1
 for a in "$@"; do
     case "$a" in
         --mesh)          VIEWER_PY="meshviewer.py" ;;
-        --scan-prefix|--scan-prefix=*) WANT_PREFIX=0; ARGS+=("$a") ;;
         *)               ARGS+=("$a") ;;
     esac
 done
-# 8-ID names its scans A####_..., BLUETELLA names its own S#####_...; the viewer
-# defaults to S, so say so unless the caller already did.
-if [ "$WANT_PREFIX" = "1" ]; then ARGS+=(--scan-prefix A); fi
 set -- "${ARGS[@]+"${ARGS[@]}"}"
 
 VIEWER_DIR=${VIEWER_DIR:-$HOME/Documents/BLUETELLA_9ID}
 VIEWER_ENV=${VIEWER_ENV:-bluetella_viewer}
-EXPT_YML=${EXPT_YML:-$HOME/bluesky/src/id8_common/configs/experiment.yml}
+# ~/ophyd, not ~/bluesky. Those split into two checkouts on 2026-09-11 -- dev
+# and main -- and only ~/ophyd carries the align scans and their experiment.yml,
+# which is also the tree start_ophyd.sh puts on PYTHONPATH. Pointing here at
+# ~/bluesky made every launch fail with "experiment.yml not found".
+EXPT_YML=${EXPT_YML:-$HOME/ophyd/src/id8_common/configs/experiment.yml}
 
 # --- somewhere to draw ------------------------------------------------------
 # Only a note, never a stop: if there is no display Tk says so itself, just less

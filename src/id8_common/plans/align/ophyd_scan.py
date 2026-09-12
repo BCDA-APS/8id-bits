@@ -35,10 +35,10 @@ written out in each function, because that is what tells one scan from another.
 Anything else that differs from ``scan_8id.py`` is marked with a
 ``# CHANGED (n):`` comment saying why. The full index:
 
- (1) ``gen_folder_prefix()`` is called exactly ONCE per scan. His
-     ``save_images()`` calls it a second time, overwriting the caller's prefix:
-     the ``.h5`` then gets a different name from its ``.csv`` and every scan
-     burns two measurement numbers.
+ (1) The scan is named exactly ONCE per scan. His ``save_images()`` names it
+     a second time, overwriting the caller's prefix: the ``.h5`` then gets a
+     different name from its ``.csv`` and every scan burns two measurement
+     numbers.
  (2) ``hdf1.enable`` / ``auto_save`` / ``file_write_mode`` are set for EVERY
      area detector, not just the eiger. ``bpp.stage_wrapper`` used to do this;
      nothing stages now. Without it a lambda scan writes no file at all and
@@ -84,9 +84,9 @@ Anything else that differs from ``scan_8id.py`` is marked with a
      record ignored the new target AND ophyd reported the move successful, so
      an aborted scan left the motor parked mid-scan while printing that it had
      gone home. See ``_settle``.
-(19) Every scan re-reads sample_info.yaml for ``header`` and ``sample_name``
-     before naming its file, instead of inheriting whatever the last measurement
-     left in ``expt``. See ``_scan_folder_prefix``.
+(19) Scans are named from their own arguments -- motors, detector, attenuation
+     readback, count time -- and read neither sample_info.yaml nor ``expt`` run
+     state. See ``scan_file_name``.
 (18) The tetramm branch opens the shutter at the start of the scan and closes
      it before the return move. It previously did neither: (15) closed it, but
      only in ``_disarm_tetramm`` after the return move, and nothing opened it
@@ -118,19 +118,25 @@ NOT PORTED, and why (all still present and working in ``scan_8id.py``):
   * ``from matplotlib.pylab import det`` :10 -- that binds ``numpy.linalg.det``
     as the bare name ``det`` in the session.
 
-Each scan writes ONE .csv, named after that scan's .h5::
+Each scan writes ONE .csv, named after that scan's .h5. For
+``dscan(huber.delta, -1, 1, 50, 1, att_ratio=1e6, det=lambda2M)``::
 
-    .../data/bluesky/A0201_Test_a0010.h5     images
-    .../data/bluesky/A0201_Test_a0010.csv    motor positions and counters
+    .../data/bluesky/S01459_HuberDelta_Lambda2M-a1345678-1s.h5    images
+    .../data/bluesky/S01459_HuberDelta_Lambda2M-a1345678-1s.csv   positions
 
-The NNNN in that name comes from ``gen_folder_prefix()``, which reads and then
-advances ``expt.measurement_num`` -- the EPICS register ``8ideSoft:Reg1``, not a
-per-session counter (see ``PV_FIELDS`` in ``expt_config.py`` for why it lives
-there). ``det_acq_series()`` advances the SAME register, so scans and
-acquisitions draw their numbers from one sequence and each moves the other's
-numbering along. They do NOT share a folder, though: acquisitions write under
-``data/`` and these scans under ``data/bluesky/``, so the highest number
-already used may be under either one.
+A raster is marked ``2D`` right after the number, so ``mesh``/``dmesh`` give
+``S01459_2D_HuberXHuberY_Lambda2M-a1345678-1s``. ``d2scan``/``a2scan`` are not
+marked: two motors, but one line. Every field comes from the scan's own
+arguments -- see ``scan_file_name``. A viewer should still decide raster-vs-line
+from the ``shape`` header line, not from the file name.
+
+The number is ``expt.measurement_num``, read and then advanced -- the EPICS
+register ``8ideSoft:Reg1``, not a per-session counter (see ``PV_FIELDS`` in
+``expt_config.py`` for why it lives there). ``det_acq_series()`` advances the
+SAME register, so scans and acquisitions draw their numbers from one sequence
+and each moves the other's numbering along. They do NOT share a folder, though:
+acquisitions write under ``data/`` and these scans under ``data/bluesky/``, so
+the highest number already used may be under either one.
 
 The .csv is closed after every point, so a viewer can poll it while the scan
 runs. Two-motor scans (d2scan, a2scan, dmesh, mesh) write a column per motor,
@@ -156,8 +162,6 @@ import time
 import numpy as np
 
 from id8_common.expt_config import expt
-from id8_common.plans.acquire.ad_acq import gen_folder_prefix
-from id8_common.plans.acquire.ad_acq import read_sample_identity
 from id8_common.plans.align import scan_csv
 from id8_common.plans.set.shutter_att import PIND_status
 from id8_common.plans.set.shutter_att import att
@@ -193,38 +197,74 @@ RETURN_TIMEOUT = 120.0
 #: stop(), before issuing the return move anyway. See :func:`_settle`.
 SETTLE_TIMEOUT = 10.0
 
+#: Leading letter of every align-scan file name. Acquisitions under ``data/``
+#: keep their per-sample header; only these ``data/bluesky/`` files are fixed.
+#:
+#: It used to be the sample's header, which changed whenever the sample did --
+#: one 2026-09 run left A, C and D files in a single folder. The scan viewer
+#: browses one prefix at a time, so switching sample made it go blank on a
+#: directory full of scans. "S" is also what BLUETELLA itself writes, so the
+#: stock 9-ID viewers need no flags to read these.
+SCAN_FILE_HEADER = "S"
 
-def _scan_folder_prefix():
-    """``gen_folder_prefix()``, but re-reading sample_info.yaml first. CHANGED (19).
 
-    ``gen_folder_prefix()`` names the file from ``expt.header`` and
-    ``expt.sample_name``. Those are run-state fields: ``run_measurement()`` sets
-    them, and once it has, they stay set for the rest of the session. So an
-    align scan run after any measurement inherited that measurement's name, and
-    editing sample_info.yaml had no effect until the session was restarted --
-    which is how a whole afternoon of scans ends up labelled with a sample that
-    was swapped out hours ago.
+def _camel(name):
+    """``huber_delta`` -> ``HuberDelta``, ``lambda2M`` -> ``Lambda2M``.
 
-    Every scan now takes ``header`` and ``sample_name`` from the file, and writes
-    them back into ``expt`` so the prompt agrees with the file names. Only those
-    two keys are read; ``inner_*``/``outer_*`` in the same block describe a mesh
-    and are none of this function's business.
+    Only the first character of each underscore-separated part is touched.
+    ``str.capitalize()`` is wrong here: it lowercases the rest, which would
+    turn ``lambda2M`` into ``Lambda2m``.
 
-    Which block is read follows ``expt.sample_index`` -- set it with
-    ``select_sample(<n>)``. A change is announced, because a file name silently
-    changing under you is worse than one extra line of output.
+    Ophyd names a Component after its parent and attribute, so ``huber.delta``
+    is ``huber_delta`` whatever ``name=`` the Component was declared with.
     """
-    header, sample_name = read_sample_identity()
+    return "".join(part[:1].upper() + part[1:] for part in name.split("_"))
 
-    was = (getattr(expt, "header", None), getattr(expt, "sample_name", None))
-    if was != (header, sample_name):
-        old = f"{was[0]}/{was[1]}" if was[0] is not None else "unset"
-        print(f"sample_info.yaml: sample_{expt.sample_index} is "
-              f"{header}/{sample_name} (was {old})")
-    expt.header = header
-    expt.sample_name = sample_name
 
-    return gen_folder_prefix()
+def scan_file_name(motors, det, count_time, raster=False):
+    """Base name for one align scan's .csv and .h5. CHANGED (19).
+
+    For ``dscan(huber.delta, -1, 1, 50, 1, att_ratio=1e6, det=lambda2M)``::
+
+        S01459_HuberDelta_Lambda2M-a1345678-1s
+
+    and for a two-motor scan the motors simply run together. A raster is
+    marked ``2D`` right after the number, so ``mesh(huber.x, ..., huber.y, ...)``
+    gives ``S01459_2D_HuberXHuberY_Lambda2M-a1345678-1s``.
+
+    Only ``dmesh``/``mesh`` pass ``raster=True``. ``d2scan``/``a2scan`` also take
+    two motors, but sweep them along ONE line -- a 1D trajectory, not a grid --
+    so they are not marked, for the same reason the template writes ``shape``
+    for a raster only.
+
+    Built entirely from the scan's own arguments. Nothing is read from
+    sample_info.yaml, and nothing is taken from ``expt`` run state: an align
+    scan is not a measurement of a sample, and naming it from run state meant
+    it inherited whichever sample the last measurement happened to leave
+    behind -- a whole afternoon of scans labelled with a sample swapped out
+    hours ago. The sample is recorded in the .csv's own header lines, which is
+    where it belongs.
+
+    The attenuation is the READBACK, not ``att_ratio``: the filter set is
+    discrete, so a request for 1e6 lands on whatever combination exists and the
+    name should say what the beam actually saw. It is always present, whether
+    or not ``att_ratio`` was passed -- every caller applies ``att()`` before
+    getting here, so the readback has already settled.
+
+    The number is the shared measurement counter, advanced once per call. See
+    ``acq_helpers.gen_folder_prefix`` for the one-counter-two-streams trap.
+    """
+    meas_num = expt.measurement_num
+    expt.measurement_num = meas_num + 1
+
+    filter_beam = get_connected_device("filter_8ide")
+    attenuation = round(filter_beam.attenuation.readback.get())
+
+    motor_part = "".join(_camel(motor.name) for motor in motors)
+    dimensions = "2D_" if raster else ""
+    # :g so a 1 s count is "1s" and a half-second one "0.5s", not "1.0s".
+    return (f"{SCAN_FILE_HEADER}{meas_num:05d}_{dimensions}{motor_part}"
+            f"_{_camel(det.name)}-a{attenuation}-{count_time:g}s")
 
 
 def data_folder():
@@ -284,7 +324,7 @@ def save_images(det, save_img, num_pts, num_frames=1, file_path=None, folder_pre
     num_pts: how many frames the HDF plugin should expect (hdf1.num_capture)
     num_frames: number of frames to capture per point (default 1)
     file_path: override the folder (default: data_folder())
-    folder_prefix: base file name for the .h5, from gen_folder_prefix().
+    folder_prefix: base file name for the .h5, from scan_file_name().
         Required in practice when save_img=1: CHANGED (1) removed the fallback
         that used to fill it in, so None now raises TypeError on the print below.
     """
@@ -292,7 +332,7 @@ def save_images(det, save_img, num_pts, num_frames=1, file_path=None, folder_pre
         raise ValueError("save_img must be 1 or 0 (to save or not to save)")
 
     if save_img == 1:
-        # CHANGED (1): scan_8id.py calls gen_folder_prefix() again further down,
+        # CHANGED (1): scan_8id.py names the scan again further down,
         # overwriting whatever the caller passed in. That is fatal here: the
         # caller has already named the .csv after its prefix, so the .h5 would
         # get a different name and the pair would no longer match. It also
@@ -890,7 +930,6 @@ def dmesh(
     det=None,
     att_ratio=7,
     save_img=1,
-    comment="",
 ):
     """
     Relative 2D raster (mesh) scan with per-step triggering for lambda2M, eiger4M, and tetramm.
@@ -915,7 +954,6 @@ def dmesh(
         det: detector (lambda2M, eiger4M, or tetramm1); default lambda2M
         att_ratio: attenuation ratio
         save_img: 1 save, 0 don't save
-        comment: free-text note written near the top of the .csv
 
     returns:
         the :class:`scan_csv.ScanCsv` that was written.
@@ -934,9 +972,9 @@ def dmesh(
     num_pts = num1 * num2
     # One measurement number per scan whether or not images are saved, so every
     # .csv has a unique name that matches its .h5 when there is one. His
-    # `gen_folder_prefix() if save_img == 1 else ""` left every save_img=0 scan
+    # `<name> if save_img == 1 else ""` left every save_img=0 scan
     # trying to write to the same nameless file.
-    folder_prefix = _scan_folder_prefix()
+    folder_prefix = scan_file_name((motor1, motor2), det, count_time, raster=True)
     file_path = data_folder()
     h5_file = f"{file_path}/{folder_prefix}.h5" if save_img == 1 else ""
     csv_file = f"{file_path}/{folder_prefix}.csv"
@@ -966,7 +1004,6 @@ def dmesh(
         num_points=num_pts,
         count_time=count_time,
         h5_file=h5_file,
-        comment=comment,
         shape=(num1, num2),
         # The COMMANDED first and last position of each axis, so a viewer can
         # rebuild the exact grid instead of inferring it from the readbacks it
@@ -1133,7 +1170,6 @@ def mesh(
     det=None,
     att_ratio=7,
     save_img=1,
-    comment="",
 ):
     """
     Absolute 2D raster (mesh) scan with per-step triggering for lambda2M, eiger4M, and tetramm.
@@ -1157,7 +1193,6 @@ def mesh(
         det: detector (lambda2M, eiger4M, or tetramm1); default lambda2M
         att_ratio: attenuation ratio
         save_img: 1 save, 0 don't save
-        comment: free-text note written near the top of the .csv
 
     returns:
         the :class:`scan_csv.ScanCsv` that was written.
@@ -1176,9 +1211,9 @@ def mesh(
     num_pts = num1 * num2
     # One measurement number per scan whether or not images are saved, so every
     # .csv has a unique name that matches its .h5 when there is one. His
-    # `gen_folder_prefix() if save_img == 1 else ""` left every save_img=0 scan
+    # `<name> if save_img == 1 else ""` left every save_img=0 scan
     # trying to write to the same nameless file.
-    folder_prefix = _scan_folder_prefix()
+    folder_prefix = scan_file_name((motor1, motor2), det, count_time, raster=True)
     file_path = data_folder()
     h5_file = f"{file_path}/{folder_prefix}.h5" if save_img == 1 else ""
     csv_file = f"{file_path}/{folder_prefix}.csv"
@@ -1208,7 +1243,6 @@ def mesh(
         num_points=num_pts,
         count_time=count_time,
         h5_file=h5_file,
-        comment=comment,
         shape=(num1, num2),
         # The COMMANDED first and last position of each axis, so a viewer can
         # rebuild the exact grid instead of inferring it from the readbacks it
@@ -1362,7 +1396,7 @@ def mesh(
         _restore_guard()
 
 
-def dscan(motor, rel_begin, rel_end, num_pts, count_time, det=None, att_ratio=1e6, save_img=1, comment=""):
+def dscan(motor, rel_begin, rel_end, num_pts, count_time, det=None, att_ratio=1e6, save_img=1):
     """
     Pre-armed software-trigger scan for fast acquisitions.
 
@@ -1374,9 +1408,6 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time, det=None, att_ratio=1e
         det: detector (eiger4M, lambda2M, or tetramm1); default eiger4M
         att_ratio: attenuation ratio
         save_img: 1 save, 0 don't save
-        comment: free-text note written near the top of the .csv, so you can
-            grep the data folder for a keyword and land on the right scan.
-            Newlines are flattened to spaces; empty means no comment line.
 
     returns:
         the :class:`scan_csv.ScanCsv` that was written -- ``.path`` is the file,
@@ -1399,7 +1430,7 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time, det=None, att_ratio=1e
 
     # One measurement number per scan whether or not images are saved, so every
     # .csv has a unique name that matches its .h5 when there is one.
-    folder_prefix = _scan_folder_prefix()
+    folder_prefix = scan_file_name((motor,), det, count_time)
     file_path = data_folder()
     h5_file = f"{file_path}/{folder_prefix}.h5" if save_img == 1 else ""
     csv_file = f"{file_path}/{folder_prefix}.csv"
@@ -1421,7 +1452,6 @@ def dscan(motor, rel_begin, rel_end, num_pts, count_time, det=None, att_ratio=1e
         num_points=num_pts,
         count_time=count_time,
         h5_file=h5_file,
-        comment=comment,
     )
     scan.write_header()
     # One bare name for both files -- the .h5 and .csv differ only by extension,
@@ -1578,7 +1608,6 @@ def d2scan(
     det=None,
     att_ratio=7,
     save_img=1,
-    comment="",
 ):
     """
     Two-motor relative scan with per-step triggering for eiger4M, lambda2M, and tetramm.
@@ -1600,7 +1629,6 @@ def d2scan(
         det: detector (eiger4M, lambda2M, or tetramm1); default eiger4M
         att_ratio: attenuation ratio
         save_img: 1 save, 0 don't save
-        comment: free-text note written near the top of the .csv
 
     returns:
         the :class:`scan_csv.ScanCsv` that was written.
@@ -1616,7 +1644,7 @@ def d2scan(
     is_eiger = ("eiger" in det.name.lower()) or ("eiger" in det.prefix.lower())
     is_lambda = ("lambda" in det.name.lower()) or ("lambda" in det.prefix.lower())
 
-    folder_prefix = _scan_folder_prefix()
+    folder_prefix = scan_file_name((motor1, motor2), det, count_time)
     file_path = data_folder()
     h5_file = f"{file_path}/{folder_prefix}.h5" if save_img == 1 else ""
     csv_file = f"{file_path}/{folder_prefix}.csv"
@@ -1639,7 +1667,6 @@ def d2scan(
         num_points=num_pts,
         count_time=count_time,
         h5_file=h5_file,
-        comment=comment,
     )
     scan.write_header()
     expt.file_name = folder_prefix
@@ -1771,7 +1798,7 @@ def d2scan(
         _restore_guard()
 
 
-def ascan(motor, abs_begin, abs_end, num_pts, count_time, det=None, att_ratio=7, save_img=1, comment=""):
+def ascan(motor, abs_begin, abs_end, num_pts, count_time, det=None, att_ratio=7, save_img=1):
     """
     Absolute single-motor scan with per-step triggering for eiger4M, lambda2M, and tetramm.
 
@@ -1783,9 +1810,6 @@ def ascan(motor, abs_begin, abs_end, num_pts, count_time, det=None, att_ratio=7,
         det: detector (eiger4M, lambda2M, or tetramm1); default eiger4M
         att_ratio: attenuation ratio
         save_img: 1 save, 0 don't save
-        comment: free-text note written near the top of the .csv, so you can
-            grep the data folder for a keyword and land on the right scan.
-            Newlines are flattened to spaces; empty means no comment line.
 
     returns:
         the :class:`scan_csv.ScanCsv` that was written -- ``.path`` is the file,
@@ -1808,7 +1832,7 @@ def ascan(motor, abs_begin, abs_end, num_pts, count_time, det=None, att_ratio=7,
 
     # One measurement number per scan whether or not images are saved, so every
     # .csv has a unique name that matches its .h5 when there is one.
-    folder_prefix = _scan_folder_prefix()
+    folder_prefix = scan_file_name((motor,), det, count_time)
     file_path = data_folder()
     h5_file = f"{file_path}/{folder_prefix}.h5" if save_img == 1 else ""
     csv_file = f"{file_path}/{folder_prefix}.csv"
@@ -1830,7 +1854,6 @@ def ascan(motor, abs_begin, abs_end, num_pts, count_time, det=None, att_ratio=7,
         num_points=num_pts,
         count_time=count_time,
         h5_file=h5_file,
-        comment=comment,
     )
     scan.write_header()
     # One bare name for both files -- the .h5 and .csv differ only by extension,
@@ -1987,7 +2010,6 @@ def a2scan(
     det=None,
     att_ratio=7,
     save_img=1,
-    comment="",
 ):
     """
     Two-motor absolute scan with per-step triggering for eiger4M, lambda2M, and tetramm.
@@ -2009,7 +2031,6 @@ def a2scan(
         det: detector (eiger4M, lambda2M, or tetramm1); default eiger4M
         att_ratio: attenuation ratio
         save_img: 1 save, 0 don't save
-        comment: free-text note written near the top of the .csv
 
     returns:
         the :class:`scan_csv.ScanCsv` that was written.
@@ -2025,7 +2046,7 @@ def a2scan(
     is_eiger = ("eiger" in det.name.lower()) or ("eiger" in det.prefix.lower())
     is_lambda = ("lambda" in det.name.lower()) or ("lambda" in det.prefix.lower())
 
-    folder_prefix = _scan_folder_prefix()
+    folder_prefix = scan_file_name((motor1, motor2), det, count_time)
     file_path = data_folder()
     h5_file = f"{file_path}/{folder_prefix}.h5" if save_img == 1 else ""
     csv_file = f"{file_path}/{folder_prefix}.csv"
@@ -2048,7 +2069,6 @@ def a2scan(
         num_points=num_pts,
         count_time=count_time,
         h5_file=h5_file,
-        comment=comment,
     )
     scan.write_header()
     expt.file_name = folder_prefix

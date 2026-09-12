@@ -211,10 +211,13 @@ def gen_folder_prefix():
     register 8ideSoft:Reg1, not state/run_state.yml -- see PV_FIELDS in
     expt_config.py for why, and for the trap that follows from it: ONE counter
     feeds TWO naming streams. det_acq_series() and trio_acq_series() name their
-    output <experiment>/data/A####..., while the align scans (ophyd_scan.py,
-    scan_8id.py) call this same function and name theirs
-    <experiment>/data/bluesky/A####..., so the highest number already on disk
-    may be under data/bluesky/ rather than data/.
+    output <experiment>/data/<header>####... through this function, and the
+    align scans name theirs <experiment>/data/bluesky/..., so the highest number
+    already on disk may be under data/bluesky/ rather than data/.
+
+    Of those align scans only scan_8id.py still comes through here. ophyd_scan.py
+    builds its own name from the scan's arguments -- see ophyd_scan.scan_file_name
+    -- and advances the same counter itself.
     """
     filter_beam = get_connected_device("filter_8ide")
 

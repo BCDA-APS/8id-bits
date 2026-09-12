@@ -7,8 +7,7 @@ hardware, so the motor-control code in :mod:`ophyd_scan` stays readable.
 What the file looks like::
 
     #start_time,2026-08-26 14:32:07
-    #h5_file,/gdata/dm/8ID/8IDE/2026-3/comm202609/data/bluesky/A0201_Test_a0010.h5
-    #comment,3x3 grid spot 5 after realigning KB
+    #h5_file,/gdata/dm/8ID/8IDE/2026-3/comm202609/data/bluesky/S01459_HuberDelta_Lambda2M-a1345678-1s.h5
     ... more one-per-line entries ...
     #DATA
     ,huber_delta,elapsed_time,lambda2M_stats1_total
@@ -20,9 +19,9 @@ What the file looks like::
     #points_written,41
 
 * Everything **above** the ``#DATA`` marker is a ``#label,value`` line: things
-  that do not change during the scan (start time, the ``.h5`` file name, the
-  comment, motor positions at the start, ROI settings, ...). Which lines appear
-  is set by ``configs/scan_csv_template.yml``, not by this module.
+  that do not change during the scan (start time, the ``.h5`` file name, motor
+  positions at the start, ROI settings, ...). Which lines appear is set by
+  ``configs/scan_csv_template.yml``, not by this module.
 * The line **after** the marker holds the column names, led by an empty one.
 * Everything after that is one row per scan point, led by the point index.
 * A bare ``#END`` closes the table; how the scan ended follows it.
@@ -203,7 +202,7 @@ def resolve_signal(dotted, motors, det):
 
 
 def substitute(text, context):
-    """Apply the {motor} / {det} / {comment} ... replacements, with a clear error."""
+    """Apply the {motor} / {det} / {command} ... replacements, with a clear error."""
     try:
         return str(text).format(**context)
     except KeyError as exc:
@@ -229,7 +228,7 @@ def cell(value):
 
 
 def one_line(text):
-    """Flatten newlines so a pasted comment cannot break the file structure."""
+    """Flatten newlines so a multi-line value cannot break the file structure."""
     return " ".join(str(text).split())
 
 
@@ -465,7 +464,6 @@ def open_scan(
     num_points=0,
     count_time=0.0,
     h5_file="",
-    comment="",
     template=None,
     extra=None,
     verbose=True,
@@ -481,7 +479,7 @@ def open_scan(
         motor: the scanned positioner, or a sequence of them for a two-motor
             scan (d2scan, a2scan, dmesh, mesh)
         det: detector for ``det.*`` sources, or None
-        scan_type, command, num_points, count_time, h5_file, comment:
+        scan_type, command, num_points, count_time, h5_file:
             values the template can substitute as ``{scan_type}`` etc.
         template: path override; otherwise $ID8_SCAN_CSV_TEMPLATE, else default
         extra: more substitutions available to the template as ``{name}``
@@ -524,7 +522,6 @@ def open_scan(
         # the stem this .csv shares with them and is what you type when looking
         # a measurement up. Empty for save_img=0, when there is no .h5 at all.
         "h5_name": os.path.basename(h5_file) if h5_file else "",
-        "comment": one_line("" if comment is None else comment),
         "start_time": time.strftime("%Y-%m-%d %H:%M:%S"),
         "epoch": f"{time.time():.3f}",
     }

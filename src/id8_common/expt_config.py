@@ -150,11 +150,15 @@ PERSISTENT_FIELDS = {
 #
 # One counter, TWO naming streams -- worth knowing before checking what number
 # is already taken. det_acq_series() and trio_acq_series() name their output
-# <...>/data/A####..., while the align scans in plans/align/ (ophyd_scan.py,
-# scan_8id.py, scan_8id_dev.py) name theirs <...>/data/bluesky/A####...; all
-# of them go through acq_helpers.gen_folder_prefix(), which increments this
-# counter once per call. So the highest number on disk may be under
+# <...>/data/<header>####... through acq_helpers.gen_folder_prefix(), while the
+# align scans in plans/align/ name theirs <...>/data/bluesky/...  Both advance
+# this counter once per scan, so the highest number on disk may be under
 # data/bluesky/, not data/.
+#
+# ophyd_scan.py does NOT go through gen_folder_prefix(): it builds its own name
+# from the scan's arguments and advances this counter itself -- see
+# ophyd_scan.scan_file_name. Its files start "S" whatever sample is loaded;
+# everything else keeps the sample's header.
 PV_FIELDS = {
     "measurement_num": int,   # 8ideSoft:Reg1
 }
