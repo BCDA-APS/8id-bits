@@ -5,11 +5,11 @@ support on 2026-09-16, if they want to see what `main` does before touching it).
 
 `main` was rolled back on 2026-09-10 to the 2026-08-04 tree, so that support
 staff find the code they already know. Everything written since then lives on
-`dev`, which is what `~/bluesky` has checked out and what the beamline actually
-runs.
+`dev`.
 
-This page is about running a **second, throwaway session** against `main`
-without disturbing that.
+**Since the 2026-09-11 split, each branch has a checkout of its own**, so
+running `main` no longer needs a throwaway clone or a special launcher. It is
+simply the other session.
 
 ---
 
@@ -17,18 +17,24 @@ without disturbing that.
 
 | | path | branch | who uses it |
 |---|---|---|---|
-| live checkout | `~/bluesky` | `dev` | the beamline, every real measurement |
-| demo clone | `~/bluesky_main` | `main` @ `d5fed29` | this procedure only |
-| live launcher | `~/bin/start_bluesky.sh` | → `~/bluesky` | normal operations |
-| demo launcher | `~/bin/start_bluesky_main.sh` | → `~/bluesky_main` | this procedure only |
+| Ophyd checkout | `~/ophyd` | `dev` | the beamline, every real measurement |
+| Bluesky checkout | `~/bluesky` | `main` @ `d5fed29` | the August tree |
+| Ophyd launcher | `~/bin/start_ophyd.sh` | → `~/ophyd` | normal operations |
+| Bluesky launcher | `~/bin/start_bluesky.sh` | → `~/bluesky` | the August tree |
 
-`~/bluesky_main` is a plain `git clone`. Nothing installs it, nothing else
-points at it, and deleting it costs nothing.
+Both are independent `git clone`s — a `.git` each, so deleting or moving one
+cannot break the other. Each launcher pins `PYTHONPATH` to its own `src`,
+because `cd` alone is not enough: see the sys.path warning below.
+
+**`~/bluesky_main` and `~/bin/start_bluesky_main.sh` are obsolete.** They were
+the throwaway clone this page used to describe, from before the split. Nothing
+points at them and deleting them costs nothing.
 
 The August tree gives you: `scan_8id.py` for all scans (Sam's code, driven
 through `RE(...)`), the in-tree `nexus_utils.py` NeXus writer, `pv_registers`
-instead of `expt_config`, and `trio_master_plan.py`. It does **not** contain
-`ophyd_scan.py`, `expt_config.py`, or `startup_ophyd.py`.
+instead of `expt_config`, and `dual_master_plan.py`. It does **not** contain
+`ophyd_scan.py`, `expt_config.py` or `startup_ophyd.py`, and it knows nothing of
+the `trio_*` modules or `tv_mode()`, which are dev-only.
 
 ---
 
@@ -57,26 +63,35 @@ instead of `expt_config`, and `trio_master_plan.py`. It does **not** contain
 ## Running it
 
 ```bash
-~/bin/start_bluesky_main.sh
+~/bin/start_bluesky.sh
 ```
 
-The launcher prints a pre-flight block before anything connects:
+### ⚠ Which tree a session actually imports
 
-```
-  id8_common -> ['/home/beams10/8IDIUSER/bluesky_main/src/id8_common']
-  branch     -> main, the 2026-08-04 rollback
-  scans      -> scan_8id.py, driven by RE(...); state from pv_registers
-  absent     -> ophyd_scan.py, expt_config.py, startup_ophyd.py
-```
+`cd` does not decide this. `id8_bits` is installed **editable** in
+`8ide_bits_test`, and `__editable__.id8_bits-0.0.1.pth` hardcodes
+`/home/beams10/8IDIUSER/bluesky/src`, so `import id8_common` goes there from any
+working directory. Both launchers therefore pin `PYTHONPATH` to their own `src`,
+which lands earlier in `sys.path` than site-packages and wins.
 
-**If that block does not appear, or says `*** WRONG TREE ***`, the session does
-not start.** That check is not cosmetic. `id8_common` is a namespace package
-(no `__init__.py`) and `id8_bits` is installed editable pointing at
-`~/bluesky/src`, so merely prepending the clone to `PYTHONPATH` would leave the
-dev tree as a silent fallback: modules present in both would come from the
-clone, but dev-only modules would still import — a session claiming to be
-`main` while running some of `dev`. The launcher removes the dev entry from
-`sys.path` before `id8_common` is first imported, and then proves it.
+`id8_common` is also a **namespace package** (no `__init__.py`), which means two
+`src` roots on `sys.path` *merge* rather than one shadowing the other: a module
+missing from the pinned tree silently falls back to the other checkout. As of
+2026-09-11 the only files on `main` and not on `dev` are
+
+    plans/acquire/dual_acq.py      utils/default_metadata.py
+    plans/acquire/dual_master_plan.py   utils/nexus_utils.py
+    user/ad_acq_zhou202607.py
+
+and no module either startup imports pulls any of them in, so nothing on the
+startup path can pick up August code. The visible consequence is small but worth
+knowing: from an **Ophyd** session, `import id8_common.plans.acquire.dual_acq`
+still succeeds — serving `main`'s August module.
+
+The retired `start_bluesky_main.sh` solved this properly, by removing the other
+entry from `sys.path` before `id8_common` is first imported and then printing
+proof of which tree won. Porting that check into both launchers is the right
+follow-up; until then the pin is what you have.
 
 To leave, `exit` the ipython session as usual. Nothing to clean up.
 
@@ -88,7 +103,7 @@ To leave, `exit` the ipython session as usual. Nothing to clean up.
 
 ```python
 dry_run_measurement_info()
-dry_run_trio_measurement_info()
+dry_run_dual_measurement_info()
 ```
 
 These validate the whole plan structure and move no hardware. This is the right
@@ -98,7 +113,7 @@ thing to show for "here is how a measurement is described."
 
 ```python
 run_measurement_info()
-run_trio_measurement_info()
+run_dual_measurement_info()
 ```
 
 **Do not run in a demo:**
@@ -127,8 +142,9 @@ SAMPLE_INFO_FILE       = USER_PLAN_DIR / "sample_info.yaml"
 MEASUREMENT_INFO_FILE  = USER_PLAN_DIR / "measurement_info.yaml"
 ```
 
-Note that this points into **`~/bluesky` — the live dev checkout** — not into
-the clone. And those flat files no longer exist: the current layout is
+Note that this points into whichever tree the session imported — since the
+split that is **`~/bluesky`, the `main` checkout** — not into the dev tree at
+`~/ophyd`. And those flat files no longer exist: the current layout is
 `user_plans/<cycle>/<experiment>/`, i.e.
 `user_plans/2026-3/pope202609/sample_info.yaml`.
 
@@ -139,16 +155,16 @@ immediate — but you have to plan for it.
 To demo them, stage copies at the flat path:
 
 ```bash
-cd ~/bluesky/src/user_plans/2026-3/pope202609
-cp sample_info.yaml measurement_info.yaml trio_measurement_info.yaml ../../
+cd ~/ophyd/src/user_plans/2026-3/pope202609   # the dev tree holds the real plans
+cp sample_info.yaml measurement_info.yaml dual_measurement_info.yaml ../../
 ```
 
-This is safe: the `dev` tree resolves plan files through
+This is safe: the `dev` tree in `~/ophyd` resolves plan files through
 `expt_config.USER_PLANS_ROOT / <cycle> / <experiment>`, so it never reads the
-flat copies. Remove them afterwards anyway, so nobody finds two versions later:
+flat copies, and they are being written into the *other* checkout anyway. Remove them afterwards anyway, so nobody finds two versions later:
 
 ```bash
-rm ~/bluesky/src/user_plans/{sample,measurement,trio_measurement}_info.yaml
+rm ~/bluesky/src/user_plans/{sample,measurement,dual_measurement}_info.yaml
 ```
 
 Whether the August parser accepts the *current* YAML schema is untested —
@@ -240,8 +256,9 @@ and it moves nothing.
 ## If you need to abandon the demo
 
 ```bash
-rm -rf ~/bluesky_main ~/bin/start_bluesky_main.sh
-rm -f  ~/bluesky/src/user_plans/{sample,measurement,trio_measurement}_info.yaml
+rm -f ~/bluesky/src/user_plans/{sample,measurement,dual_measurement}_info.yaml
 ```
 
-Nothing else references either. `~/bluesky` is untouched throughout.
+`~/ophyd` — the dev tree the beamline runs — is untouched throughout: the only
+thing this procedure writes is those staged copies, and they land in the `main`
+checkout.
