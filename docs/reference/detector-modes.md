@@ -51,9 +51,24 @@ recording the raw PV there was wrong both before the fix (it claimed the
 requested period while the detector ran at twice it) and would have been wrong
 after (a `frame_time` of 0).
 
-**Data taken before 2026-09-11 with a Rigaku is affected**: the real frame
-spacing was `2 × acq_time` while the metadata said `acq_time`. Exposures are
-unaffected — `count_time` was always right.
+**Whether older data is affected depends on the trigger mode, and has to be
+measured rather than assumed.** The driver always *sends* the interval, but the
+detector does not always apply it. Measured on the 2026-09-11 overnight series
+(`E0161`–`E0163`, `rigaku3M_epics` + `eiger4M`, 3000 frames at `acq_time` 1 s,
+run with the old `Start with Trigger` setup and `acquire_period` = 1 s):
+consecutive measurements completed **3024 s** apart, i.e. 1.008 s/frame, with all
+3000 frames written on both legs. A doubled period would have taken ~6000 s. So
+in that configuration the interval was *not* applied and the data is good.
+
+Short runs cannot be checked this way — on 10-frame acquisitions the Rigaku's
+staging and file flush (10–20 s) swamp the difference. To settle a given mode,
+time a Rigaku-only run long enough for the overhead not to matter (~60 frames at
+1 s) and compare against `num_frames × acq_time`.
+
+Either way `acquire_period = 0` is the right thing to write: with the interval at
+zero the period equals the exposure whether or not the firmware would have
+applied it, so the ambiguity stops mattering. Exposures were never affected —
+`count_time` was always right.
 
 Every mode entry also declares `drives_shutter` and `self_paced`, which together
 decide whether it may share a beam window with another detector. Both are
