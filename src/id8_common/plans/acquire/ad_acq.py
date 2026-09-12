@@ -501,6 +501,132 @@ MULTI_LEGS = {
 }
 
 
+# -----------------------------------------------------------------------------
+# Is this mode allowed to share a beam window?
+# -----------------------------------------------------------------------------
+# MULTI_LEGS says which pairs are supported, but only by being a list -- add a
+# row to it and the row is supported, whether or not the mode can actually
+# survive being run that way. The two checks below test the PROPERTY instead,
+# reading the drives_shutter / self_paced flags each mode declares in its own
+# table (eiger4m_modes.py, lambda2m_modes.py, rigaku3m_modes.py).
+#
+# Both are enforced, in three places:
+#
+#   * master_plan.validate_leg(), so a dry run rejects a bad protocol before
+#     anything moves;
+#   * prepare_legs() below, so a direct multi_acq_series() call that skipped
+#     validation is rejected too;
+#   * assert_multi_legs_sane(), over the whole MULTI_LEGS table, so a row added
+#     to it that contradicts its own mode table is caught at import (a warning)
+#     and again before any parallel acquisition starts (an exception).
+#
+# The failure this guards against is not a crash, it is silent bad data: a
+# shutter-driving leg fights the one showbeam()/blockbeam() around the set, and
+# a mode that needs pacing simply never gets it. Neither errors on its own.
+
+
+def parallel_objection(device, mode):
+    """Why this (device, mode) may not share a beam window, or None if it may.
+
+    Returns a sentence naming the reason, ready to be prefixed with the leg's
+    label by the caller. Assumes the pair exists in ACQ_MODES -- callers check
+    that first, and get a better message from validate_detector_mode() when it
+    does not.
+    """
+    mode_info = ACQ_MODES[device][mode]
+
+    missing = [flag for flag in ("drives_shutter", "self_paced") if flag not in mode_info]
+
+    if missing:
+        # Fail closed. A mode added without the flags is refused from parallel
+        # runs rather than assumed safe -- the assumption is the expensive way
+        # round, and the fix is one line in the mode table.
+        return (
+            f"{device} {mode} does not declare {' or '.join(missing)} in its mode table, "
+            f"so whether it can share a beam window with another detector is unknown. "
+            f"Add the flag(s) to that mode's entry -- see the comment above the table."
+        )
+
+    if mode_info["drives_shutter"]:
+        reason = (
+            f"{device} {mode} gates the fast shutter itself, through softglue, so it "
+            f"cannot share a beam window: the single showbeam()/blockbeam() around the "
+            f"whole set would fight the detector's own trigger path."
+        )
+
+        # The case worth naming outright, because the two Rigaku families look
+        # interchangeable in a protocol and are not.
+        if device.startswith("rigaku3M"):
+            reason += (
+                " Use device: rigaku3M_epics with mode: EPICS for parallel acquisition. "
+                "rigaku3M (sparsified .bin) and rigaku3M_ftf (fast-transfer .h5) both set "
+                "softglue.enable_rigaku = '1' and trigger_mode 'Start with Trigger', and "
+                "are serial-only -- run them through a scalar detector: protocol."
+            )
+
+        return reason
+
+    if not mode_info["self_paced"]:
+        return (
+            f"{device} {mode} is not self-paced -- it needs a softglue pulse train or a "
+            f"software trigger per frame while it runs -- so it cannot be armed once and "
+            f"left going while the plan waits on the other detectors. Only internally "
+            f"timed modes can share a beam window."
+        )
+
+    return None
+
+
+def assert_parallel_safe(device, mode, where=""):
+    """Raise unless this (device, mode) may share a beam window."""
+    objection = parallel_objection(device, mode)
+
+    if objection:
+        raise ValueError(f"{where}: {objection}" if where else objection)
+
+
+def inconsistent_multi_legs():
+    """MULTI_LEGS rows their own mode table says cannot share a beam window."""
+    bad = {}
+
+    for device, mode in MULTI_LEGS:
+        if device not in ACQ_MODES or mode not in ACQ_MODES.get(device, {}):
+            bad[(device, mode)] = f"{device} {mode} is not in ACQ_MODES at all."
+            continue
+
+        objection = parallel_objection(device, mode)
+
+        if objection:
+            bad[(device, mode)] = objection
+
+    return bad
+
+
+def assert_multi_legs_sane():
+    """Raise if MULTI_LEGS lists a pair its mode table forbids. Called per acquisition."""
+    bad = inconsistent_multi_legs()
+
+    if bad:
+        detail = " ".join(f"[{d}/{m}] {why}" for (d, m), why in sorted(bad.items()))
+        raise RuntimeError(
+            f"MULTI_LEGS lists {len(bad)} pair(s) that cannot share a beam window: {detail}"
+        )
+
+
+# Warn at import, raise at acquisition -- the same split as the OVERRIDE_PATHS
+# check above, and for the same reason: this module is imported by startup.py, so
+# a hard failure here would take down a session that only ever runs
+# single-detector acquisitions.
+if inconsistent_multi_legs():
+    warnings.warn(
+        f"ad_acq: MULTI_LEGS contains pairs their mode tables forbid in a shared beam "
+        f"window: {sorted(inconsistent_multi_legs())}. Parallel acquisition will refuse "
+        f"to run until this is fixed. Single-detector acquisition is unaffected.",
+        RuntimeWarning,
+        stacklevel=2,
+    )
+
+
 def multi_leg_behaviour(device, mode):
     """Look up the arm/poll callables for a (device, mode) pair."""
     key = (device, mode)
@@ -811,6 +937,10 @@ def prepare_legs(leg_specs):
         if device not in ACQ_MODES or mode not in ACQ_MODES[device]:
             raise ValueError(f"Invalid detector/mode combination: {device} / {mode}")
 
+        # Before anything is resolved or moved. master_plan.validate_leg() makes
+        # the same call, but multi_acq_series() can be driven directly.
+        assert_parallel_safe(device, mode, where=f"Leg '{leg.get('label', device)}'")
+
         mode_info = ACQ_MODES[device][mode]
 
         for device_name in mode_info["required_devices"]:
@@ -872,6 +1002,7 @@ def multi_acq_series(leg_specs, num_repeats=1, wait_time=0.0, cam_timeout=None):
     # drift must not be able to break a session that only ever runs
     # single-detector acquisitions.
     _assert_override_paths()
+    assert_multi_legs_sane()
 
     legs = prepare_legs(leg_specs)
 

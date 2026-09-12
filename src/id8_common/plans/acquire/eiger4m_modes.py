@@ -588,18 +588,44 @@ def acquire_eiger_external():
 # needs_acq_period must be present; the other needs_* flags default to False.
 # =============================================================================
 
+# Two flags on every entry decide whether a mode may share a beam window with
+# another detector (see parallel_objection() in ad_acq.py, which reads them):
+#
+#   drives_shutter  the mode routes the fast shutter through softglue, so the
+#                   beam is gated by the detector's own trigger path instead of
+#                   by the plan's showbeam()/blockbeam(). Such a mode cannot run
+#                   alongside another detector -- the single window around the
+#                   set would fight it.
+#   self_paced      one arm runs the whole acquisition: the detector clocks every
+#                   frame itself off acquire_time/acquire_period, with no
+#                   external pulse train and no per-frame software trigger. Only
+#                   a self-paced mode can be armed and left while the plan waits
+#                   on all the other legs.
+#
+# Both must be stated. A mode that omits them is refused from parallel runs
+# rather than assumed safe -- see parallel_objection().
+
 EIGER4M_MODES = {
     "Internal Series": {
         "setup": setup_eiger_internal,
         "acquire": acquire_eiger_internal,
         "needs_acq_period": False,
         "required_devices": ["eiger4M"],
+        # shutteroff() + showbeam() hold the beam on for the whole series, and
+        # the detector clocks its own frames. The only eiger mode fit to share.
+        "drives_shutter": False,
+        "self_paced": True,
     },
     "Internal Enable": {
         "setup": setup_eiger_internal_enable,
         "acquire": acquire_eiger_internal_enable,
         "needs_acq_period": True,
         "required_devices": ["eiger4M"],
+        # No softglue, so the beam is ours -- but acquire_eiger_internal_enable()
+        # fires cam.special_trigger_button once per frame from Python, so it
+        # cannot be armed and left.
+        "drives_shutter": False,
+        "self_paced": False,
     },
     "External Series": {
         "setup": setup_eiger_external_series,
@@ -608,11 +634,20 @@ EIGER4M_MODES = {
         "needs_num_segments": True,
         "needs_trigger_period": True,
         "required_devices": ["eiger4M", "softglue", "softglue_8id_mz2"],
+        # One softglue pulse per segment, and the pulse WIDTH is the shutter
+        # open time -- see the module docstring on why shutteroff()/showbeam()
+        # cannot be used here.
+        "drives_shutter": True,
+        "self_paced": False,
     },
     "External Enable": {
         "setup": setup_eiger_external,
         "acquire": acquire_eiger_external,
         "needs_acq_period": True,
         "required_devices": ["eiger4M", "softglue", "softglue_8id_mz2"],
+        # One softglue pulse per frame; the pulse sets both the exposure and the
+        # shutter.
+        "drives_shutter": True,
+        "self_paced": False,
     },
 }

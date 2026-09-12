@@ -269,17 +269,41 @@ def acquire_lambda_external():
 # Adding a mode means adding a row here plus its setup_/acquire_ pair above.
 # =============================================================================
 
+# Two flags on every entry decide whether a mode may share a beam window with
+# another detector (see parallel_objection() in ad_acq.py, which reads them):
+#
+#   drives_shutter  the mode routes the fast shutter through softglue, so the
+#                   beam is gated by the detector's own trigger path instead of
+#                   by the plan's showbeam()/blockbeam(). Such a mode cannot run
+#                   alongside another detector -- the single window around the
+#                   set would fight it.
+#   self_paced      one arm runs the whole acquisition: the detector clocks every
+#                   frame itself off acquire_time/acquire_period, with no
+#                   external pulse train and no per-frame software trigger. Only
+#                   a self-paced mode can be armed and left while the plan waits
+#                   on all the other legs.
+#
+# Both must be stated. A mode that omits them is refused from parallel runs
+# rather than assumed safe -- see parallel_objection().
+
 LAMBDA2M_MODES = {
     "Internal": {
         "setup": setup_lambda_internal,
         "acquire": acquire_lambda_internal,
         "needs_acq_period": False,
         "required_devices": ["lambda2M"],
+        # shutteroff() + showbeam() for the whole series, detector clocks itself.
+        "drives_shutter": False,
+        "self_paced": True,
     },
     "External": {
         "setup": setup_lambda_external,
         "acquire": acquire_lambda_external,
         "needs_acq_period": True,
         "required_devices": ["lambda2M", "softglue", "softglue_8id_mz2"],
+        # One softglue pulse per frame, gating the shutter -- the reason
+        # lambda2M/External is not a parallel-capable pair.
+        "drives_shutter": True,
+        "self_paced": False,
     },
 }

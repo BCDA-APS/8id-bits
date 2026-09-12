@@ -358,6 +358,12 @@ RIGAKU3M_BIN_MODES = {
         "acquire": acquire_rigaku_zdt,
         "needs_acq_period": False,
         "required_devices": ["rigaku3M"],
+        # Both fast-file families gate the beam themselves: softglue.enable_rigaku
+        # '1' plus trigger_mode 'Start with Trigger', so the same MUX that
+        # triggers the detector holds the shutter open. Serial-only for that
+        # reason -- rigaku3M_epics is the parallel-capable one.
+        "drives_shutter": True,
+        "self_paced": False,
         "min_acq_time": 20e-6,
     },
     "ZDT4bit": {
@@ -365,6 +371,12 @@ RIGAKU3M_BIN_MODES = {
         "acquire": acquire_rigaku_zdt,
         "needs_acq_period": False,
         "required_devices": ["rigaku3M"],
+        # Both fast-file families gate the beam themselves: softglue.enable_rigaku
+        # '1' plus trigger_mode 'Start with Trigger', so the same MUX that
+        # triggers the detector holds the shutter open. Serial-only for that
+        # reason -- rigaku3M_epics is the parallel-capable one.
+        "drives_shutter": True,
+        "self_paced": False,
         "min_acq_time": 40e-6,
     },
     "ZDT8bit": {
@@ -372,6 +384,12 @@ RIGAKU3M_BIN_MODES = {
         "acquire": acquire_rigaku_zdt,
         "needs_acq_period": False,
         "required_devices": ["rigaku3M"],
+        # Both fast-file families gate the beam themselves: softglue.enable_rigaku
+        # '1' plus trigger_mode 'Start with Trigger', so the same MUX that
+        # triggers the detector holds the shutter open. Serial-only for that
+        # reason -- rigaku3M_epics is the parallel-capable one.
+        "drives_shutter": True,
+        "self_paced": False,
         "min_acq_time": 80e-6,
     },
 }
@@ -386,6 +404,8 @@ RIGAKU3M_FTF_MODES = {
         "needs_acq_period": False,
         "required_devices": ["rigaku3M"],
         "hardware_device": "rigaku3M",
+        "drives_shutter": True,
+        "self_paced": False,
         "min_acq_time": 20e-6,
     },
     "ZDT4bit": {
@@ -394,6 +414,8 @@ RIGAKU3M_FTF_MODES = {
         "needs_acq_period": False,
         "required_devices": ["rigaku3M"],
         "hardware_device": "rigaku3M",
+        "drives_shutter": True,
+        "self_paced": False,
         "min_acq_time": 40e-6,
     },
     "ZDT8bit": {
@@ -402,6 +424,8 @@ RIGAKU3M_FTF_MODES = {
         "needs_acq_period": False,
         "required_devices": ["rigaku3M"],
         "hardware_device": "rigaku3M",
+        "drives_shutter": True,
+        "self_paced": False,
         "min_acq_time": 80e-6,
     },
 }
@@ -413,6 +437,11 @@ RIGAKU3M_EPICS_MODES = {
         "needs_acq_period": False,
         "required_devices": ["rigaku3M"],
         "hardware_device": "rigaku3M",
+        # The one Rigaku mode that leaves the shutter alone: enable_rigaku '0'
+        # and trigger_mode 'Fixed Time', so it clocks its own frames and the plan
+        # owns the beam. This pair of flags is what admits it to a parallel run.
+        "drives_shutter": False,
+        "self_paced": True,
         "min_acq_time": 0.01,
     },
 }

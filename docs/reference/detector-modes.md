@@ -26,6 +26,13 @@ while fast transfer still wrote `.bin`. That the IOC appends the same suffix to 
 that assumption and says so. Confirm it on the first fast-transfer run and
 correct both places if it differs.
 
+Every mode entry also declares `drives_shutter` and `self_paced`, which together
+decide whether it may share a beam window with another detector. Both are
+enforced — see
+[parallel acquisition](../running-measurements.md#parallel-multi-detector-acquisition).
+A new mode must state both; one that omits them is refused from parallel runs
+rather than assumed safe.
+
 `rigaku3M`, `rigaku3M_ftf` and `rigaku3M_epics` are **the same physical
 detector**. The name selects the output format, and it is recorded in the NeXus
 `detector_name` field so downstream can tell which was used.

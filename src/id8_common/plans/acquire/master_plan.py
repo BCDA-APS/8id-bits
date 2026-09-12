@@ -4,6 +4,7 @@ from pathlib import Path
 from id8_common.plans.acquire.ad_acq import ACQ_MODES
 from id8_common.plans.acquire.ad_acq import FORBIDDEN_MOTORS
 from id8_common.plans.acquire.ad_acq import MULTI_LEGS
+from id8_common.plans.acquire.ad_acq import assert_parallel_safe
 from id8_common.plans.acquire.ad_acq import det_acq_series
 from id8_common.plans.acquire.ad_acq import multi_acq_series
 from id8_common.plans.set.shutter_att import att
@@ -622,10 +623,21 @@ def validate_leg(leg):
 
     validators.validate_detector_mode(device, mode, where=where)
 
+    # Two checks, and they catch different mistakes. This one reads the mode's own
+    # drives_shutter / self_paced flags and says WHY the mode cannot share a beam
+    # window -- most usefully for a Rigaku leg that is not rigaku3M_epics, where
+    # it names the pair to use instead. It runs first precisely so that reason
+    # reaches the user rather than the bare "supported pairs are ..." below.
+    assert_parallel_safe(device, mode, where=where)
+
+    # And this one is membership: MULTI_LEGS is where a pair's arm and poll
+    # callables live, and a pair with none cannot be run whatever its flags say.
+    # Reachable only for a mode that IS parallel-safe but has no entry yet.
     if (device, mode) not in MULTI_LEGS:
         supported = ", ".join(f"{d}/{m}" for d, m in sorted(MULTI_LEGS))
         raise ValueError(
-            f"Leg '{label}': {device}/{mode} cannot run in a parallel measurement. Supported: {supported}"
+            f"Leg '{label}': {device}/{mode} has no arm/poll entry in MULTI_LEGS, so it "
+            f"cannot run in a parallel measurement. Supported: {supported}"
         )
 
     validate_acq_time(leg["acq_time"], device, mode, where=where)

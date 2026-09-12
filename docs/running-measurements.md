@@ -204,6 +204,28 @@ softglue cannot share a window with one that does not. `lambda2M` `External` and
 the Eiger's two `External` modes are absent for that reason — one softglue pulse
 per frame *is* the shutter.
 
+**The rule is enforced, not just documented.** Every mode declares two flags in
+its own table — `drives_shutter` (the mode gates the beam through softglue) and
+`self_paced` (one arm runs the whole acquisition, no pulse train and no per-frame
+software trigger) — and a leg is refused unless both come out right. A mode that
+declares neither is refused too, rather than assumed safe. The check runs in the
+dry run, again in `multi_acq_series()` for a direct call that skipped validation,
+and once over the whole `MULTI_LEGS` table so a row added there that contradicts
+its own mode table cannot go unnoticed. The commonest catch names its own fix:
+
+```
+Leg 'rigaku3M': rigaku3M ZDT2bit gates the fast shutter itself, through softglue,
+so it cannot share a beam window: the single showbeam()/blockbeam() around the
+whole set would fight the detector's own trigger path. Use device: rigaku3M_epics
+with mode: EPICS for parallel acquisition. rigaku3M (sparsified .bin) and
+rigaku3M_ftf (fast-transfer .h5) both set softglue.enable_rigaku = '1' and
+trigger_mode 'Start with Trigger', and are serial-only — run them through a
+scalar detector: protocol.
+```
+
+None of this restricts the serial path: `rigaku3M`, `rigaku3M_ftf` and both Eiger
+`External` modes run exactly as before through a scalar `detector:` protocol.
+
 `rigaku3M_epics` only joined the rule on 2026-09-11. It used to run
 `trigger_mode` `Start with Trigger` with `softglue.enable_rigaku = '1'`, so the
 Rigaku drove the shutter itself, one leg had to be nominated `shutter_owner`, and
