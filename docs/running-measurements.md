@@ -25,8 +25,8 @@ it costs seconds.
 sample mesh are checked by `run_measurement_info()` itself, per measurement,
 immediately before that measurement runs — so a missing device or an
 unreachable mesh motor surfaces when its turn comes, part way down a long list,
-rather than up front. (The trio path gates this differently — see
-[Trio-detector acquisition](#trio-detector-acquisition).)
+rather than up front. (A `detectors:` protocol gates this differently — see
+[Parallel multi-detector acquisition](#parallel-multi-detector-acquisition).)
 
 ## Anatomy of `measurement_info.yaml`
 
@@ -77,15 +77,29 @@ requires, and the timing rules.
 ```
 run_measurement_info()
    └─ expand runs × samples × protocols  →  a list of measurements
-       └─ for each:  validate  →  load into expt  →  att()  →  select_device()
-           └─ det_acq_series()
-               ├─ gen_folder_prefix()      A0061_Test_a0002   (bumps the counter)
-               ├─ for each repeat:
-               │    ├─ sample_mesh_move()  (only if sample_move: yes)
-               │    ├─ setup_<mode>()      arm the detector
-               │    ├─ acquire_<mode>()    open shutter, collect, close shutter
-               │    ├─ NeXus metadata      → <name>_metadata.hdf
-               │    └─ DM job submitted
+       └─ for each:  validate  →  load into expt  →  att()
+           │
+           ├─ scalar `detector:`  →  select_device()  →  det_acq_series()
+           │     ├─ gen_folder_prefix()      A0061_Test_a0002   (bumps the counter)
+           │     └─ for each repeat:
+           │          ├─ sample_mesh_move()  (only if sample_move: yes)
+           │          ├─ setup_<mode>()      arm the detector
+           │          ├─ acquire_<mode>()    open shutter, collect, close shutter
+           │          ├─ NeXus metadata      → <name>_metadata.hdf
+           │          └─ DM job submitted
+           │
+           └─ `detectors:` list  →  multi_acq_series()
+                 ├─ gen_folder_prefix()      once for the whole set
+                 └─ for each repeat:
+                      ├─ sample_mesh_move()  (only if sample_move: yes)
+                      ├─ stop_live_mode()    every leg out of TV mode
+                      ├─ setup_<mode>()      every leg
+                      ├─ showbeam()          ── one window for all of them
+                      ├─ arm every leg, wait for every leg to confirm it started
+                      ├─ wait for every cam
+                      ├─ blockbeam()         ──
+                      ├─ wait for every HDF plugin
+                      └─ per leg: NeXus metadata + DM job
 ```
 
 File naming: `A0061_Test_a0002_f000100_r00001` —
@@ -99,7 +113,7 @@ The `0061` is `expt.measurement_num`, and its store is the EPICS register
 last value this checkout saw. `gen_folder_prefix()` reads the register, builds
 the name from it, and writes it back one higher, so the counter advances once
 per measurement (the repeats of one measurement share a prefix and differ only
-in `_rNNNNN`). A trio measurement bumps it once too, and both legs share the
+in `_rNNNNN`). A parallel measurement bumps it once too, and every leg shares the
 number.
 
 ```bash
@@ -165,15 +179,18 @@ then add `"sample_move": "yes"` plus `inner_motor` / `outer_motor` /
 `inner_center` / `outer_center` / `inner_range` / `outer_range` / `inner_pts` /
 `outer_pts` to the `sample=` dict.
 
-## Trio-detector acquisition
+## Parallel multi-detector acquisition
 
-Runs the Rigaku, the Eiger and the Lambda **in the same beam window** instead of
-back to back. They are *not* frame-synced — the acquisitions merely overlap, so a
-set of long measurements costs roughly the slowest one rather than the sum.
+Runs several detectors — the Rigaku, the Eiger and the Lambda — **in the same
+beam window** instead of back to back. They are *not* frame-synced; the
+acquisitions merely overlap, so a set of long measurements costs roughly the
+slowest one rather than the sum.
 
-"Trio" is the original name, not a limit. Any number of legs works, and the
-supported `(device, mode)` pairs are the keys of `TRIO_LEGS` in
-`plans/acquire/trio_acq_rigaku3m_eiger4m_lambda2m.py`:
+There is no separate entry point and no separate module any more. A protocol
+carrying a `detectors:` **list** instead of a scalar `detector:` runs this way,
+and `run_measurement_info()` handles both shapes out of the same file. The legs
+run through `multi_acq_series()` in `plans/acquire/ad_acq.py`; the supported
+`(device, mode)` pairs are the keys of `MULTI_LEGS` there:
 
 | device | mode |
 |---|---|
@@ -181,32 +198,57 @@ supported `(device, mode)` pairs are the keys of `TRIO_LEGS` in
 | `eiger4M` | `Internal Series` |
 | `lambda2M` | `Internal` |
 
-`lambda2M` `External` is deliberately absent: it gates the shutter through
-softglue, one pulse per frame, which cannot coexist with a Rigaku-owned shutter
-window. Only the Lambda's `Internal` mode can share one.
+All three are **internally timed** and none of them touches softglue. That is the
+rule for joining this list, not a coincidence: a mode that gates the beam through
+softglue cannot share a window with one that does not. `lambda2M` `External` and
+the Eiger's two `External` modes are absent for that reason — one softglue pulse
+per frame *is* the shutter.
+
+`rigaku3M_epics` only joined the rule on 2026-09-11. It used to run
+`trigger_mode` `Start with Trigger` with `softglue.enable_rigaku = '1'`, so the
+Rigaku drove the shutter itself, one leg had to be nominated `shutter_owner`, and
+every other leg was armed only after that one confirmed it was running. It is now
+`Fixed Time` with the MUX at `'0'` (see
+[detector modes](reference/detector-modes.md#rigaku3m--one-detector-three-names)),
+so every leg is armed together and `shutter_owner` is gone —
+**a protocol that still sets it is rejected; delete the line.**
 
 ```python
-dry_run_trio_measurement_info(check_hardware=True)
-run_trio_measurement_info()
+dry_run_measurement_info(check_hardware=True)
+run_measurement_info()
 ```
 
 **`check_hardware` defaults to `False`** — pass `True` on a live session, as
 above. It gates the whole per-leg check: mode name, the `acq_time` floor,
 `qmap_file`, `analysis_type`, the `geometry:` block, a leg's `motors:` block,
 and every device the mode drives. Left off you still get run expansion, the
-required protocol fields, the duplicate-label and shutter-owner rules, and the
+required protocol fields, the duplicate-label rule, the qmap check, and the
 sample-mesh check — which resolves the mesh motors either way, so a
-`sample_move: yes` protocol still needs a live session.
+`sample_move: yes` protocol still needs a live session. It is ignored by
+scalar-`detector:` protocols, which are gated as described at the top of this
+page.
 
-Both front ends now run the same field checks, from
-`plans/acquire/validators.py`. That closed a real gap on this side: the shared
-`require_mode_devices()` checks a mode's `required_devices` as well as its
-`hardware_device`, so a trio protocol with an `eiger4M` `External Series` leg is
-now rejected at dry-run time when `softglue` is missing. It used to pass
-validation and fail only once the run was underway.
+Both shapes run the same field checks, from `plans/acquire/validators.py`: the
+shared `require_mode_devices()` checks a mode's `required_devices` as well as its
+`hardware_device`, so a leg with an `eiger4M` `External Series` mode is rejected
+at dry-run time when `softglue` is missing rather than once the run is underway.
 
-The config is `trio_measurement_info.yaml`, in the same folder as the others. A
-protocol carries a `detectors:` **list** instead of a scalar `detector:`:
+### The other YAML file
+
+`trio_measurement_info.yaml` is still there, still in the same folder, and still
+where the parallel protocols live by convention — it is an experiment's worth of
+protocols and there is no reason to paste them into `measurement_info.yaml`. Two
+thin wrappers point the same entry points at it:
+
+```python
+dry_run_trio_measurement_info(check_hardware=True)
+run_trio_measurement_info()
+```
+
+They are `dry_run_measurement_info()` / `run_measurement_info()` with a different
+default path, nothing more. Either file may now hold either protocol shape.
+
+### Protocol shape
 
 ```yaml
   trio_att2:
@@ -222,8 +264,7 @@ protocol carries a `detectors:` **list** instead of a scalar `detector:`:
         qmap_file: rigaku3m_qmap_default.hdf
         analysis_type: Multitau
         select_device: yes
-        shutter_owner: yes          # exactly one leg must own the shutter
-        start_timeout: 30
+        start_timeout: 30           # seconds to confirm this leg started
         hdf_timeout: 600
       - device: eiger4M
         mode: Internal Series
@@ -260,44 +301,43 @@ A0058_HEA_a0022_f003000_lambda2M_r00001
 automatically. That is the right way to smoke-test each detector before running
 them together.
 
-### Motion in a trio run
+### Motion in a parallel run
 
 Moves once per measurement, in this order:
 
 | | |
 |---|---|
-| `filter_8ide.attenuation` | to `att_level`, in `run_trio_measurement()` |
-| `huber.delta → 10`, `huber.nu → 0` | `setup_huber_for_trio()`, still before any acquisition |
+| `filter_8ide.attenuation` | to `att_level`, in `run_multi_measurement()` |
+| `huber.delta → 10`, `huber.nu → 0` | `setup_huber_for_multi()`, still before any acquisition |
 | `detector.x`, `detector.y` | via `select_device()` on each leg with `select_device: yes` — **but only while that detector's `allow_motion` is true in `device_position.yaml`, and `eiger4M`, `rigaku3M` and `lambda2M` are all currently `false`, so this row moves nothing today** |
 | whatever a leg's `motors:` block names | `move_leg_motors()`, after the `select_device` pass and before the shutter window |
 
-The first two are in `run_trio_measurement()`, the last two inside
-`trio_acq_series()`.
+The first two are in `run_multi_measurement()`, the last two inside
+`multi_acq_series()`.
 
-**⚠ `setup_huber_for_trio()`'s motion is currently commented out** for testing.
-Re-enable the commented lines in `trio_master_plan_rigaku3m_eiger4m_lambda2m.py` before a
-real trio run, or the leg geometry in the metadata will not describe the true
-beam path. They reference `oregistry`, which that module does not currently
-import, so add the import at the same time.
+**⚠ `setup_huber_for_multi()`'s motion is currently commented out** for testing.
+Re-enable the commented lines in `master_plan.py` before a real parallel run, or
+the leg geometry in the metadata will not describe the true beam path. They
+reference `oregistry`, which that module imports already.
 
 Never moves during acquisition, and refuses if asked: once the huber is set,
 `huber.delta` and `huber.nu` are off limits — rejected in a leg's `motors:`
 block at validation *and* at run time, and rejected as `sample_info.yaml`'s
-`inner_motor`/`outer_motor`. To change where a trio run acquires, edit
-`TRIO_HUBER_DELTA` / `TRIO_HUBER_NU`, not the YAML.
+`inner_motor`/`outer_motor`. To change where a parallel run acquires, edit
+`MULTI_HUBER_DELTA` / `MULTI_HUBER_NU`, not the YAML.
 
-`setup_huber_for_trio()` is independent of `master_plan.py`'s
-`placeholder_rigaku3M()`. Changing the serial placeholder does not move the trio
-geometry, or vice versa.
+`setup_huber_for_multi()` is independent of `placeholder_rigaku3M()` in the same
+file. Changing the serial placeholder does not move the parallel geometry, or
+vice versa.
 
 ### Per-leg metadata
 
-In a trio run each leg needs its own detector name, qmap and geometry. That is
+In a parallel run each leg needs its own detector name, qmap and geometry. That is
 handled by a scoped swap around each leg's metadata write, so the two
 `_metadata.hdf` files are stamped correctly and independently.
 
 With no `geometry:` block, a leg's metadata comes from `device_position.yaml` as
-a single-detector run would — but in a trio run at most one detector can be at
+a single-detector run would — but in a parallel run at most one detector can be at
 its calibrated preset, so add a `geometry:` block to the other leg. Every field
 is optional and takes a literal number or a dotted ophyd path read live:
 
@@ -354,18 +394,17 @@ returns as though it worked, and the measurement then runs at the live view's
 exposure instead of the protocol's — frames written, metadata recording the
 *requested* value, and the exposure the data was actually taken at simply lost.
 
-`trio_acq_series()` guards against this in two steps per repeat, both **before**
-`showbeam()` so a failure costs no beam:
+`multi_acq_series()` guards against this with `stop_live_mode()`, which presses
+Stop on every leg and waits for it — before any leg's setup runs, and so before
+`showbeam()`, meaning a camera that will not stop costs an exception and no beam.
+A leg can raise its allowance with `stop_timeout:` in the protocol; the default is
+10 s.
 
-1. `stop_live_mode()` presses Stop on every leg and waits for it, before any
-   leg's setup runs.
-2. `confirm_acq_time()` then reads each camera's `acquire_time` **readback** and
-   raises if it is not what the protocol asked for (5% tolerance, for the
-   detectors' own quantisation). This checks the symptom, so it catches any
-   other reason a write did not stick, not just live mode.
-
-`tv_mode()` makes the same two checks. A leg can raise its stop allowance with
-`stop_timeout:` in the protocol; the default is 10 s.
+There was a second step until 2026-09-11: `confirm_acq_time()` re-read each
+camera's `acquire_time` **readback** after setup and refused to run on a mismatch.
+It was removed — stopping every camera first removes the only known reason the
+write does not stick, and the readback poll cost a settling wait on every repeat.
+`tv_mode()` still makes its own equivalent check.
 
 ## ⚠ The qmap must already be on disk
 

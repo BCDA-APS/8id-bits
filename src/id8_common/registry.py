@@ -153,7 +153,7 @@ def get_ophyd_object(dotted, registry=oregistry):
     keyword here instead.
 
     This is the only definition. ``acq_helpers`` re-exports it, and both
-    ``master_plan`` and ``trio_master_plan_rigaku3m_eiger4m_lambda2m`` reach it through
+    ``master_plan`` and the acquisition front ends reach it through
     the same ``validators.validate_sample_motion``, so the serial and trio
     paths cannot drift apart again.
 

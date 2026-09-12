@@ -34,7 +34,8 @@ The August tree gives you: `scan_8id.py` for all scans (Sam's code, driven
 through `RE(...)`), the in-tree `nexus_utils.py` NeXus writer, `pv_registers`
 instead of `expt_config`, and `dual_master_plan.py`. It does **not** contain
 `ophyd_scan.py`, `expt_config.py` or `startup_ophyd.py`, and it knows nothing of
-the `trio_*` modules or `tv_mode()`, which are dev-only.
+parallel multi-detector acquisition (`multi_acq_series()`, and the `trio_*`
+modules it grew out of) or `tv_mode()`, which are dev-only.
 
 ---
 

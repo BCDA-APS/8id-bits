@@ -2,8 +2,8 @@
 Rigaku3M mode definitions: setup/acquire functions plus RIGAKU3M_BIN_MODES,
 RIGAKU3M_FTF_MODES and RIGAKU3M_EPICS_MODES, the tables ad_acq.py assembles
 into ACQ_MODES. Nothing here runs on its own: det_acq_series() in ad_acq.py
-calls these, and trio_acq_series() runs setup_rigaku_epics() for the
-("rigaku3M_epics", "EPICS") trio leg.
+calls these, and multi_acq_series() runs setup_rigaku_epics() for the
+("rigaku3M_epics", "EPICS") leg of a parallel measurement.
 
 The three tables are separate ACQ_MODES *detector* keys rather than one table,
 because BIN and FTF offer the same three mode names (ZDT2bit / ZDT4bit /
@@ -25,7 +25,12 @@ measurement_info.yaml) is what picks the output format:
 
     rigaku3M_epics (RIGAKU3M_EPICS_MODES)
         EPICS -- standard areaDetector-style acquisition through the HDF1
-        plugin, for when neither fast-file format is wanted.
+        plugin, for when neither fast-file format is wanted. Unlike the two
+        fast-file families this one is INTERNALLY TIMED (trigger_mode
+        'Fixed Time') and leaves softglue.enable_rigaku at '0', so it does not
+        touch the fast shutter and can share a beam window with the Eiger and
+        the Lambda -- see setup_rigaku_epics() and multi_acq_series() in
+        ad_acq.py.
 
 Both fast-file families share acquire_rigaku_zdt(); only EPICS needs its own
 acquire, because it also has to arm and drain the HDF1 plugin.
@@ -150,13 +155,32 @@ def setup_rigaku_epics(acq_time, num_frames, file_header, file_name):
     frames go through the areaDetector pipeline and out via the HDF1 plugin, so
     unlike the ZDT modes this one has an hdf1 block to fill in (and an hdf1 to
     arm and drain in acquire_rigaku_epics).
+
+    It is also the one Rigaku mode that keeps its hands off the fast shutter.
+    Until 2026-09-11 this function did what the fast-file setups do -- softglue
+    MUX on and trigger_mode 'Start with Trigger' -- so the Rigaku both waited for
+    a softglue trigger and gated the shutter through the same MUX. That is
+    genuinely needed for ZDT and fast transfer, and it is what made this mode
+    impossible to run alongside another detector: whoever owned the shutter had
+    to be the Rigaku, and every other detector had to be armed around it.
+
+    'Fixed Time' is the Rigaku's internally-timed trigger mode -- it clocks its
+    own frames off acquire_time and needs nothing from softglue, exactly like the
+    Eiger's 'Internal Series' and the Lambda's 'Internal'. With the MUX off, the
+    acquisition path opens the shutter with showbeam() and closes it with
+    blockbeam(), the same as every other internally-timed mode, which is what
+    lets several detectors share one beam window (see multi_acq_series() in
+    ad_acq.py).
+
+    The MUX is written to '0' here rather than merely left alone: a preceding ZDT
+    or fast-transfer run sets it to '1', and it stays set.
     """
     rigaku3M = get_connected_device("rigaku3M")
     softglue = get_connected_device("softglue")
 
-    softglue.enable_rigaku.put('1')
+    softglue.enable_rigaku.put('0')
 
-    rigaku3M.cam.trigger_mode.put('Start with Trigger')
+    rigaku3M.cam.trigger_mode.put('Fixed Time')
 
     # Only the second value is wanted here. The first is the IOC-relative
     # path, which only the fast-file modes use (cam.fast_file_path); the HDF1

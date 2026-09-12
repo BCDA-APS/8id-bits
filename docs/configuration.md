@@ -86,8 +86,8 @@ Everything follows. The plan files are found at
 nothing is pinned to a path and no Python needs editing. A session that is
 already open needs `expt.reload()` (or a restart) to see the edit —
 `experiment.yml` is read at import. Both `run_measurement_info()` and
-`run_trio_measurement_info()` print the directory they read from (the trio one
-says "trio plans"), so a wrong setting is visible immediately:
+`run_trio_measurement_info()` print the directory they read from, so a wrong
+setting is visible immediately:
 
 ```
 Reading plans from /home/beams10/8IDIUSER/bluesky/src/user_plans/2026-3/comm202609
@@ -104,7 +104,7 @@ it, rather than a bare `FileNotFoundError`.
 | where analysis runs, DM workflow | `configs/experiment.yml` |
 | sample names, headers, mesh centres | `user_plans/<cycle>/<expt>/sample_info.yaml` |
 | protocols: detector, mode, timings, frames | `user_plans/<cycle>/<expt>/measurement_info.yaml` |
-| two-detector protocols | `user_plans/<cycle>/<expt>/trio_measurement_info.yaml` |
+| multi-detector (parallel) protocols | either file — conventionally `user_plans/<cycle>/<expt>/trio_measurement_info.yaml` |
 | detector distance, beam centre, **pixel size** | `plans/set/device_position.yaml` |
 | which devices exist at all | `configs/devices.yml`, `ad_devices.yml` |
 | sample index, mesh positions | `state/run_state.yml` (managed, do not hand-edit) |

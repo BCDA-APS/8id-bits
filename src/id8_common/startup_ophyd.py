@@ -244,14 +244,15 @@ print("[startup_ophyd] Importing plans ...")
 #
 # Kept in the order ruff's isort would put them in, so `pre-commit run` has no
 # reason to re-sort this block: these are star imports, and the order decides
-# which module a colliding name at the prompt comes from. The rename of
-# dual_master_plan_* to trio_master_plan_* on 2026-09-11 moved it past
-# master_plan and tetramm_acq alphabetically; that is safe because none of
-# these four export a name in common (each has an __all__).
+# which module a colliding name at the prompt comes from. That is safe here
+# because none of these four export a name in common (each has an __all__).
+#
+# master_plan owns both acquisition front ends -- one detector at a time and
+# several in one beam window. The separate trio_master_plan_* module folded into
+# it on 2026-09-11.
 from .plans.acquire.ad_acq import *  # noqa: F401, F403
 from .plans.acquire.master_plan import *  # noqa: F401, F403
 from .plans.acquire.tetramm_acq import *  # noqa: F401, F403
-from .plans.acquire.trio_master_plan_rigaku3m_eiger4m_lambda2m import *  # noqa: F401, F403
 from .plans.acquire.tv_mode import *  # noqa: F401, F403
 
 # import align plans -- ophyd_scan, not scan_8id (see module docstring).

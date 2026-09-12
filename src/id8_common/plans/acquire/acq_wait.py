@@ -2,7 +2,7 @@
 
 One polling loop behind the "wait until the hardware finishes" steps in the
 acquisition path -- used by eiger4m_modes, lambda2m_modes and
-trio_acq_rigaku3m_eiger4m_lambda2m. It exists because the same loop had been written
+ad_acq's parallel path. It exists because the same loop had been written
 five times with five different levels of care, and the differences were real
 bugs:
 
@@ -10,7 +10,7 @@ bugs:
   the moment the detector reached a terminal state. It is the model this module
   generalises, though rigaku3m_modes still runs its own bounded copy rather than
   importing from here.
-* ``trio_acq``'s ``cam_busy`` for the same detector tested ``detector_state != 0``,
+* the parallel path's ``cam_busy`` for the same detector tested ``detector_state != 0``,
   which is true for Error/Disconnected/Aborted, so a dead detector counted as
   *busy* until a multi-minute timeout expired -- with the shutter open.
 * ``acquire_eiger_external`` and ``acquire_lambda_external`` polled 600 times and
@@ -18,7 +18,7 @@ bugs:
   write NeXus metadata and submit a DM job for a dataset it had no reason to
   believe was complete.
 
-Porting is only partial. trio_acq_rigaku3m_eiger4m_lambda2m routes every wait through
+Porting is only partial. ad_acq's multi_acq_series() routes every wait through
 here; eiger4m_modes and lambda2m_modes use it only for the HDF drain at the end
 of their External modes. Their cam waits, and the Internal modes end to end,
 are still hand-rolled ``while ... get() == 1: sleep()`` loops with no timeout

@@ -2,7 +2,10 @@ import copy
 from pathlib import Path
 
 from id8_common.plans.acquire.ad_acq import ACQ_MODES
+from id8_common.plans.acquire.ad_acq import FORBIDDEN_MOTORS
+from id8_common.plans.acquire.ad_acq import MULTI_LEGS
 from id8_common.plans.acquire.ad_acq import det_acq_series
+from id8_common.plans.acquire.ad_acq import multi_acq_series
 from id8_common.plans.set.shutter_att import att
 from id8_common.plans.set.select_device import AXIS_NAMES
 from id8_common.plans.set.select_device import DETECTOR_ALIASES
@@ -12,6 +15,7 @@ from id8_common.plans.set.select_device import _load_config
 from id8_common.plans.set.select_device import move_detector_axes
 from id8_common.plans.set.select_device import select_device
 from id8_common.plans.acquire.validators import VALID_ANALYSIS_TYPES
+from id8_common.plans.acquire.validators import as_bool
 from id8_common.plans.acquire.validators import normalize_yes_no
 from id8_common.plans.acquire.validators import read_yaml
 from id8_common.plans.acquire.validators import require_fields
@@ -24,13 +28,16 @@ from id8_common.plans.acquire.validators import yes_no
 from id8_common.plans.acquire import validators
 from id8_common.expt_config import expt
 
-# Not used here. Both names reached the interactive prompt through this
-# module's `import *` before they moved to registry.py; the __all__ at the
-# bottom of this file now excludes them, so they no longer do. Each still gets
-# to the prompt by its own route: `get_ophyd_object` is in acq_helpers.__all__
-# and ad_acq star-imports acq_helpers, and startup.py binds `oregistry`
-# explicitly (startup_ophyd.py imports it from registry.py directly).
-from id8_common.registry import get_ophyd_object  # noqa: F401
+# get_ophyd_object resolves a leg's `motors:` and `geometry:` dotted paths.
+# oregistry is used only by the commented-out motion in setup_huber_for_multi(),
+# and is kept imported so uncommenting those three lines is all it takes.
+#
+# Neither is in this module's __all__, so neither reaches the interactive prompt
+# through `import *` here any more. Each still gets there by its own route:
+# `get_ophyd_object` is in acq_helpers.__all__ and ad_acq star-imports
+# acq_helpers, and startup.py binds `oregistry` explicitly (startup_ophyd.py
+# imports it from registry.py directly).
+from id8_common.registry import get_ophyd_object
 from id8_common.registry import oregistry  # noqa: F401
 
 #: Seconds the fast shutter needs to move. In eiger4M External Series the one
@@ -43,6 +50,72 @@ SHUTTER_MIN_TIME = 0.1
 #: Slack so a value meant to be exactly SHUTTER_MIN_TIME is not rejected by
 #: binary rounding -- e.g. 0.3 - 0.2 evaluates to 0.09999999999999998.
 _TIME_EPS = 1e-9
+
+
+# =============================================================================
+# Parallel (multi-detector) protocols
+# =============================================================================
+# A protocol carries EITHER a scalar `detector:` + `mode:`, which runs on one
+# detector through det_acq_series(), OR a `detectors:` list of legs, which runs
+# them all in one beam window through multi_acq_series(). Everything either side
+# of the acquisition -- run expansion, sample selection, attenuation, the mesh --
+# is the same, which is why the two live in one file. They were two files
+# (master_plan.py and trio_master_plan_rigaku3m_eiger4m_lambda2m.py) until
+# 2026-09-11; see the section header in ad_acq.py for what made merging them
+# possible.
+
+#: Huber position a parallel measurement acquires at. Not applied --
+#: setup_huber_for_multi() below has its motion commented out, so a run acquires
+#: wherever the diffractometer already is.
+MULTI_HUBER_DELTA = 10.0
+MULTI_HUBER_NU = 0.0
+
+#: Protocol-level fields a `detectors:` protocol must state. Everything that is
+#: per-detector lives inside the legs instead.
+REQUIRED_MULTI_PROTOCOL_FIELDS = [
+    "att_level",
+    "num_repeats",
+    "sample_move",
+    "detectors",
+]
+
+REQUIRED_LEG_FIELDS = [
+    "device",
+    "mode",
+    "acq_time",
+    "num_frames",
+    "qmap_file",
+]
+
+# geometry is optional, and so is every field in it. A detector at the mount
+# device_position.yaml already describes needs no geometry block -- that file's
+# values are correct and are used as-is. State a field here only to override it,
+# which is what an Eiger remounted on the huber arm needs.
+KNOWN_GEOMETRY_FIELDS = [
+    "db_x",
+    "db_y",
+    "distance",
+    "pixel_size",
+    "position_x",
+    "position_y",
+    "beam_center_position_x",
+    "beam_center_position_y",
+    "swing_horizontal",
+    "swing_vertical",
+]
+
+#: Detector key -> short name used in a leg's FILE PATHS.
+#:
+#: rigaku3M_epics stopped being an alias of rigaku3M in device_position.yaml on
+#: 2026-09-11 (it needs its own softglue.enable_rigaku value), but its output has
+#: always been filed under the plain detector name and renaming the folders
+#: mid-experiment would split one detector's data in two. The metadata is
+#: unaffected: detector_name records the full key, because that is what says which
+#: output format wrote the file. A protocol can override this per leg with `label:`.
+LEG_FILE_LABELS = {
+    "rigaku3M_epics": "rigaku3M",
+    "rigaku3M_ftf": "rigaku3M",
+}
 
 
 
@@ -419,10 +492,21 @@ def validate_sample_motion(measurement, sample):
 def validate_measurement(measurement, sample):
     """Run every check a measurement must pass before any hardware moves.
 
-    Also NORMALISES `measurement` in place along the way -- yes/no fields to
-    their string form, a missing acq_period filled in, num_segments coerced to
-    int -- so the callers below can read those keys without re-deriving them.
+    Dispatches on the protocol's shape: a `detectors:` list is checked by
+    validate_multi_measurement(), a scalar `detector:` by
+    validate_single_measurement(). Both NORMALISE `measurement` in place along the
+    way -- yes/no fields to their string form, a missing acq_period filled in,
+    num_segments coerced to int -- so the callers below can read those keys
+    without re-deriving them.
     """
+    if is_multi_detector(measurement):
+        validate_multi_measurement(measurement, sample)
+    else:
+        validate_single_measurement(measurement, sample)
+
+
+def validate_single_measurement(measurement, sample):
+    """Every check a one-detector measurement must pass. See validate_measurement()."""
     required_measurement_fields = [
         "sample_index",
         "detector",
@@ -454,6 +538,259 @@ def validate_measurement(measurement, sample):
     validate_counts(measurement)
     validate_qmap_exists(measurement["qmap_file"])
     validate_sample_motion(measurement, sample)
+
+
+def is_multi_detector(measurement):
+    """True when this protocol runs several detectors in one beam window.
+
+    The shape of the protocol decides, not a flag: `detectors:` is a list of
+    legs, `detector:` is a single scalar name. A protocol carrying both is a
+    mistake and is rejected below rather than silently resolved.
+    """
+    return "detectors" in measurement
+
+
+# =============================================================================
+# Validation -- parallel (multi-detector) protocols
+# =============================================================================
+
+
+def leg_label(leg):
+    """Short detector name used in this leg's file paths: rigaku3M_epics -> rigaku3M."""
+    if leg.get("label"):
+        return str(leg["label"])
+
+    return LEG_FILE_LABELS.get(leg["device"], leg["device"])
+
+
+def leg_duration(leg):
+    """Expected acquisition time for one repeat of one leg, in seconds."""
+    return float(leg["acq_time"]) * int(leg["num_frames"])
+
+
+def validate_geometry(geometry, label):
+    """Check an optional geometry block. Absent means 'use device_position.yaml as-is'."""
+    if geometry is None:
+        return
+
+    if not isinstance(geometry, dict):
+        raise ValueError(f"Leg '{label}': geometry must be a mapping.")
+
+    for field, value in geometry.items():
+        if field not in KNOWN_GEOMETRY_FIELDS:
+            raise ValueError(
+                f"Leg '{label}': unknown geometry field '{field}'. Known: {sorted(KNOWN_GEOMETRY_FIELDS)}"
+            )
+
+        # Placeholders must never reach a data file. A dotted ophyd path is a legal value
+        # (it is read live at metadata time), so only reject things that resolve to neither
+        # a number nor a real device.
+        if isinstance(value, str):
+            if value.strip().upper() == "TBD":
+                raise ValueError(
+                    f"Leg '{label}': geometry field '{field}' is still TBD. "
+                    f"Measure it for this detector mount before running."
+                )
+            try:
+                get_ophyd_object(value)
+            except Exception as exc:
+                raise ValueError(
+                    f"Leg '{label}': geometry field '{field}' = '{value}' is neither a number "
+                    f"nor a resolvable ophyd path ({exc})."
+                ) from exc
+        else:
+            # Called for the exception, not the result -- float() raises on
+            # anything that is not a number. A bad value has to be caught here,
+            # while the run can still be fixed, rather than at metadata-writing
+            # time with the data already on disk.
+            float(value)
+
+
+def validate_leg(leg):
+    """Check one detector leg of a parallel protocol.
+
+    Resolves devices and motors, so this needs a live session -- it is the part
+    the dry run skips unless asked for with check_hardware=True.
+    """
+    label = leg_label(leg)
+    where = f"Leg '{label}'"
+
+    require_fields(leg, REQUIRED_LEG_FIELDS, "leg", where=where)
+
+    device = leg["device"]
+    mode = leg["mode"]
+
+    validators.validate_detector_mode(device, mode, where=where)
+
+    if (device, mode) not in MULTI_LEGS:
+        supported = ", ".join(f"{d}/{m}" for d, m in sorted(MULTI_LEGS))
+        raise ValueError(
+            f"Leg '{label}': {device}/{mode} cannot run in a parallel measurement. Supported: {supported}"
+        )
+
+    validate_acq_time(leg["acq_time"], device, mode, where=where)
+    require_positive_int(leg["num_frames"], "num_frames", where=where)
+
+    if not str(leg["qmap_file"]).strip():
+        raise ValueError(f"{where}: qmap_file must not be empty.")
+
+    validators.validate_analysis_type(leg.get("analysis_type", "Multitau"), where=where)
+
+    validate_geometry(leg.get("geometry"), label)
+
+    # `or {}` covers both a leg with no motors block and one written as
+    # `motors:` with nothing under it, which YAML reads as None.
+    motors = leg.get("motors") or {}
+
+    for dotted in motors:
+        if dotted in FORBIDDEN_MOTORS:
+            raise ValueError(
+                f"Leg '{label}': '{dotted}' cannot appear in a protocol's motors block. "
+                f"Both huber axes are positioned once before acquisition by "
+                f"setup_huber_for_multi() (delta {MULTI_HUBER_DELTA}, nu {MULTI_HUBER_NU})."
+            )
+        get_ophyd_object(dotted)
+
+    # Checks required_devices too, not just the detector itself.
+    require_mode_devices(device, mode, where=where)
+
+
+def validate_multi_sample_motion(measurement, sample):
+    # FORBIDDEN_MOTORS is the parallel-only part: the mesh is the other way
+    # huber.delta / huber.nu could be driven, via sample_info.yaml's
+    # inner_motor / outer_motor. Refuse it for the same reason as a leg's
+    # motors block -- setup_huber_for_multi() owns both axes.
+    validators.validate_sample_motion(measurement, sample, forbidden_motors=FORBIDDEN_MOTORS)
+
+
+def validate_multi_measurement(measurement, sample, check_hardware=True):
+    """Check one expanded parallel measurement: protocol level first, then leg by leg.
+
+    check_hardware=False skips validate_leg(), which is the part that resolves
+    devices and so needs a live session. The sample-mesh check runs either way
+    and resolves the mesh motors, so a sample_move: yes protocol still cannot be
+    checked offline.
+    """
+    require_fields(measurement, REQUIRED_MULTI_PROTOCOL_FIELDS, "protocol")
+    require_fields(sample, ["sample_name", "header"], "sample")
+
+    if "detector" in measurement or "mode" in measurement:
+        raise ValueError(
+            f"Protocol '{measurement.get('protocol_name', '')}' has both a 'detectors' list "
+            f"and a protocol-level 'detector'/'mode'. Those are the two protocol shapes and "
+            f"a protocol has to pick one: move the detector/mode into the list, or delete "
+            f"the list."
+        )
+
+    normalize_measurement(measurement)
+
+    legs = measurement["detectors"]
+
+    if not isinstance(legs, list) or not legs:
+        raise ValueError("protocol 'detectors' must be a non-empty list.")
+
+    require_positive_int(measurement["num_repeats"], "num_repeats")
+
+    labels = [leg_label(leg) for leg in legs]
+
+    if len(set(labels)) != len(labels):
+        raise ValueError(
+            f"Duplicate detector labels in one protocol: {labels}. Give one of them an explicit label."
+        )
+
+    # Rejected rather than ignored, so nobody keeps believing it still controls
+    # the arm order. Until 2026-09-11 one nominated leg owned the fast shutter --
+    # it had to, because the Rigaku's EPICS mode gated the beam through softglue --
+    # so it was armed first and every other leg waited for it to confirm. With
+    # setup_rigaku_epics() on 'Fixed Time' and the softglue MUX off, nothing gates
+    # the beam but showbeam()/blockbeam() and every leg is armed together.
+    for leg in legs:
+        if "shutter_owner" in leg:
+            raise ValueError(
+                f"Leg '{leg_label(leg)}' sets shutter_owner, which no longer exists. Every "
+                f"detector is now armed together inside one showbeam()/blockbeam() window, so "
+                f"there is no owner to nominate -- delete the line. Legs are armed in the order "
+                f"they are listed."
+            )
+
+    # Outside the check_hardware gate on purpose: a missing qmap is a file on
+    # disk, not a device, and a dry run must catch it either way.
+    for leg in legs:
+        if "qmap_file" in leg:
+            validate_qmap_exists(leg["qmap_file"], where=f"Leg '{leg_label(leg)}'")
+
+    if check_hardware:
+        for leg in legs:
+            validate_leg(leg)
+
+    validate_multi_sample_motion(measurement, sample)
+
+
+def build_leg_specs(measurement):
+    """Turn validated YAML detector blocks into the dicts multi_acq_series() consumes."""
+    specs = []
+
+    for leg in measurement["detectors"]:
+        spec = {
+            "device": leg["device"],
+            "mode": leg["mode"],
+            "label": leg_label(leg),
+            "acq_time": float(leg["acq_time"]),
+            "num_frames": int(leg["num_frames"]),
+            "qmap_file": str(leg["qmap_file"]),
+            "analysis_type": leg.get("analysis_type", "Multitau"),
+            "geometry": leg.get("geometry") or {},
+            "motors": leg.get("motors") or {},
+            "select_device": as_bool(leg.get("select_device", False), "select_device"),
+        }
+
+        if "start_timeout" in leg:
+            spec["start_timeout"] = float(leg["start_timeout"])
+
+        if "stop_timeout" in leg:
+            spec["stop_timeout"] = float(leg["stop_timeout"])
+
+        if "hdf_timeout" in leg:
+            spec["hdf_timeout"] = float(leg["hdf_timeout"])
+
+        if leg.get("workflow_name"):
+            spec["workflow_name"] = str(leg["workflow_name"])
+
+        specs.append(spec)
+
+    return specs
+
+
+def setup_huber_for_multi():
+    """Huber positioning hook for a parallel run. Motion is DISABLED: this moves nothing.
+
+    As it stands the function only prints the delta 10 / nu 0 position it would
+    have moved to -- see the comment below. Position the diffractometer yourself
+    before the run.
+
+    When the motion is re-enabled, these two axes are the only huber motion in a
+    parallel run, and once this returns nothing in the acquisition may touch them
+    -- see FORBIDDEN_MOTORS in ad_acq.py, which refuses both a leg's motors block
+    and the sample mesh.
+
+    Deliberately not the same function as placeholder_rigaku3M(). That hook
+    belongs to the serial path and should stay free to change for it -- if the two
+    shared one function, editing it for a serial Rigaku run would silently move
+    the parallel geometry too.
+    """
+    # DISABLED 2026-09-06 for testing: no motor motion. The geometry is whatever
+    # the diffractometer is already at, so a leg's metadata may not describe the
+    # true beam path -- see the geometry: block in trio_measurement_info.yaml for
+    # how to override it per leg. Re-enable by uncommenting the three lines below.
+    #
+    # huber = oregistry["huber"]
+    # print(f"Moving huber.delta to {MULTI_HUBER_DELTA}, huber.nu to {MULTI_HUBER_NU}")
+    # huber.delta.move(MULTI_HUBER_DELTA, wait=True)
+    # huber.nu.move(MULTI_HUBER_NU, wait=True)
+    print(
+        f"setup_huber_for_multi: motion DISABLED -- leaving huber where it is "
+        f"(would have moved delta to {MULTI_HUBER_DELTA}, nu to {MULTI_HUBER_NU})"
+    )
 
 
 def reset_sample_position_register(measurement):
@@ -495,9 +832,13 @@ DETECTOR_PLACEHOLDERS = {
     "rigaku3M": placeholder_rigaku3M,
 }
 
-# rigaku3M_epics and rigaku3M_ftf are the same physical detector as rigaku3M
-# (see DETECTOR_ALIASES in select_device.py) so they get the same placeholder
-# hook. Any alias added there is picked up here automatically.
+# rigaku3M_epics and rigaku3M_ftf are the same physical detector as rigaku3M, so
+# they get the same placeholder hook. rigaku3M_ftf is still a DETECTOR_ALIASES
+# entry in select_device.py and is picked up from there, along with any alias
+# added later; rigaku3M_epics has its own device_position.yaml entry now and so
+# has to be named here.
+DETECTOR_PLACEHOLDERS["rigaku3M_epics"] = DETECTOR_PLACEHOLDERS["rigaku3M"]
+
 for _alias, _canonical in DETECTOR_ALIASES.items():
     if _canonical in DETECTOR_PLACEHOLDERS:
         DETECTOR_PLACEHOLDERS[_alias] = DETECTOR_PLACEHOLDERS[_canonical]
@@ -515,12 +856,91 @@ def run_detector_placeholder(name: str):
 # =============================================================================
 
 def run_measurement(measurement, sample_info):
-    """Validate one expanded measurement, publish it to the run state, set up hardware, and acquire."""
+    """Validate one expanded measurement, set up the hardware, and acquire.
+
+    Dispatches on the protocol shape -- see is_multi_detector(). Both branches
+    validate first, so nothing moves until the whole measurement has passed.
+    """
     sample_index = int(measurement["sample_index"])
     sample = get_sample(sample_info, sample_index)
 
     validate_measurement(measurement, sample)
 
+    if is_multi_detector(measurement):
+        run_multi_measurement(measurement, sample, sample_index)
+    else:
+        run_single_measurement(measurement, sample, sample_index)
+
+
+def run_multi_measurement(measurement, sample, sample_index):
+    """Run one already-validated `detectors:` protocol: every leg in one beam window."""
+    # Populate the SAMPLE half of the run state only. The measurement half
+    # (det_name, mode, acq_time, qmap_file, analysis_type) is PER LEG here and is
+    # applied one leg at a time by swapped_registers() in ad_acq -- setting it
+    # globally would stamp every leg with whichever was written last.
+    expt.sample_index = sample_index
+    expt.set_measurement(sample=sample)
+
+    expt.sample_move = measurement["sample_move"]
+    reset_sample_position_register(measurement)
+
+    att(int(measurement["att_level"]))
+
+    print_multi_header(measurement, sample, sample_index)
+
+    setup_huber_for_multi()
+
+    multi_acq_series(
+        leg_specs=build_leg_specs(measurement),
+        num_repeats=int(measurement["num_repeats"]),
+        wait_time=float(measurement.get("wait_time", 0)),
+        cam_timeout=measurement.get("cam_timeout"),
+    )
+
+
+def print_multi_header(measurement, sample, sample_index, extra=None):
+    """Print a parallel measurement's banner, shared by the real run and the dry run.
+
+    `extra` is a list of already-formatted lines printed just before the closing
+    rule -- how the dry run adds its parallel/serial time estimates.
+    """
+    legs = measurement["detectors"]
+
+    print("")
+    print("==============================================")
+    print(f"Run name:       {measurement.get('run_name', '')}")
+    print(f"Protocol:       {measurement.get('protocol_name', '')}")
+    print(f"Run repeat:     {measurement.get('run_repeat', 1)}")
+    print(f"Sample index:   {sample_index}")
+    print(f"Sample name:    {sample.get('sample_name', '')}")
+    print(f"Attenuation:    {measurement['att_level']}")
+    print(f"num_repeats:    {measurement['num_repeats']}")
+    print(f"sample_move:    {measurement['sample_move']}")
+    print(f"position_reset: {measurement.get('position_reset', 'no')}")
+    print(f"Detectors:      {len(legs)} in parallel")
+
+    for leg in legs:
+        print(f"  - {leg_label(leg)}")
+        print(f"      mode:          {leg['mode']}")
+        print(f"      acq_time:      {leg['acq_time']}")
+        print(f"      num_frames:    {leg['num_frames']}")
+        print(f"      qmap_file:     {leg['qmap_file']}")
+        print(f"      analysis_type: {leg.get('analysis_type', 'Multitau')}")
+        print(f"      duration:      {leg_duration(leg):.1f} s per repeat")
+
+        if leg.get("motors"):
+            print(f"      motors:        {leg['motors']}")
+
+    if extra:
+        for line in extra:
+            print(line)
+
+    print("==============================================")
+    print("")
+
+
+def run_single_measurement(measurement, sample, sample_index):
+    """Run one already-validated scalar-`detector:` protocol through det_acq_series()."""
     # The run state is what the acquisition path actually reads.
     expt.sample_index = sample_index
     expt.set_measurement(measurement=measurement, sample=sample)
@@ -645,14 +1065,23 @@ def run_measurement_info(
 # Dry-run preview (no acquisitions executed)
 # =============================================================================
 
-def dry_run_measurement_info(measurement_info_file=None, sample_info_file=None):
+def dry_run_measurement_info(measurement_info_file=None, sample_info_file=None, check_hardware=False):
     """Validate and print what run_measurement_info() would do, with a time estimate. Moves nothing.
 
-    Deliberately NOT the full set of checks: this repeats the detector/mode,
-    position-override, analysis-type, timing and count checks, but skips the
-    required-field check, the device-connected check and the sample-mesh check
-    that validate_measurement() also makes. A protocol that passes here can
-    still be rejected once run_measurement() gets to it.
+    For a scalar-`detector:` protocol this is deliberately NOT the full set of
+    checks: it repeats the detector/mode, position-override, analysis-type,
+    timing and count checks, but skips the required-field check, the
+    device-connected check and the sample-mesh check that validate_measurement()
+    also makes. A protocol that passes here can still be rejected once
+    run_measurement() gets to it.
+
+    A `detectors:` (parallel) protocol is gated differently, as it always has
+    been: `check_hardware` decides whether the per-leg checks run -- mode name,
+    the acq_time floor, analysis_type, the geometry: block, a leg's motors: block,
+    and every device the mode drives. Pass True on a live session. It does NOT
+    gate the qmap check or the sample-mesh check, and the mesh check resolves
+    inner_motor/outer_motor either way, so a sample_move: yes protocol still needs
+    a live session. `check_hardware` is ignored by serial protocols.
     """
     # experiment.yml is cached by expt; re-read it so an edit takes effect
     # without a restart, and BEFORE the paths below are resolved from it.
@@ -670,10 +1099,22 @@ def dry_run_measurement_info(measurement_info_file=None, sample_info_file=None):
     print("")
 
     total_time = 0.0
+    # What the same parallel measurements would have cost run one detector at a
+    # time. Only a `detectors:` protocol contributes a difference; a serial one
+    # adds its own estimate to both, so the closing summary is comparable.
+    total_if_serial = 0.0
 
     for measurement in measurements:
         sample_index = int(measurement["sample_index"])
         sample = get_sample(sample_info, sample_index)
+
+        if is_multi_detector(measurement):
+            parallel_time, serial_time = dry_run_multi_measurement(
+                measurement, sample, sample_index, check_hardware=check_hardware
+            )
+            total_time += parallel_time
+            total_if_serial += serial_time
+            continue
 
         normalize_measurement(measurement)
         validate_detector_mode(measurement)
@@ -698,6 +1139,9 @@ def dry_run_measurement_info(measurement_info_file=None, sample_info_file=None):
         else:
             est_time = (acq_period * num_frames * num_segments + wait_time) * num_repeats
         total_time += est_time
+        # A one-detector measurement costs the same either way, so it counts
+        # towards both totals and the closing comparison stays like-for-like.
+        total_if_serial += est_time
 
         position_overrides = {axis: measurement[axis] for axis in AXIS_NAMES if axis in measurement}
 
@@ -730,7 +1174,77 @@ def dry_run_measurement_info(measurement_info_file=None, sample_info_file=None):
         print("")
 
     print(f"Total estimated acquisition time: {total_time:.1f} s ({total_time / 60:.1f} min)")
+
+    saved = total_if_serial - total_time
+
+    # Only worth printing when a parallel protocol actually saved something.
+    if saved > 0:
+        print(f"Same measurements one detector at a time: {total_if_serial:.1f} s "
+              f"({total_if_serial / 60:.1f} min)")
+        print(f"Saved by running detectors in parallel: {saved:.1f} s ({saved / 60:.1f} min)")
+
     print("")
+
+
+def dry_run_multi_measurement(measurement, sample, sample_index, check_hardware=False):
+    """Validate and print one parallel measurement. Returns (parallel_time, serial_time)."""
+    validate_multi_measurement(measurement, sample, check_hardware=check_hardware)
+
+    legs = measurement["detectors"]
+    num_repeats = int(measurement["num_repeats"])
+    wait_time = float(measurement.get("wait_time", 0))
+
+    durations = [leg_duration(leg) for leg in legs]
+
+    # max(), not sum() -- that difference is the whole point of running them
+    # together, so the preview shows the saving up front.
+    parallel_time = (max(durations) + wait_time) * num_repeats
+    serial_time = (sum(durations) + wait_time) * num_repeats
+
+    extra = [
+        f"Est. parallel:  {parallel_time:.1f} s",
+        f"Est. if serial: {serial_time:.1f} s",
+    ]
+
+    print_multi_header(measurement, sample, sample_index, extra=extra)
+
+    return parallel_time, serial_time
+
+
+# =============================================================================
+# trio_measurement_info.yaml: the same two entry points, pointed at the other file
+# =============================================================================
+# Parallel acquisition was a separate module with a separate YAML file
+# (trio_measurement_info.yaml) and a separate pair of entry points until
+# 2026-09-11. The code merged into this file; the YAML file did not, because
+# there is an experiment's worth of protocols in it and splitting the parallel
+# work off into its own file is still a reasonable way to keep it.
+#
+# So these two are exactly run_measurement_info()/dry_run_measurement_info() with
+# a different default path. measurement_info.yaml can hold `detectors:` protocols
+# too, and trio_measurement_info.yaml can hold scalar ones -- neither file is
+# restricted to one shape any more.
+
+
+def run_trio_measurement_info(measurement_info_file=None, sample_info_file=None):
+    """run_measurement_info() against trio_measurement_info.yaml."""
+    return run_measurement_info(
+        measurement_info_file=measurement_info_file or expt.trio_measurement_info_file,
+        sample_info_file=sample_info_file,
+    )
+
+
+def dry_run_trio_measurement_info(
+    measurement_info_file=None,
+    sample_info_file=None,
+    check_hardware=False,
+):
+    """dry_run_measurement_info() against trio_measurement_info.yaml."""
+    return dry_run_measurement_info(
+        measurement_info_file=measurement_info_file or expt.trio_measurement_info_file,
+        sample_info_file=sample_info_file,
+        check_hardware=check_hardware,
+    )
 
 
 # =============================================================================
@@ -756,16 +1270,19 @@ def dry_run_measurement_info(measurement_info_file=None, sample_info_file=None):
 #:
 #: The rule: list what a scientist would type, keep everything else internal.
 #: Nothing below is required for the module to work -- ``__all__`` affects
-#: ``import *`` only. trio_master_plan_rigaku3m_eiger4m_lambda2m.py's explicit
-#: ``from master_plan import expand_measurements`` is unaffected, and so is
-#: anything else that imports a name from here by name.
+#: ``import *`` only. Anything that imports a name from here BY NAME -- as the
+#: separate parallel front end used to do with ``expand_measurements`` before it
+#: folded into this file -- is unaffected.
 __all__ = [
     # Entry points.
     "run_measurement_info",
     "dry_run_measurement_info",
     "run_measurement",
+    # The same two, defaulting to trio_measurement_info.yaml instead.
+    "run_trio_measurement_info",
+    "dry_run_trio_measurement_info",
     # Callable against a hand-built measurement dict, for debugging a protocol
-    # without running it.
+    # without running it. Handles both protocol shapes.
     "validate_measurement",
     # Limits worth reading at the prompt when a protocol is rejected.
     "SHUTTER_MIN_TIME",
@@ -773,4 +1290,11 @@ __all__ = [
     # Per-detector hook run right after select_device(), for every detector.
     "DETECTOR_PLACEHOLDERS",
     "run_detector_placeholder",
+    # Where a parallel measurement would put the huber, and the hook that would
+    # do it -- both currently inert, see setup_huber_for_multi().
+    "MULTI_HUBER_DELTA",
+    "MULTI_HUBER_NU",
+    "setup_huber_for_multi",
+    # Turns a validated `detectors:` protocol into multi_acq_series() leg specs.
+    "build_leg_specs",
 ]

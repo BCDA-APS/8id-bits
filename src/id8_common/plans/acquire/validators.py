@@ -1,16 +1,16 @@
 """Field checks shared by the single- and trio-detector YAML front ends.
 
-``master_plan.py`` and ``trio_master_plan_rigaku3m_eiger4m_lambda2m.py`` keep their own
-acquire loops and their own top-level ``validate_*`` entry points on purpose --
-a trio protocol's shape (a ``detectors:`` list of legs, each with its own
-timing) really is different from a serial one, and folding them together would
-make both harder to read.
+``master_plan.py`` carries a separate top-level ``validate_*`` entry point for
+each protocol shape, because a parallel protocol (a ``detectors:`` list of legs,
+each with its own timing) really is different from a serial one.
 
-What they should not each own is the *field-level* checks underneath: is this a
+What those should not each own is the *field-level* checks underneath: is this a
 real detector/mode, is acq_time above the mode's hardware floor, are the mode's
 devices connected, is analysis_type in the allowed set, is the mesh usable.
 Those were written twice and drifted apart -- see ``require_mode_devices``
-below, and ``registry.get_ophyd_object`` -- so they live here now.
+below, and ``registry.get_ophyd_object`` -- so they live here now. They were
+still two modules when this file was written; the parallel front end folded into
+master_plan.py on 2026-09-11 and these checks stayed put.
 
 Every check takes plain values plus an optional ``where`` label, so the caller
 owns the error prefix: the serial path raises ``acq_time must be > 0.`` and the
@@ -163,11 +163,11 @@ def require_mode_devices(detector, mode, where=""):
 
     * ``ad_acq.det_acq_series`` -- required_devices AND hardware_device,
       through ``get_connected_device``.
-    * ``trio_acq_rigaku3m_eiger4m_lambda2m.trio_acq_series`` -- same, the good one.
+    * the parallel path's ``trio_acq_series`` -- same, the good one.
     * ``master_plan.validate_required_devices_connected`` -- required_devices
       only, through a bare ``oregistry[name]``, so a device skipped at startup
       raised a naked ``KeyError('softglue')`` with no hint where to look.
-    * ``trio_master_plan_rigaku3m_eiger4m_lambda2m.validate_leg`` -- hardware_device only, so a trio
+    * the parallel front end's ``validate_leg`` -- hardware_device only, so a
       protocol with an eiger4M External Series leg never checked softglue at
       validation time and only failed once the run was already underway.
 

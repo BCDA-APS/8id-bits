@@ -48,12 +48,17 @@ from id8_common.registry import get_ophyd_object
 
 DEVICE_POSITION_PATH = Path(__file__).parent / "device_position.yaml"
 
-# rigaku3M_epics and rigaku3M_ftf are the same physical detector as rigaku3M,
-# run with a different output format (see rigaku3m_modes.py). Neither has an
-# entry of its own in device_position.yaml; they share rigaku3M's
-# motors/db_x/db_y/distance/registers via these aliases.
+# rigaku3M_ftf is the same physical detector as rigaku3M run with a different
+# output format (see rigaku3m_modes.py). It has no entry of its own in
+# device_position.yaml; it shares rigaku3M's motors/db_x/db_y/distance/registers
+# via this alias, including softglue.enable_rigaku = '1', which its fast-file
+# trigger path needs.
+#
+# rigaku3M_epics was aliased here too until 2026-09-11 and now has its own
+# device_position.yaml entry. It is the same detector and the same numbers, but
+# it wants softglue.enable_rigaku = '0' -- in EPICS mode the plan drives the
+# shutter itself and the Rigaku must not -- and an alias has no way to say that.
 DETECTOR_ALIASES = {
-    "rigaku3M_epics": "rigaku3M",
     "rigaku3M_ftf": "rigaku3M",
 }
 

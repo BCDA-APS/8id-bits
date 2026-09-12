@@ -214,11 +214,11 @@ if "rigaku3M" in shared_oregistry:
 
 from .plans.acquire.ad_acq import *
 from .plans.acquire.tetramm_acq import *
+# Both acquisition front ends. master_plan.py owns the serial path AND the
+# parallel one (several detectors in one beam window); they were separate modules
+# until 2026-09-11, when trio_master_plan_rigaku3m_eiger4m_lambda2m.py folded in
+# here and trio_acq_* folded into ad_acq.py.
 from .plans.acquire.master_plan import *
-
-# Parallel three-detector acquisition (Rigaku + Eiger + Lambda in one beam window). Separate
-# from the serial path above and shares no state with it -- single-detector runs are unaffected.
-from .plans.acquire.trio_master_plan_rigaku3m_eiger4m_lambda2m import *
 
 # tv_mode(): a live view on all three detectors, writing nothing. Imported last of the
 # acquire plans so its names are the ones at the prompt.

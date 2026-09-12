@@ -30,6 +30,19 @@ correct both places if it differs.
 detector**. The name selects the output format, and it is recorded in the NeXus
 `detector_name` field so downstream can tell which was used.
 
+It also selects whether the Rigaku drives the fast shutter. `rigaku3M` and
+`rigaku3M_ftf` wait for a softglue trigger (`trigger_mode` `Start with Trigger`,
+`softglue.enable_rigaku` `'1'`) and gate the beam through that same MUX.
+`rigaku3M_epics` does not: since 2026-09-11 it is internally timed
+(`trigger_mode` `Fixed Time`, `softglue.enable_rigaku` `'0'`), so the plan opens
+and closes the shutter itself, exactly as it does for the Eiger's `Internal
+Series` and the Lambda's `Internal`. That is what lets `rigaku3M_epics` share one
+beam window with them — see [parallel acquisition](../running-measurements.md#parallel-multi-detector-acquisition).
+
+Because the two families want different `softglue.enable_rigaku` values,
+`rigaku3M_epics` has its own `device_position.yaml` entry rather than aliasing
+`rigaku3M`'s. Every other field in it is a copy; keep them in step.
+
 ## eiger4M
 
 **Internal Series** — the detector paces its own frames. `acq_period` is not
@@ -91,7 +104,8 @@ own fast-file mechanism, six per-module `.bin.000`…`.bin.005` files.
 HDF5"`, so the six files are `.h5.000`…`.h5.005`.
 
 **`rigaku3M_epics`** — ordinary areaDetector acquisition through the HDF1 plugin,
-one `.h5`. The only Rigaku mode that arms and drains HDF1. It is also the only
+one `.h5`. The only Rigaku mode that arms and drains HDF1, and the only one that
+is internally timed and leaves the shutter alone. It is also the only
 one whose output the beamline's boost_corr reads without special handling — see
 the analysis table below, and the caveat under it about that being observed
 behaviour rather than anything this repo can be checked against.

@@ -55,8 +55,9 @@ Out[1]: <ExperimentConfig 'comm202609' cycle='2026-3' run_keys=0>
 `run_keys=0` is the answer to "why did `expt.det_name` raise?".
 
 **⚠ Nonzero does not mean your field is set.** `run_keys` is just how many of the
-21 run fields have values. A trio acquisition loads only the sample half
-(`run_keys=10`) and leaves `det_name` unset on purpose, because it is per leg.
+21 run fields have values. A parallel (multi-detector) acquisition loads only the
+sample half (`run_keys=10`) and leaves `det_name` unset on purpose, because it is
+per leg.
 Zero is proof that nothing is loaded; anything else proves nothing in
 particular.
 
@@ -77,8 +78,8 @@ yet, so `expt` says so rather than handing back a stale one from last week.
 **⚠ `dry_run_measurement_info()` does not fix this.** It validates and prints
 the whole queue without loading any of it into `expt` — that is the point of a
 dry run: it changes nothing. The two things that do call `set_measurement()` are
-`run_measurement()` (everything) and `run_trio_measurement()` (the sample half
-only).
+`run_single_measurement()` (everything) and `run_multi_measurement()` (the sample
+half only) — both reached through `run_measurement()`.
 
 To populate it without acquiring anything:
 

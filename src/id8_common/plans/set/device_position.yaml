@@ -45,9 +45,14 @@
 # distance (detectors only): sample-to-detector distance, metres. Read by
 #   id8_common/utils/nexus_utils.py and written to /entry/instrument/detector_1/distance.
 #
-# rigaku3M_epics is not listed below: it's the same physical detector as rigaku3M in a
-# different acquisition mode, and shares its position/config via DETECTOR_ALIASES in
-# id8_common/plans/set/select_device.py.
+# rigaku3M and rigaku3M_epics are the SAME physical detector, listed twice on purpose.
+# Every field is identical except registers.softglue.enable_rigaku, and that one field is
+# the whole reason for the split: in the ZDT and fast-transfer modes the Rigaku drives the
+# fast shutter itself through softglue ('1'), while in EPICS mode the plan drives the
+# shutter with showbeam()/blockbeam() and the MUX must be off ('0'). Selecting the detector
+# therefore has to write a different value depending on which mode is about to run, which an
+# alias cannot express. rigaku3M_ftf is still an alias of rigaku3M (see DETECTOR_ALIASES in
+# id8_common/plans/set/select_device.py) -- it is a fast-file mode, so it wants the same '1'.
 #
 # Every detector below is selectable via select_device() and has a full motors/db_x/db_y/
 # distance/registers block, even where some axes don't physically exist (device: null) —
@@ -94,6 +99,32 @@ detectors:
     allow_motion: false
     registers:
       softglue.enable_rigaku: '1'
+
+  # Same detector, same stage, same numbers as rigaku3M above -- only
+  # enable_rigaku differs. Keep the geometry fields in step with that entry: a
+  # measurement of db_x/db_y/distance/pixel_size applies to both. Paired with
+  # trigger_mode 'Fixed Time' in setup_rigaku_epics()
+  # (plans/acquire/rigaku3m_modes.py), which is the Rigaku's internally-timed
+  # mode and needs nothing from softglue.
+  rigaku3M_epics:
+    motors:
+      - name: horizontal
+        device: detector.x
+        position: -275.0
+      - name: vertical
+        device: detector.y
+        position: 170.0
+      - name: swing_angle_horizontal
+        device: flight_path_8idi.swing
+      - name: swing_angle_vertical
+        device: null
+    db_x: 1052
+    db_y: 852
+    distance: 22
+    pixel_size: 76.0e-6          # metres, written to NeXus x/y_pixel_size
+    allow_motion: false
+    registers:
+      softglue.enable_rigaku: '0'
 
   lambda2M:
     motors:
