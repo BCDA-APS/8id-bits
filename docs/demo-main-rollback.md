@@ -88,10 +88,14 @@ startup path can pick up August code. The visible consequence is small but worth
 knowing: from an **Ophyd** session, `import id8_common.plans.acquire.dual_acq`
 still succeeds — serving `main`'s August module.
 
-The retired `start_bluesky_main.sh` solved this properly, by removing the other
-entry from `sys.path` before `id8_common` is first imported and then printing
-proof of which tree won. Porting that check into both launchers is the right
-follow-up; until then the pin is what you have.
+There are two stronger fixes than the pin, if the leak ever matters. One is a
+**dedicated conda env per tree**: `8id_ophyd` now has its editable `.pth`
+pointing at `~/ophyd/src`, so activating it resolves `id8_common` to exactly one
+root with nothing to merge — it is not wired into any launcher, but it is
+correct if you want it. The other is to drop the other entry from `sys.path`
+before `id8_common` is first imported and print proof of which tree won; the
+retired `start_bluesky_main.sh` did that, and it is worth reimplementing in both
+launchers. Until then the `PYTHONPATH` pin is what you have.
 
 To leave, `exit` the ipython session as usual. Nothing to clean up.
 
