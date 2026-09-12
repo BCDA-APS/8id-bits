@@ -27,6 +27,7 @@ from typing import Optional
 
 from id8_common.expt_config import expt
 from id8_common.registry import oregistry
+from id8_common.devices.area_detector import frame_period
 from id8_common.plans.set.select_device import DETECTOR_ALIASES
 from id8_common.plans.set.select_device import _find_motor
 from id8_common.plans.set.select_device import _load_config
@@ -332,7 +333,12 @@ def create_runtime_metadata_dict(
 
         # These below are shared by all detectors 
         "/entry/instrument/detector_1/count_time": lambda: det.cam.acquire_time.get(),
-        "/entry/instrument/detector_1/frame_time": lambda: det.cam.acquire_period.get(),
+        # frame_period(), not cam.acquire_period: on the Rigaku that PV is the
+        # gap AFTER each exposure, so the period is acquire_time + acquire_period
+        # (see Rigaku3MCam). Reading the PV directly recorded the wrong number
+        # twice over -- the intended period while the detector ran at half that
+        # rate, and, once the setups started writing 0, a frame_time of 0.
+        "/entry/instrument/detector_1/frame_time": lambda: frame_period(det.cam),
         "/entry/instrument/detector_1/qmap_file": lambda: expt.qmap_file,
         "/entry/instrument/detector_1/distance": lambda: sample_detector_distance,
         "/entry/instrument/detector_1/x_pixel_size": lambda: det_pixel_size,

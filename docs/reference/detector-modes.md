@@ -26,6 +26,35 @@ while fast transfer still wrote `.bin`. That the IOC appends the same suffix to 
 that assumption and says so. Confirm it on the first fast-transfer run and
 correct both places if it differs.
 
+### ⚠ `acquire_period` means something different on the Rigaku
+
+On the Eiger and the Lambda — stock ADCore drivers — `AcquirePeriod` is the
+frame-to-frame period. On the Rigaku it is **the gap that follows each
+exposure**: ADRigaku passes the PV straight to the vendor API's
+`exposureInterval` with no subtraction of the exposure and no clamping, so
+
+```
+Rigaku frame period = AcquireTime + AcquirePeriod
+```
+
+Every Rigaku setup therefore writes `acquire_period = 0`, which makes the period
+equal the requested `acq_time`. Writing `acq_time` there — the obvious thing, and
+what the other two detectors want — runs the detector at **half** the requested
+frame rate. That is what the code did until 2026-09-11.
+
+Two places must agree with this and now do: the setups
+(`plans/acquire/rigaku3m_modes.py`, and `tv_mode.py`), and the NeXus
+`frame_time` field, which goes through `frame_period()` in
+`devices/area_detector.py` rather than reading `acquire_period` directly.
+`frame_time` is what downstream XPCS analysis takes its delay times from, so
+recording the raw PV there was wrong both before the fix (it claimed the
+requested period while the detector ran at twice it) and would have been wrong
+after (a `frame_time` of 0).
+
+**Data taken before 2026-09-11 with a Rigaku is affected**: the real frame
+spacing was `2 × acq_time` while the metadata said `acq_time`. Exposures are
+unaffected — `count_time` was always right.
+
 Every mode entry also declares `drives_shutter` and `self_paced`, which together
 decide whether it may share a beam window with another detector. Both are
 enforced — see

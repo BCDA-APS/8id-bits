@@ -127,8 +127,52 @@ class Lambda2MCam(CamBase_V34):
     EXT_TRIGGER = 0
 
 
+def frame_period(cam):
+    """Seconds between the start of one frame and the next, for any cam here.
+
+    ``acquire_period`` alone is right for a stock ADCore driver and wrong for the
+    Rigaku, whose ADRigaku driver treats that PV as the gap AFTER each exposure
+    rather than the period -- see :class:`Rigaku3MCam`. Keyed on the cam class,
+    not on a device name, because the quirk belongs to the driver.
+
+    Used by utils/nexus_runtime.py for /entry/instrument/detector_1/frame_time,
+    which is the number downstream XPCS analysis takes its delay times from.
+    """
+    period = float(cam.acquire_period.get())
+
+    if isinstance(cam, Rigaku3MCam):
+        return float(cam.acquire_time.get()) + period
+
+    return period
+
+
 class Rigaku3MCam(CamBase_V34):
-    """Support for the RigakuSi3M camera controls."""
+    """Support for the RigakuSi3M camera controls.
+
+    ⚠ ``acquire_period`` DOES NOT MEAN WHAT IT MEANS ON EVERY OTHER DETECTOR HERE.
+
+    On a stock ADCore driver (the Eiger, the Lambda) ``AcquirePeriod`` is the
+    frame-to-frame period, and the driver derives any inter-frame gap from it.
+    ADRigaku does not derive anything -- it hands the value straight to the
+    vendor API as ``exposureInterval``, the GAP that follows each exposure, with
+    no subtraction of the exposure and no clamping::
+
+        // ADRigaku.cpp, startAcquisition()
+        this->getDoubleParam(ADAcquireTime,   &exposure);
+        this->getDoubleParam(ADAcquirePeriod, &interval);
+        params.exposureTime     = exposure * 1000;
+        params.exposureInterval = interval * 1000;
+
+    So on this camera::
+
+        real frame period = acquire_time + acquire_period
+
+    Use :func:`frame_period` rather than reading ``acquire_period`` and
+    believing it. The acquisition setups write ``acquire_period = 0`` so the
+    period comes out equal to the requested exposure; writing ``acq_time`` there
+    -- the obvious thing, and what every other detector wants -- runs the
+    detector at HALF the intended frame rate.
+    """
 
     _html_docs = ["Rigaku3MCam.html"]
     wait_for_plugins = ADComponent(EpicsSignal, "WaitForPlugins", string=True, kind="config")

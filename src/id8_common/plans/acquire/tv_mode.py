@@ -110,7 +110,10 @@ def configure_rigaku_tv(rigaku3M, acq_time, num_frames):
     cam.output_resolution.put("16 Bit")
 
     cam.acquire_time.put(acq_time)
-    cam.acquire_period.put(acq_time)
+    # Zero, unlike the Eiger and Lambda below: on this camera acquire_period is
+    # the gap AFTER each exposure, so the frame period is acquire_time +
+    # acquire_period. See Rigaku3MCam in devices/area_detector.py.
+    cam.acquire_period.put(0)
     cam.num_images.put(num_frames)
 
 

@@ -83,7 +83,13 @@ def _setup_rigaku_fast_file(acq_time, num_frames, file_header, file_name,
     file_path, full_path = get_rigaku_file_path(file_header, file_name)
 
     rigaku3M.cam.acquire_time.put(acq_time)
-    rigaku3M.cam.acquire_period.put(acq_time)
+    # ZERO, not acq_time. On this camera acquire_period is the GAP after each
+    # exposure, not the frame period -- ADRigaku hands it to the vendor API as
+    # exposureInterval untouched, so the real period is acquire_time +
+    # acquire_period. See Rigaku3MCam in devices/area_detector.py. Writing
+    # acq_time here (which is what every other detector wants, and what this did
+    # until 2026-09-11) ran the detector at HALF the requested frame rate.
+    rigaku3M.cam.acquire_period.put(0)
 
     rigaku3M.cam.fast_file_name.put(f"{file_name}.{file_extension}")
     rigaku3M.cam.fast_file_path.put(file_path)
@@ -188,7 +194,10 @@ def setup_rigaku_epics(acq_time, num_frames, file_header, file_name):
     _, full_path = get_rigaku_file_path(file_header, file_name)
 
     rigaku3M.cam.acquire_time.put(acq_time)
-    rigaku3M.cam.acquire_period.put(acq_time)
+    # Zero -- see the note in _setup_rigaku_fast_file(). acquire_period is the
+    # gap after each exposure on this camera, so the frame period is
+    # acquire_time + acquire_period.
+    rigaku3M.cam.acquire_period.put(0)
 
     rigaku3M.cam.num_images.put(num_frames)
     rigaku3M.cam.output_control.put("areaDetector")
