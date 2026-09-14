@@ -36,7 +36,18 @@ experiment_name: "pope202609"
 # ["adamite", "califone", "califone"] and califone (10.54.116.22) is not one of
 # the workflow's accepted machines, so "local" handed DM an unusable machine
 # about two times in three. Name a machine explicitly if you care which runs it.
-analysis_machine: "local"
+#
+# Set to "polaris" on 2026-09-12. "local" was scattering jobs across adamite and
+# amazonite, and amazonite started failing every job it was given with exit 75
+# (EX_TEMPFAIL) sometime between 00:01 and 02:02 that morning -- 9 of the 15
+# Multitau jobs in the G0203..G0207 attenuation series died that way, while all
+# 6 that landed on adamite returned 0. The raw frames were unaffected; only the
+# downstream boost_corr job failed. adamite is the healthy beamline box if a
+# local GPU is wanted instead.
+#
+# polaris runs at ALCF via Gladier, and dm_util.py already special-cases it:
+# gpuID 0 rather than the -2 used for the beamline boxes.
+analysis_machine: "polaris"
 
 # DM workflow to submit to.
 workflow_name: "xpcs8-boost-corr"

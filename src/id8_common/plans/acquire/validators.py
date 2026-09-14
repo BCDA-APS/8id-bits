@@ -60,6 +60,26 @@ def _prefix(where):
 
 
 def read_yaml(file_path):
+    """Load a plan file. YAML as always; CSV through the converter.
+
+    The name is now a slight lie -- it reads the plan, whatever it is written in
+    -- but it is the single chokepoint both run_measurement_info() and
+    dry_run_measurement_info() already go through, so hooking it here means the
+    dry run validates exactly the structure the run will use. Renaming it would
+    touch four call sites for no behaviour change; left alone deliberately.
+
+    A .yaml path takes byte-identical the path it always did. The plan_csv
+    import is deliberately INSIDE the branch: a syntax error or a bad import in
+    that module then cannot affect a YAML-driven session, which is every session
+    at the beamline today. Switch a run to CSV by pointing
+    sample_info_file/measurement_info_file in configs/experiment.yml at the .csv
+    -- no code change, and reversible by editing that line back.
+    """
+    if Path(file_path).suffix.lower() == ".csv":
+        from id8_common.plans.acquire.plan_csv import read_plan_csv
+
+        return read_plan_csv(file_path)
+
     with open(file_path, "r") as f:
         return yaml.safe_load(f)
 

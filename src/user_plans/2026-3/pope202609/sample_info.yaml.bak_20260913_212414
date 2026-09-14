@@ -9,36 +9,49 @@ defaults:
 samples:
 
   # ------------------------------------------------------------------------
-  # sample_1 -- ATTENUATION SERIES SPOT (2026-09-13 late), ONE fixed point
+  # sample_1 -- 30 GPa SPATIAL MAP (2026-09-13 evening)
   # ------------------------------------------------------------------------
-  # huber.x -0.1769, huber.y 21.3300 -- mesh point r00271 of the G0242 map.
-  # Picked as the strongest eiger peak among points with NO line anywhere on
-  # lambda2M:
+  # 21 x 21, 5 um step, on the spot where sample is actually seen at 30 GPa.
   #
-  #   eiger peak    q 2.9869 (2theta 22.359, d 2.1036 A), I 0.4912 over a
-  #                 0.1300 base -> contrast 3.78.  a_fcc = 3.6435 A if 111
-  #   lambda2M      narrow-feature score 0.034, the LOWEST of all 438 points
-  #                 (gold-blob points run 2.5-4.5). Module 1 flat at max/med
-  #                 1.10, so no Au 111.
+  #   centre   huber.x -0.2169, huber.y 21.3200   <- where the stage sat when the
+  #                                                  user confirmed sample present and
+  #                                                  NO gold, by eye, at 30 GPa
+  #   span     +-0.05 mm each axis -> x -0.2669..-0.1669, y 21.2700..21.3700
   #
-  # Runner-up r00292 (-0.1769, 21.3350) has slightly better contrast (3.98) but
-  # a dirtier lambda (0.089 vs 0.034). 330 of 438 points are lambda-clean, so
-  # there is no shortage of alternatives if this one misbehaves.
+  # -0.2169 is the COMMANDED value (m15.VAL). The readback sat at -0.216425;
+  # that 0.5 um is this motor's usual settling error, well under the 5 um step.
   #
-  # 1 x 1 with both ranges 0: sample_mesh_move() has total_pts = 1 and always
-  # resolves to point 0, so every attenuation step re-commands this exact
-  # coordinate and they all sample the same illuminated volume.
+  # The scan does NOT begin here -- position_reset sends it to grid point 0,
+  # the corner (-0.2669, 21.2700). This point is the CENTRE of the map, mesh
+  # index 220 of 441, i.e. r00221.
+  #   step     0.1 / 20 = 0.005 mm = 5 um, identical to the G0222 map
   #
-  # The 21 x 21 G0242 mesh block is kept commented below.
+  # This lands within 0.4 um of the G0222 map centre (-0.216, 21.32), i.e. well
+  # inside one motor step, so the 30 GPa map overlays the 11 GPa one essentially
+  # point for point. That is what makes a before/after comparison meaningful.
+  #
+  # NOT the attenuation-ladder spot (-0.2010, 21.3250). That was the optimum at
+  # 11 GPa; the cell moved when it was squeezed to 30 GPa and the sample is no
+  # longer there. Kept commented below.
+  #
+  # WARNING, read before trusting any gold-free column off this map:
+  # the Au 111 marker sat at q = 2.7182 (a = 4.0037 A, ~11 GPa) as recently as
+  # H0232 at 12:40 on 2026-09-13. At 30 GPa it is predicted at q ~ 2.782, which
+  # lands in lambda2M's DEAD GAP between module 1 (ends 2.7808) and module 2
+  # (starts 2.8020), and just below eiger4M's lower edge (2.7853). It only stays
+  # inside module 1 up to ~28 GPa. If it has moved into the gap then NO detector
+  # sees gold, every point looks gold-free, and that is indistinguishable in the
+  # analysis from a genuinely clean sample. Use sample_2 + the gold_check
+  # protocol to find out, or check the first reduced points of this map.
   sample_1:
-    sample_name: HEA-Dec9GPa
+    sample_name: HEA-Mesh30
     header: G
-    inner_center: -0.215715
+    inner_center: -0.2169
     outer_center: 21.3200
-    inner_range: 0
-    outer_range: 0
-    inner_pts: 1
-    outer_pts: 1
+    inner_range: 0.1
+    outer_range: 0.1
+    inner_pts: 21
+    outer_pts: 21
 
   # ------------------------------------------------------------------------
   # sample_2 -- MARKER CHECK SPOT (2026-09-13, 30 GPa)
@@ -62,18 +75,6 @@ samples:
     outer_range: 0
     inner_pts: 1
     outer_pts: 1
-
-  # The G0242 30 GPa mesh block (441 pts, 5 um, centre -0.2169 / 21.3200).
-  #
-  # sample_1:
-  #   sample_name: HEA-Mesh30
-  #   header: G
-  #   inner_center: -0.2169
-  #   outer_center: 21.3200
-  #   inner_range: 0.1
-  #   outer_range: 0.1
-  #   inner_pts: 21
-  #   outer_pts: 21
 
   # The attenuation-ladder spot as a 1 x 1 (G0223..G0229, 2026-09-13 overnight).
   # Restore as sample_1 to sit on that exact point again.

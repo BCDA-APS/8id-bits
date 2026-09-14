@@ -1,0 +1,108 @@
+defaults:
+  inner_motor: huber.x
+  outer_motor: huber.y
+  inner_range: 0.005
+  outer_range: 0.00
+  inner_pts: 350
+  outer_pts: 1
+
+samples:
+
+  # ATTENUATION LADDER (2026-09-13): ONE fixed spot, expressed as a 1 x 1 mesh.
+  # Every protocol in measurement_info.yaml sets sample_move: yes and
+  # position_reset: yes, so each step rewinds the mesh index to -1 and drives to
+  # this exact point before acquiring. With inner_pts = outer_pts = 1 and both
+  # ranges 0, sample_mesh_move() has total_pts = 1 and always resolves to point
+  # 0, so "move" means re-commanding the same coordinates -- the spot never
+  # changes between attenuation steps.
+  #
+  # THIS BLOCK MUST STAY 1 x 1 FOR THE ATTENUATION SERIES. It was left as the
+  # 21 x 21 G0222 mesh (kept below) after that scan finished. Run the ladder
+  # against a 441-point mesh and every step drives to point 0 of the GRID --
+  # the corner at (-0.266, 21.27) -- not to the spot chosen here.
+  #
+  # The spot came out of the G0222 21 x 21 mesh (5 um step, 2026-09-12), mesh
+  # point r00245, picked as the best compromise between signal and margin:
+  #
+  #   Au 111 on lambda2M     fit SNR 1.67 -- middle module flat, nothing at
+  #                          q = 2.7182 where the pressure marker sits
+  #   nearest gold-bearing   7.1 um away (diagonal)
+  #   point
+  #   second sample peak     0.498 at q = 2.833 (2theta 21.20), against 0.526
+  #                          for the strongest gold-free point r00224 -- which
+  #                          was passed over because a gold grain sits 5 um
+  #                          directly below it (r00203, Au SNR 6.5)
+  #
+  # The second peak near 2theta 21.2 is the SAMPLE's untransformed phase, not
+  # gold: Au 111 is at 2theta 20.33 (q 2.7182) on lambda2M module 1. Points
+  # sitting on gold show a much larger eiger peak at q ~ 2.852 that lambda2M
+  # does NOT corroborate -- an artefact, and the reason this pick is not simply
+  # the strongest second peak in the map.
+  #
+  # Analysis that picked it: analysis/mesh_acq/final_G0222.py, outputs in
+  # analysis/mesh_acq/out/G0222_twopeak.csv and .png
+  sample_1:
+    sample_name: Gold-Att
+    header: H
+    inner_center: -0.196
+    outer_center: 21.275
+    inner_range: 0
+    outer_range: 0
+    inner_pts: 1
+    outer_pts: 1
+
+  # The G0222 21 x 21 mesh block, as run on 2026-09-12 (441 points, 5 um step).
+  # Restore this (and comment out the single point above) to go back to grid
+  # mapping.
+  #
+  # sample_1:
+  #   sample_name: HEA-Att
+  #   header: G
+  #   inner_center: -0.216
+  #   outer_center: 21.32
+  #   inner_range: 0.1
+  #   outer_range: 0.1
+  #   inner_pts: 21
+  #   outer_pts: 21
+
+  # The earlier G0202 mesh block.
+  #
+  # sample_1:
+  #   sample_name: HEA-Mesh
+  #   header: G
+  #   inner_center: -0.213
+  #   outer_center: 21.33
+  #   inner_range: 0.1
+  #   outer_range: 0.1
+  #   inner_pts: 21
+  #   outer_pts: 21
+
+  # sample_2:
+  #   sample_name: HEA
+  #   header: B
+  #   inner_center: -0.142
+  #   outer_center: 21.18
+  #   inner_range: 0.03
+  #   outer_range: 0.03
+  #   inner_pts: 3 
+  #   outer_pts: 3
+
+  # sample_3:
+  #   sample_name: EmptyDAC
+  #   header: C
+  #   inner_center: -1.0
+  #   outer_center: 40.85
+  #   inner_range: 0.1
+  #   outer_range: 0.1
+  #   inner_pts: 3 
+  #   outer_pts: 3
+
+  # sample_4:
+  #   sample_name: G10
+  #   header: A
+  #   inner_center: -1.65
+  #   outer_center: 44.71
+  #   inner_range: 0.5
+  #   outer_range: 0.5
+  #   inner_pts: 3 
+  #   outer_pts: 3

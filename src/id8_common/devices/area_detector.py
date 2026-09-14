@@ -5,8 +5,6 @@ EPICS area_detector definitions for ID8.
 import logging
 
 from apstools.devices import AD_EpicsFileNameHDF5Plugin
-from apstools.devices import AD_plugin_primed
-from apstools.devices import AD_prime_plugin2
 from apstools.devices import CamMixin_V34
 from apstools.devices.area_detector_factory import BadPixelPlugin
 from ophyd import ADComponent
@@ -50,10 +48,21 @@ def ad_setup(det: AreaDetector, iconfig: dict) -> None:
     plugin.kind = Kind.config | Kind.normal  # Ensure plugin's read is called.
     plugin.stage_sigs.move_to_end("capture", last=True)
 
-    if iconfig.get("ALLOW_AREA_DETECTOR_WARMUP", False):
-        if det.connected:
-            if not AD_plugin_primed(plugin):
-                AD_prime_plugin2(plugin)
+    # No HDF plugin priming here, deliberately -- everything above is
+    # in-memory, and ad_setup() must not touch hardware. apstools'
+    # AD_prime_plugin2() fires a REAL exposure, and AD_plugin_primed() gates it
+    # on cam.data_type == hdf1.data_type, which is permanently false on these
+    # detectors (eiger4M: cam Int8 vs HDF1 UInt32; rigaku3M: cam Int32 vs HDF1
+    # UInt8, the ZDT sparsified path). So every single session start fired an
+    # exposure -- which crashed measurement G0209 on 2026-09-12 when a second
+    # session was started mid-acquisition.
+    #
+    # Priming is not needed by any of them: eiger4M, lambda2M and rigaku3M all
+    # run hdf1 LazyOpen=Yes in Stream mode (verified against live PVs), which
+    # per apstools' own AD_plugin_primed docstring removes the need to prime.
+    # rigaku3M had run this way since 2026-09-03; this just applies the same
+    # reasoning to the other two. The iconfig arg is kept for callers and for
+    # the other settings above. See STARTUP_HARDWARE_SAFETY.md.
 
 
 class CamBase_V34(CamBase):

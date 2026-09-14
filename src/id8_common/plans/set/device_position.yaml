@@ -69,9 +69,9 @@ detectors:
         device: null
         position: 77.0
       - name: swing_angle_horizontal
-        device: huber.nu
-      - name: swing_angle_vertical
         device: huber.delta
+      - name: swing_angle_vertical
+        device: huber.nu
     db_x: 716.0
     db_y: 815.0
     distance: 4.0

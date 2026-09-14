@@ -1,0 +1,83 @@
+defaults:
+  inner_motor: huber.x
+  outer_motor: huber.y
+  inner_range: 0.005
+  outer_range: 0.00
+  inner_pts: 350
+  outer_pts: 1
+
+samples:
+
+  # Attenuation test: ONE fixed spot, expressed as a 1 x 1 mesh. Every protocol
+  # in measurement_info.yaml sets sample_move: yes, so each step drives to this
+  # exact point before acquiring. With inner_pts = outer_pts = 1 and both ranges
+  # 0, sample_mesh_move() has total_pts = 1 and always resolves to point 0, so
+  # "move" means re-commanding the same coordinates -- the spot never changes
+  # between attenuation steps.
+  #
+  # The spot came out of the G0202 21 x 21 mesh (5 um step, 2026-09-11), which
+  # is the block commented out underneath. Chosen as mesh point r00199, the one
+  # point that is both gold-free and carries both HEA lines strongly:
+  #
+  #   Au 111 on lambda2M      SNR 0.24 -- middle module flat at 0.062-0.065,
+  #                           nothing at q = 2.7188 where the marker sits
+  #   nearest gold-bearing    14 um away (diagonal); the whole +-5 um block
+  #   point                   around this spot is gold-free
+  #   eiger4M twin            0.53 at q = 2.825 and 0.38 at q = 3.004,
+  #                           valley 0.142 -- peak-to-valley 1.67 vs 1.26 for
+  #                           the median mesh point
+  #
+  # Analysis that picked it: analysis/mesh_acq/mesh_pick.py, outputs in
+  # analysis/mesh_acq/out/.
+  sample_1:
+    sample_name: HEA-Att
+    header: G
+    inner_center: -0.216
+    outer_center: 21.32
+    inner_range: 0.1
+    outer_range: 0.1
+    inner_pts: 21
+    outer_pts: 21
+
+  # The G0202 mesh block. Restore this (and comment out the single point above)
+  # to go back to grid mapping.
+  #
+  # sample_1:
+  #   sample_name: HEA-Mesh
+  #   header: G
+  #   inner_center: -0.213
+  #   outer_center: 21.33
+  #   inner_range: 0.1
+  #   outer_range: 0.1
+  #   inner_pts: 21
+  #   outer_pts: 21
+
+  # sample_2:
+  #   sample_name: HEA
+  #   header: B
+  #   inner_center: -0.142
+  #   outer_center: 21.18
+  #   inner_range: 0.03
+  #   outer_range: 0.03
+  #   inner_pts: 3 
+  #   outer_pts: 3
+
+  # sample_3:
+  #   sample_name: EmptyDAC
+  #   header: C
+  #   inner_center: -1.0
+  #   outer_center: 40.85
+  #   inner_range: 0.1
+  #   outer_range: 0.1
+  #   inner_pts: 3 
+  #   outer_pts: 3
+
+  # sample_4:
+  #   sample_name: G10
+  #   header: A
+  #   inner_center: -1.65
+  #   outer_center: 44.71
+  #   inner_range: 0.5
+  #   outer_range: 0.5
+  #   inner_pts: 3 
+  #   outer_pts: 3

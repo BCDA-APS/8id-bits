@@ -71,4 +71,6 @@ OPHYD:
 
 XMODE_DEBUG_LEVEL: Plain
 
-ALLOW_AREA_DETECTOR_WARMUP: True 
+### ALLOW_AREA_DETECTOR_WARMUP removed 2026-09-13: ad_setup() no longer primes
+### the HDF plugin at all -- it fired a real exposure on every startup and
+### crashed a live measurement. Read by nothing now. See STARTUP_HARDWARE_SAFETY.md.

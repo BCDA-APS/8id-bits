@@ -31,10 +31,10 @@ samples:
   #
   # The 21 x 21 G0242 mesh block is kept commented below.
   sample_1:
-    sample_name: HEA-Dec9GPa
+    sample_name: HEA-Att30
     header: G
-    inner_center: -0.215715
-    outer_center: 21.3200
+    inner_center: -0.1769
+    outer_center: 21.3300
     inner_range: 0
     outer_range: 0
     inner_pts: 1

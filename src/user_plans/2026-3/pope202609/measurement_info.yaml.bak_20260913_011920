@@ -1,0 +1,294 @@
+# Detector acquisition protocols, and which samples they run on.
+# Read by run_measurement_info() in id8_common/plans/acquire/master_plan.py.
+#
+# Full reference -- every field, every detector mode, timing rules and worked
+# examples -- lives in docs/running-measurements.md.
+# Validate any edit with dry_run_measurement_info(check_hardware=True) before
+# running it.
+#
+# A protocol takes one of two shapes:
+#
+#   detector: / mode:   one detector at a time.
+#   detectors:          a LIST of detectors run in the same beam window. Every
+#                       protocol below is this one.
+#
+# Both shapes work in either file since 2026-09-11, when parallel acquisition
+# folded into master_plan.py. Add `check_hardware=True` to the dry run to check a
+# parallel protocol's devices as well as its fields.
+
+loop_order: sample_major
+
+################ Change here to run measurements ################
+
+runs:
+ - name: att_series
+   samples: [1]
+   # protocols: [att20, att10, att5, att2, att1]
+   protocols: att1
+   repeats: 1
+
+###### Change here to change measurement conditions #######
+
+# OVERNIGHT ATTENUATION TEST -- five steps, one fixed spot, three detectors.
+#
+#   att_level  20 -> 10 -> 5 -> 2 -> 1        (most attenuated first)
+#
+# The five protocols below are byte-identical apart from att_level, so the only
+# variable across the series is the attenuation. There is no YAML anchor on
+# purpose: a change to acq_time, num_frames or a qmap has to be made in all five.
+#
+# Every one sets sample_move: yes against a 1 x 1 mesh, so every step drives to
+# the SAME single point before acquiring -- sample_info.yaml sample_1, huber.x
+# -0.2179 / huber.y 21.3250. total_pts is 1, so pos_index is always 0 whatever
+# the stored mesh index was, and all five steps sample the same illuminated
+# volume. No select_sample(1) needed: the run asserts the position itself rather
+# than trusting wherever the stage was left.
+#
+# sample_move: no would NOT do this. sample_mesh_move() returns immediately
+# unless sample_move is yes, so the run would acquire at whatever position the
+# stage happened to hold -- and position_reset would be a no-op too.
+#
+# That spot is mesh point r00199 of the G0202 map -- gold-free (no Au 111 on
+# lambda2M) with both HEA lines strong on eiger4M. See sample_info.yaml.
+#
+# All three detectors acquire in ONE beam window at 1 s per frame, 3000 frames:
+#
+#   3000 s   = 50 min of beam per attenuation step
+#   5 steps  = 4 h 10 min of beam total, plus arming and HDF writeout
+#
+# Run serially that would be 12 h 30 min. dry_run prints both numbers.
+#
+# The qmaps are the ones the G0202 mesh used, so the q axes match the mesh
+# analysis exactly -- eiger4m_qmap_Sq360_Dq3_4m.hdf is the reworked Eiger map.
+#
+# att_level 10 is back in the series. It was dropped on 2026-09-11 after a stuck
+# filter left attenuation_actual at 1.78 with the setpoint at 10 (E0160 ran at
+# the wrong attenuation); Suresh fixed the filter set on 2026-09-12, so the full
+# 20/10/5/2/1 series runs again. The note in trio_measurement_info.yaml saying
+# otherwise is stale.
+#
+# att() warns rather than raises when the blades miss the request (strict=False
+# is the default and master_plan does not override it), so it is still worth
+# checking attenuation_actual in each folder's metadata afterwards.
+#
+# Folder names come from the attenuator READBACK, not att_level -- on the last
+# series att_level 20 read back as 22, so expect a0022 rather than a0020. The
+# five steps still land in five distinct folders either way.
+#
+# NO DETECTOR IS MOVED by this file. All three have allow_motion: false in
+# device_position.yaml, and no leg has a motors: block. Position them yourself.
+# setup_huber_for_multi()'s huber.delta/nu motion is still commented out in
+# master_plan.py, so the leg geometry in the metadata may not describe the true
+# beam path -- raw frames are unaffected.
+
+protocols:
+
+  att40:
+    att_level: 40
+    num_repeats: 1
+    wait_time: 0
+    sample_move: yes
+    position_reset: yes
+    detectors:
+      - device: rigaku3M_epics
+        mode: EPICS
+        acq_time: 1
+        num_frames: 3000
+        qmap_file: rigaku3m_qmap_Sq360_Dq36_NoStreak_lin.hdf
+        analysis_type: Multitau
+        select_device: yes        # this leg owns the Aerotech translation stage
+        start_timeout: 30         # it stages for a few seconds before reporting
+        hdf_timeout: 600
+      - device: eiger4M
+        mode: Internal Series
+        acq_time: 1
+        num_frames: 3000
+        qmap_file: eiger4m_qmap_Sq360_Dq3_4m.hdf
+        analysis_type: Multitau
+        hdf_timeout: 600
+      - device: lambda2M
+        mode: Internal
+        acq_time: 1
+        num_frames: 3000
+        qmap_file: lambda2m_qmap_Sq360_Dq36.hdf
+        analysis_type: Multitau
+        hdf_timeout: 600
+
+  att20:
+    att_level: 20
+    num_repeats: 1
+    wait_time: 0
+    sample_move: yes
+    position_reset: yes
+    detectors:
+      - device: rigaku3M_epics
+        mode: EPICS
+        acq_time: 1
+        num_frames: 3000
+        qmap_file: rigaku3m_qmap_Sq360_Dq36_NoStreak_lin.hdf
+        analysis_type: Multitau
+        select_device: yes        # this leg owns the Aerotech translation stage
+        start_timeout: 30         # it stages for a few seconds before reporting
+        hdf_timeout: 600
+      - device: eiger4M
+        mode: Internal Series
+        acq_time: 1
+        num_frames: 3000
+        qmap_file: eiger4m_qmap_Sq360_Dq3_4m.hdf
+        analysis_type: Multitau
+        hdf_timeout: 600
+      - device: lambda2M
+        mode: Internal
+        acq_time: 1
+        num_frames: 3000
+        qmap_file: lambda2m_qmap_Sq360_Dq36.hdf
+        analysis_type: Multitau
+        hdf_timeout: 600
+
+  att10:
+    att_level: 10
+    num_repeats: 1
+    wait_time: 0
+    sample_move: yes
+    position_reset: yes
+    detectors:
+      - device: rigaku3M_epics
+        mode: EPICS
+        acq_time: 1
+        num_frames: 3000
+        qmap_file: rigaku3m_qmap_Sq360_Dq36_NoStreak_lin.hdf
+        analysis_type: Multitau
+        select_device: yes        # this leg owns the Aerotech translation stage
+        start_timeout: 30         # it stages for a few seconds before reporting
+        hdf_timeout: 600
+      - device: eiger4M
+        mode: Internal Series
+        acq_time: 1
+        num_frames: 3000
+        qmap_file: eiger4m_qmap_Sq360_Dq3_4m.hdf
+        analysis_type: Multitau
+        hdf_timeout: 600
+      - device: lambda2M
+        mode: Internal
+        acq_time: 1
+        num_frames: 3000
+        qmap_file: lambda2m_qmap_Sq360_Dq36.hdf
+        analysis_type: Multitau
+        hdf_timeout: 600
+
+  att5:
+    att_level: 5
+    num_repeats: 1
+    wait_time: 0
+    sample_move: yes
+    position_reset: yes
+    detectors:
+      - device: rigaku3M_epics
+        mode: EPICS
+        acq_time: 1
+        num_frames: 3000
+        qmap_file: rigaku3m_qmap_Sq360_Dq36_NoStreak_lin.hdf
+        analysis_type: Multitau
+        select_device: yes        # this leg owns the Aerotech translation stage
+        start_timeout: 30         # it stages for a few seconds before reporting
+        hdf_timeout: 600
+      - device: eiger4M
+        mode: Internal Series
+        acq_time: 1
+        num_frames: 3000
+        qmap_file: eiger4m_qmap_Sq360_Dq3_4m.hdf
+        analysis_type: Multitau
+        hdf_timeout: 600
+      - device: lambda2M
+        mode: Internal
+        acq_time: 1
+        num_frames: 3000
+        qmap_file: lambda2m_qmap_Sq360_Dq36.hdf
+        analysis_type: Multitau
+        hdf_timeout: 600
+
+  att2:
+    att_level: 2
+    num_repeats: 1
+    wait_time: 0
+    sample_move: yes
+    position_reset: yes
+    detectors:
+      - device: rigaku3M_epics
+        mode: EPICS
+        acq_time: 1
+        num_frames: 3000
+        qmap_file: rigaku3m_qmap_Sq360_Dq36_NoStreak_lin.hdf
+        analysis_type: Multitau
+        select_device: yes        # this leg owns the Aerotech translation stage
+        start_timeout: 30         # it stages for a few seconds before reporting
+        hdf_timeout: 600
+      - device: eiger4M
+        mode: Internal Series
+        acq_time: 1
+        num_frames: 3000
+        qmap_file: eiger4m_qmap_Sq360_Dq3_4m.hdf
+        analysis_type: Multitau
+        hdf_timeout: 600
+      - device: lambda2M
+        mode: Internal
+        acq_time: 1
+        num_frames: 3000
+        qmap_file: lambda2m_qmap_Sq360_Dq36.hdf
+        analysis_type: Multitau
+        hdf_timeout: 600
+
+  att1:
+    att_level: 1
+    num_repeats: 441
+    wait_time: 0
+    sample_move: yes
+    position_reset: yes
+    detectors:
+      - device: rigaku3M_epics
+        mode: EPICS
+        acq_time: 1
+        num_frames: 10
+        qmap_file: rigaku3m_qmap_Sq360_Dq36_NoStreak_lin.hdf
+        analysis_type: Multitau
+        select_device: yes        # this leg owns the Aerotech translation stage
+        start_timeout: 30         # it stages for a few seconds before reporting
+        hdf_timeout: 600
+      - device: eiger4M
+        mode: Internal Series
+        acq_time: 1
+        num_frames: 10
+        qmap_file: eiger4m_qmap_Sq360_Dq3_4m.hdf
+        analysis_type: Multitau
+        hdf_timeout: 600
+      - device: lambda2M
+        mode: Internal
+        acq_time: 1
+        num_frames: 10
+        qmap_file: lambda2m_qmap_Sq360_Dq36.hdf
+        analysis_type: Multitau
+        hdf_timeout: 600
+
+###### Reference ############################################################
+#
+# Each step produces ONE OUTPUT PER LEG, all three sharing one run number and
+# one measurement counter, each with its own folder, its own _metadata.hdf and
+# its own DM job. The names agree up to the detector label:
+#
+#   data/G0203_HEA-Att_a0022_f003000_rigaku3M_r00001
+#   data/G0203_HEA-Att_a0022_f003000_eiger4M_r00001
+#   data/G0203_HEA-Att_a0022_f003000_lambda2M_r00001
+#
+# Only internally-timed modes may share a beam window (eiger4M/Internal Series,
+# lambda2M/Internal, rigaku3M_epics/EPICS). A mode that gates the beam through
+# softglue cannot sit alongside one that does not, and is rejected at dry-run.
+#
+# `shutter_owner` is gone as of 2026-09-11 -- a protocol that still sets it is
+# rejected. Delete the line rather than carrying it forward.
+#
+# The parallel protocols for the earlier part of this experiment live in
+# trio_measurement_info.yaml, reached by dry_run_trio_measurement_info() /
+# run_trio_measurement_info(). Its trio_att5 / trio_att2 / trio_att1 blocks are
+# a different, shorter series -- not these.
+#
+############################################################################

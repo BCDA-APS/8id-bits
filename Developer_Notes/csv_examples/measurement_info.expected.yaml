@@ -1,0 +1,134 @@
+# Hand-written from measurement_info.csv + the two protocol CSVs by a human
+# reading the format spec -- NOT dumped from the converter.
+protocols:
+  test_protocol_2_att1:
+    att_level: 1
+    detectors:
+    - acq_period: 2
+      acq_time: 1
+      analysis_type: Multitau
+      device: eiger4M
+      mode: External Enable
+      num_frames: 3000
+      qmap_file: eiger4m_qmap_default.hdf
+    num_repeats: 1
+    position_reset: true
+    sample_move: true
+    wait_time: 0
+  test_protocol_2_att2:
+    att_level: 2
+    detectors:
+    - acq_period: 2
+      acq_time: 1
+      analysis_type: Multitau
+      device: eiger4M
+      mode: External Enable
+      num_frames: 3000
+      qmap_file: eiger4m_qmap_default.hdf
+    num_repeats: 1
+    position_reset: true
+    sample_move: true
+    wait_time: 0
+  test_protocol_2_att3:
+    att_level: 3
+    detectors:
+    - acq_period: 2
+      acq_time: 1
+      analysis_type: Multitau
+      device: eiger4M
+      mode: External Enable
+      num_frames: 3000
+      qmap_file: eiger4m_qmap_default.hdf
+    num_repeats: 1
+    position_reset: true
+    sample_move: true
+    wait_time: 0
+  test_protocol_att1:
+    att_level: 1
+    detectors:
+    - acq_time: 1
+      analysis_type: Multitau
+      device: rigaku3M_epics
+      mode: EPICS
+      num_frames: 3000
+      qmap_file: rigaku3m_qmap_default.hdf
+    - acq_time: 1
+      analysis_type: Both
+      device: eiger4M
+      mode: Internal Series
+      num_frames: 3000
+      qmap_file: eiger4m_qmap_default.hdf
+    num_repeats: 1
+    position_reset: true
+    sample_move: true
+    wait_time: 0
+  test_protocol_att2:
+    att_level: 2
+    detectors:
+    - acq_time: 1
+      analysis_type: Multitau
+      device: rigaku3M_epics
+      mode: EPICS
+      num_frames: 3000
+      qmap_file: rigaku3m_qmap_default.hdf
+    - acq_time: 1
+      analysis_type: Both
+      device: eiger4M
+      mode: Internal Series
+      num_frames: 3000
+      qmap_file: eiger4m_qmap_default.hdf
+    num_repeats: 1
+    position_reset: true
+    sample_move: true
+    wait_time: 0
+  test_protocol_att3:
+    att_level: 3
+    detectors:
+    - acq_time: 1
+      analysis_type: Multitau
+      device: rigaku3M_epics
+      mode: EPICS
+      num_frames: 3000
+      qmap_file: rigaku3m_qmap_default.hdf
+    - acq_time: 1
+      analysis_type: Both
+      device: eiger4M
+      mode: Internal Series
+      num_frames: 3000
+      qmap_file: eiger4m_qmap_default.hdf
+    num_repeats: 1
+    position_reset: true
+    sample_move: true
+    wait_time: 0
+runs:
+- name: test_protocol_sample1
+  protocols: &id001
+  - test_protocol_att1
+  - test_protocol_att2
+  - test_protocol_att3
+  repeats: 1
+  samples:
+  - 1
+- name: test_protocol_sample2
+  protocols: *id001
+  repeats: 1
+  samples:
+  - 2
+- name: test_protocol_sample3
+  protocols: *id001
+  repeats: 1
+  samples:
+  - 3
+- name: test_protocol_2_sample1
+  protocols: &id002
+  - test_protocol_2_att1
+  - test_protocol_2_att2
+  - test_protocol_2_att3
+  repeats: 1
+  samples:
+  - 1
+- name: test_protocol_2_sample1
+  protocols: *id002
+  repeats: 1
+  samples:
+  - 1

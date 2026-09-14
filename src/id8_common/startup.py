@@ -56,6 +56,16 @@ configure_logging(extra_logging_configs_path=extra_logging_configs_path)
 logger = logging.getLogger(__name__)
 logger.info("Starting Instrument with iconfig: %s", iconfig_path)
 
+# Starting a session must not touch hardware -- it used to fire an Eiger
+# exposure and crashed a live measurement (see STARTUP_HARDWARE_SAFETY.md).
+# Armed here, before the first device exists, and disarmed by
+# report_startup_writes() at the end of this file. A blocked write prints a
+# banner and lets startup continue; it never aborts the session.
+from id8_common.utils.startup_guard import arm_startup_guard
+from id8_common.utils.startup_guard import report_startup_writes
+
+arm_startup_guard()
+
 # initialize instrument
 instrument, oregistry = init_instrument("guarneri")
 
@@ -123,37 +133,20 @@ from id8_common.devices.area_detector import ad_setup
 # __contains__ nor __iter__, so `in` on it falls back to the legacy
 # __getitem__(0), __getitem__(1), ... protocol and raises
 # ComponentNotFound instead of doing a membership test.
+#
+# ad_setup() is now purely in-memory for all three detectors: it no longer
+# primes the HDF plugin, which is what used to fire an exposure on every
+# startup. Nothing here disarms, arms or otherwise talks to a detector, so a
+# session can be started while one is acquiring. There is no
+# recover_eiger_idle() call any more either -- it existed only to clear the
+# Aborted state that priming left behind. It stays where the acquisition path
+# calls it (eiger4m_modes.py, tv_mode.py), immediately before arming.
 if "eiger4M" in shared_oregistry:
     ad_setup(shared_oregistry["eiger4M"], iconfig)
-
-    # Priming leaves the camera in Aborted -- see the same block in
-    # startup_ophyd.py for why. Cleared here so a session never starts in a
-    # terminal state, and never fatal: one detector must not stop the session.
-    from id8_common.plans.acquire.eiger4m_modes import recover_eiger_idle
-
-    try:
-        if recover_eiger_idle(shared_oregistry["eiger4M"]):
-            print("[startup] eiger4M returned to Idle after plugin priming")
-    except Exception as exc:  # noqa: BLE001 -- startup must survive anything here
-        print(f"\033[91m[startup] eiger4M could not be returned to Idle: {exc}\033[0m")
 if "lambda2M" in shared_oregistry:
     ad_setup(shared_oregistry["lambda2M"], iconfig)
-# rigaku3M: plugin config yes, warmup/priming no.
-#
-# AD_plugin_primed() compares cam.data_type with hdf1.data_type; on this
-# detector they differ permanently (cam Int32, HDF1 UInt8 -- the ZDT
-# sparsified output path), so it reports "not primed" on EVERY startup and
-# AD_prime_plugin2() would fire a real exposure each time: image_mode ->
-# Single, trigger_mode -> 0, acquire -> 1, 2 s wait, then restore. That
-# would disturb a detector that is often mid-acquisition when a session
-# starts, and it is unnecessary here -- hdf1 runs LazyOpen=Yes in Stream
-# mode, which per apstools' own AD_plugin_primed docstring removes the need
-# to prime at all. So hand ad_setup an iconfig with the warmup flag off:
-# everything else (wait_for_plugins, blocking_callbacks, stage_sigs
-# cleanup, hdf1.kind) still applies. Verified against live PVs 2026-09-03.
-_iconfig_no_warmup = dict(iconfig, ALLOW_AREA_DETECTOR_WARMUP=False)
 if "rigaku3M" in shared_oregistry:
-    ad_setup(shared_oregistry["rigaku3M"], _iconfig_no_warmup)
+    ad_setup(shared_oregistry["rigaku3M"], iconfig)
 
 # pv_registers is down to one live field: expt.measurement_num is 8ideSoft:Reg1
 # (see PV_FIELDS in expt_config.py -- a counter that restarts overwrites data,
@@ -257,6 +250,11 @@ from .plans.align.ophyd_scan import (  # noqa: F401
 from .plans.set.select_sample import select_sample
 from .plans.set.select_device import *
 from .plans.set.qnw_plans import *
+
+# Restore ophyd's own EpicsSignal.put/.set and report anything the guard
+# blocked. Last statement that runs before the prompt, so interactive writes
+# are never affected.
+report_startup_writes()
 
 # import calibrate plans
 

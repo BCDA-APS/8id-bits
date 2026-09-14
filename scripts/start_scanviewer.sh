@@ -5,7 +5,7 @@
 #   start_scanviewer.sh                  # 1D: this experiment's bluesky data folder
 #   start_scanviewer.sh --mesh           # 2D: same folder, X/Y coloured by Z
 #   start_scanviewer.sh --dir <folder>   # some other folder
-#   start_scanviewer.sh --scan-prefix A  # older scans, named before 2026-09-12
+#   start_scanviewer.sh --scan-prefix A  # show ONLY the A files, if you want
 #   start_scanviewer.sh --help           # the viewer's own options
 #
 # 8-ID writes BLUETELLA's own extended CSV format AND, since 2026-09-12, its
@@ -13,9 +13,9 @@
 # 8-ID-specific code in them and no flags on this command line.
 #
 # Scans written BEFORE that date took the sample's header letter instead, so a
-# single folder can hold A, C and D files. The viewer browses one prefix at a
-# time, so reach those with --scan-prefix A (or C, or D). Nothing was renamed.
-# See ophyd_scan.SCAN_FILE_HEADER for why the letter is fixed now.
+# single folder can hold A, C, D and S files. The viewer lists them all
+# whatever they are called, so nothing is hidden and nothing was renamed.
+# --scan-prefix narrows that to one letter if a folder is cluttered.
 #
 # --mesh selects meshviewer.py, for the 2-motor rasters dmesh/mesh. A scan whose
 # header declares a raster shape is drawn as a filled grid, each cell binned by

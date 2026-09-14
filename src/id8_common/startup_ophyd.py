@@ -69,7 +69,7 @@ MAIN_NAMESPACE = "__main__"
 # ---------------------------------------------------------- 1. configuration
 
 # Read the same iconfig.yml that startup.py uses, but only the keys this
-# script needs (OPHYD.*, TILED_*, DM_SETUP_FILE, ALLOW_AREA_DETECTOR_WARMUP).
+# script needs (OPHYD.*, TILED_*, DM_SETUP_FILE).
 # RUN_ENGINE/BEC/SPEC_DATA_FILES etc. are for startup.py only.
 instrument_path = Path(__file__).parent
 iconfig_path = instrument_path / "configs" / "iconfig.yml"
@@ -98,6 +98,16 @@ EpicsSignalBase.set_defaults(
     write_timeout=_timeouts.get("PV_WRITE", 5),
     connection_timeout=_timeouts.get("PV_CONNECTION", 5),
 )
+
+# Starting a session must not touch hardware -- it used to fire an Eiger
+# exposure and crashed a live measurement (see STARTUP_HARDWARE_SAFETY.md).
+# Armed here, before the first device exists, and disarmed by
+# report_startup_writes() at the end of section 8. A blocked write prints a
+# banner and lets startup continue; it never aborts the session.
+from id8_common.utils.startup_guard import arm_startup_guard
+from id8_common.utils.startup_guard import report_startup_writes
+
+arm_startup_guard()
 
 
 # ---------------------------------------------------------------- 3. devices
@@ -139,51 +149,23 @@ from id8_common.devices.area_detector import ad_setup
 # these detectors as offline. Without this check, a skipped detector would
 # still crash the whole session right here via oregistry["eiger4M"] --
 # exactly the failure mode this file exists to avoid.
+#
+# ad_setup() is now purely in-memory for all three detectors: it no longer
+# primes the HDF plugin, which is what used to fire an exposure on every
+# startup. Nothing here disarms, arms or otherwise talks to a detector, so a
+# session can be started while one is acquiring. There is no
+# recover_eiger_idle() call any more either -- it existed only to clear the
+# Aborted state that priming left behind. It stays where the acquisition path
+# calls it (eiger4m_modes.py, tv_mode.py), immediately before arming.
 if "eiger4M" in oregistry:
     ad_setup(oregistry["eiger4M"], iconfig)
     print("[startup_ophyd] eiger4M area-detector plugins configured")
-
-    # Priming leaves the camera in Aborted. apstools' AD_prime_plugin2() fires a
-    # single exposure to prime the HDF plugin and then tears the settings down
-    # without letting the series finish, so ALLOW_AREA_DETECTOR_WARMUP=True means
-    # every session starts with the eiger in a TERMINAL state. The first
-    # measurement afterwards then cleared it and said so, which read as a fault
-    # when it was only startup tidying up after itself.
-    #
-    # Clear it here, where the mess is made. "eiger4M is in Aborted" during a run
-    # then means something has actually gone wrong, instead of being routine noise
-    # that gets ignored. Reported 2026-09-10.
-    #
-    # Never fatal: one detector must not stop the session starting, which is the
-    # whole point of safe_make_devices above.
-    from id8_common.plans.acquire.eiger4m_modes import recover_eiger_idle
-
-    try:
-        if recover_eiger_idle(oregistry["eiger4M"]):
-            print("[startup_ophyd] eiger4M returned to Idle after plugin priming")
-    except Exception as exc:  # noqa: BLE001 -- startup must survive anything here
-        print(f"\033[91m[startup_ophyd] eiger4M could not be returned to Idle: "
-              f"{exc}\033[0m")
 if "lambda2M" in oregistry:
     ad_setup(oregistry["lambda2M"], iconfig)
     print("[startup_ophyd] lambda2M area-detector plugins configured")
-# rigaku3M: plugin config yes, warmup/priming no.
-#
-# AD_plugin_primed() compares cam.data_type with hdf1.data_type; on this
-# detector they differ permanently (cam Int32, HDF1 UInt8 -- the ZDT
-# sparsified output path), so it reports "not primed" on EVERY startup and
-# AD_prime_plugin2() would fire a real exposure each time: image_mode ->
-# Single, trigger_mode -> 0, acquire -> 1, 2 s wait, then restore. That
-# would disturb a detector that is often mid-acquisition when a session
-# starts, and it is unnecessary here -- hdf1 runs LazyOpen=Yes in Stream
-# mode, which per apstools' own AD_plugin_primed docstring removes the need
-# to prime at all. So hand ad_setup an iconfig with the warmup flag off:
-# everything else (wait_for_plugins, blocking_callbacks, stage_sigs
-# cleanup, hdf1.kind) still applies. Verified against live PVs 2026-09-03.
-_iconfig_no_warmup = dict(iconfig, ALLOW_AREA_DETECTOR_WARMUP=False)
 if "rigaku3M" in oregistry:
-    ad_setup(oregistry["rigaku3M"], _iconfig_no_warmup)
-    print("[startup_ophyd] rigaku3M area-detector plugins configured (warmup skipped)")
+    ad_setup(oregistry["rigaku3M"], iconfig)
+    print("[startup_ophyd] rigaku3M area-detector plugins configured")
 
 # ---------------------------------------------------- 5. experiment settings
 
@@ -275,5 +257,7 @@ from .plans.align.ophyd_scan import save_images  # noqa: F401
 from .plans.set.qnw_plans import *  # noqa: F401, F403
 from .plans.set.select_device import *  # noqa: F401, F403
 from .plans.set.select_sample import select_sample  # noqa: F401
+
+report_startup_writes()
 
 print(f"[startup_ophyd] Ready -- {len(oregistry)} device(s) connected, plans imported.")

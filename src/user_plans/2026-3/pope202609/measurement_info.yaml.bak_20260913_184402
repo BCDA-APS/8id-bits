@@ -21,28 +21,11 @@ loop_order: sample_major
 ################ Change here to run measurements ################
 
 runs:
- - name: att_10_5_2_1_1
+ - name: att_series
    samples: [1]
-   protocols: [att10, att5, att2, att1, att1b]
+  #  protocols: [att40, att20, att10, att5, att2, att1, att40_end]
+   protocols: [att1, att2, att5]
    repeats: 1
-
-# ---- the 30 GPa map. Restore sample_1 to its 21 x 21 block before using this.
-# - name: mesh30_series
-#   samples: [1]
-#   protocols: [mesh30]
-#   repeats: 1
-
-# ---- 1-minute marker check at sample_2. Swap with the block above to run it.
-# - name: gold_check_run
-#   samples: [2]
-#   protocols: [gold_check]
-#   repeats: 1
-
-# ---- the overnight attenuation ladder, as run 2026-09-13 (G0223..G0229)
-# - name: att_series
-#   samples: [1]
-#   protocols: [att40, att20, att10, att5, att2, att1, att40_end]
-#   repeats: 1
 
 ###### Change here to change measurement conditions #######
 
@@ -223,7 +206,7 @@ protocols:
       - device: rigaku3M_epics
         mode: EPICS
         acq_time: 1
-        num_frames: 3000
+        num_frames: 1500
         qmap_file: rigaku3m_qmap_Sq360_Dq36_NoStreak_lin.hdf
         analysis_type: Multitau
         select_device: yes        # this leg owns the Aerotech translation stage
@@ -232,14 +215,14 @@ protocols:
       - device: eiger4M
         mode: Internal Series
         acq_time: 1
-        num_frames: 3000
+        num_frames: 1500
         qmap_file: eiger4m_qmap_Sq360_Dq3_4m.hdf
         analysis_type: Multitau
         hdf_timeout: 600
       - device: lambda2M
         mode: Internal
         acq_time: 1
-        num_frames: 3000
+        num_frames: 1500
         qmap_file: lambda2m_qmap_Sq360_Dq36.hdf
         analysis_type: Multitau
         hdf_timeout: 600
@@ -254,7 +237,7 @@ protocols:
       - device: rigaku3M_epics
         mode: EPICS
         acq_time: 1
-        num_frames: 3000
+        num_frames: 1500
         qmap_file: rigaku3m_qmap_Sq360_Dq36_NoStreak_lin.hdf
         analysis_type: Multitau
         select_device: yes        # this leg owns the Aerotech translation stage
@@ -263,110 +246,14 @@ protocols:
       - device: eiger4M
         mode: Internal Series
         acq_time: 1
-        num_frames: 3000
+        num_frames: 1500
         qmap_file: eiger4m_qmap_Sq360_Dq3_4m.hdf
         analysis_type: Multitau
         hdf_timeout: 600
       - device: lambda2M
         mode: Internal
         acq_time: 1
-        num_frames: 3000
-        qmap_file: lambda2m_qmap_Sq360_Dq36.hdf
-        analysis_type: Multitau
-        hdf_timeout: 600
-
-  # ---------------------------------------------------------------------
-  # 30 GPa spatial map -- 441 points, 10 frames, attenuation 1.
-  # ---------------------------------------------------------------------
-  # Same recipe the G0222 map used, so the two are directly comparable.
-  #
-  #   441 pts x 10 s = 74 min of beam, plus per-point arming and HDF writeout
-  #   (G0222 took 99 min wall clock for the same shape)
-  #
-  # sample_move: yes with position_reset: yes against sample_1's 21 x 21 block,
-  # so it rewinds to grid point 0 and walks the whole mesh, huber.x fastest.
-  #
-  # BEFORE TRUSTING ANY GOLD-FREE COLUMN OFF THIS MAP: at 30 GPa the Au 111
-  # marker is predicted at q ~ 2.782 -- inside lambda2M's module gap
-  # (2.7808-2.8020) and just under eiger4M's lower edge (2.7853). It was still
-  # at q 2.7182 in H0232 at 12:40 today, i.e. ~11 GPa, so it has not been seen
-  # at the new pressure yet. If it has moved into the gap, lambda2M shows no
-  # gold anywhere, every point reads gold-free, and that is indistinguishable
-  # from a genuinely clean sample.
-  #
-  # Fallback if the marker is gone: the cross-detector test still works and does
-  # not need the Au line at all. lambda2M module 2 (2.8020-2.9022) overlaps
-  # eiger's low-q region, and at 30 GPa the sample's first line is predicted at
-  # q ~ 2.882, inside that module. A real sample line shows on BOTH detectors;
-  # the gold-induced artefact shows only on eiger. That is what separated them
-  # at 11 GPa (corr +0.71 gold-free vs -0.50 on gold).
-  mesh30:
-    att_level: 1
-    num_repeats: 441
-    wait_time: 0
-    sample_move: yes
-    position_reset: yes
-    detectors:
-      - device: rigaku3M_epics
-        mode: EPICS
-        acq_time: 1
-        num_frames: 10
-        qmap_file: rigaku3m_qmap_Sq360_Dq36_NoStreak_lin.hdf
-        analysis_type: Multitau
-        select_device: yes        # this leg owns the Aerotech translation stage
-        start_timeout: 30         # it stages for a few seconds before reporting
-        hdf_timeout: 600
-      - device: eiger4M
-        mode: Internal Series
-        acq_time: 1
-        num_frames: 10
-        qmap_file: eiger4m_qmap_Sq360_Dq3_4m.hdf
-        analysis_type: Multitau
-        hdf_timeout: 600
-      - device: lambda2M
-        mode: Internal
-        acq_time: 1
-        num_frames: 10
-        qmap_file: lambda2m_qmap_Sq360_Dq36.hdf
-        analysis_type: Multitau
-        hdf_timeout: 600
-
-  # ---------------------------------------------------------------------
-  # gold_check -- 60 frames at the marker spot (sample_2). About 1 minute.
-  # ---------------------------------------------------------------------
-  # At 11 GPa that spot gave Au 111 7.6x above the module-1 background in 1500
-  # frames, so 60 is ample. 60 rather than 30 because a peak clipped by the
-  # module edge is a question about SHAPE, not just detection, and the extra
-  # 30 s buys a readable edge profile.  Run this
-  # with samples: [2]; running it against sample_1 would drive to grid point 0
-  # of the mesh (-0.2510, 21.2750), which is not the marker spot.
-  gold_check:
-    att_level: 1
-    num_repeats: 1
-    wait_time: 0
-    sample_move: yes
-    position_reset: yes
-    detectors:
-      - device: rigaku3M_epics
-        mode: EPICS
-        acq_time: 1
-        num_frames: 60
-        qmap_file: rigaku3m_qmap_Sq360_Dq36_NoStreak_lin.hdf
-        analysis_type: Multitau
-        select_device: yes        # this leg owns the Aerotech translation stage
-        start_timeout: 30         # it stages for a few seconds before reporting
-        hdf_timeout: 600
-      - device: eiger4M
-        mode: Internal Series
-        acq_time: 1
-        num_frames: 60
-        qmap_file: eiger4m_qmap_Sq360_Dq3_4m.hdf
-        analysis_type: Multitau
-        hdf_timeout: 600
-      - device: lambda2M
-        mode: Internal
-        acq_time: 1
-        num_frames: 60
+        num_frames: 1500
         qmap_file: lambda2m_qmap_Sq360_Dq36.hdf
         analysis_type: Multitau
         hdf_timeout: 600
@@ -381,7 +268,7 @@ protocols:
       - device: rigaku3M_epics
         mode: EPICS
         acq_time: 1
-        num_frames: 3000
+        num_frames: 1500
         qmap_file: rigaku3m_qmap_Sq360_Dq36_NoStreak_lin.hdf
         analysis_type: Multitau
         select_device: yes        # this leg owns the Aerotech translation stage
@@ -390,14 +277,14 @@ protocols:
       - device: eiger4M
         mode: Internal Series
         acq_time: 1
-        num_frames: 3000
+        num_frames: 1500
         qmap_file: eiger4m_qmap_Sq360_Dq3_4m.hdf
         analysis_type: Multitau
         hdf_timeout: 600
       - device: lambda2M
         mode: Internal
         acq_time: 1
-        num_frames: 3000
+        num_frames: 1500
         qmap_file: lambda2m_qmap_Sq360_Dq36.hdf
         analysis_type: Multitau
         hdf_timeout: 600
@@ -459,37 +346,3 @@ protocols:
 # a different, shorter series -- not these.
 #
 ############################################################################
-
-  # Second att 1 at the end of the series: a repeat of att1 under its own name.
-  # The run block cannot list att1 twice -- check_duplicate_assignments() rejects a
-  # repeated (sample, protocol) pair outright -- so the repeat needs a distinct key.
-  att1b:
-    att_level: 1
-    num_repeats: 1
-    wait_time: 0
-    sample_move: yes
-    position_reset: yes
-    detectors:
-      - device: rigaku3M_epics
-        mode: EPICS
-        acq_time: 1
-        num_frames: 3000
-        qmap_file: rigaku3m_qmap_Sq360_Dq36_NoStreak_lin.hdf
-        analysis_type: Multitau
-        select_device: yes        # this leg owns the Aerotech translation stage
-        start_timeout: 30         # it stages for a few seconds before reporting
-        hdf_timeout: 600
-      - device: eiger4M
-        mode: Internal Series
-        acq_time: 1
-        num_frames: 3000
-        qmap_file: eiger4m_qmap_Sq360_Dq3_4m.hdf
-        analysis_type: Multitau
-        hdf_timeout: 600
-      - device: lambda2M
-        mode: Internal
-        acq_time: 1
-        num_frames: 3000
-        qmap_file: lambda2m_qmap_Sq360_Dq36.hdf
-        analysis_type: Multitau
-        hdf_timeout: 600

@@ -1,0 +1,12 @@
+# A valid variant of measurement_info.csv. The drafted one ends with a blank
+# 'sample' row that forward-fills to sample 1 -- giving sample 1 / test_protocol_2
+# twice, which master_plan's check_duplicate_assignments rejects by design.
+# Here that row names sample 2 instead. Free-text '#' rows like this are ignored.
+#REPEAT,1
+#BATCH,
+sample,protocol
+1,test_protocol
+2,
+3,
+1,test_protocol_2
+2,test_protocol_2

@@ -21,16 +21,10 @@ loop_order: sample_major
 ################ Change here to run measurements ################
 
 runs:
- - name: att_10_5_2_1_1
+ - name: mesh30_series
    samples: [1]
-   protocols: [att10, att5, att2, att1, att1b]
+   protocols: [mesh30]
    repeats: 1
-
-# ---- the 30 GPa map. Restore sample_1 to its 21 x 21 block before using this.
-# - name: mesh30_series
-#   samples: [1]
-#   protocols: [mesh30]
-#   repeats: 1
 
 # ---- 1-minute marker check at sample_2. Swap with the block above to run it.
 # - name: gold_check_run
@@ -223,7 +217,7 @@ protocols:
       - device: rigaku3M_epics
         mode: EPICS
         acq_time: 1
-        num_frames: 3000
+        num_frames: 1500
         qmap_file: rigaku3m_qmap_Sq360_Dq36_NoStreak_lin.hdf
         analysis_type: Multitau
         select_device: yes        # this leg owns the Aerotech translation stage
@@ -232,14 +226,14 @@ protocols:
       - device: eiger4M
         mode: Internal Series
         acq_time: 1
-        num_frames: 3000
+        num_frames: 1500
         qmap_file: eiger4m_qmap_Sq360_Dq3_4m.hdf
         analysis_type: Multitau
         hdf_timeout: 600
       - device: lambda2M
         mode: Internal
         acq_time: 1
-        num_frames: 3000
+        num_frames: 1500
         qmap_file: lambda2m_qmap_Sq360_Dq36.hdf
         analysis_type: Multitau
         hdf_timeout: 600
@@ -254,7 +248,7 @@ protocols:
       - device: rigaku3M_epics
         mode: EPICS
         acq_time: 1
-        num_frames: 3000
+        num_frames: 1500
         qmap_file: rigaku3m_qmap_Sq360_Dq36_NoStreak_lin.hdf
         analysis_type: Multitau
         select_device: yes        # this leg owns the Aerotech translation stage
@@ -263,14 +257,14 @@ protocols:
       - device: eiger4M
         mode: Internal Series
         acq_time: 1
-        num_frames: 3000
+        num_frames: 1500
         qmap_file: eiger4m_qmap_Sq360_Dq3_4m.hdf
         analysis_type: Multitau
         hdf_timeout: 600
       - device: lambda2M
         mode: Internal
         acq_time: 1
-        num_frames: 3000
+        num_frames: 1500
         qmap_file: lambda2m_qmap_Sq360_Dq36.hdf
         analysis_type: Multitau
         hdf_timeout: 600
@@ -381,7 +375,7 @@ protocols:
       - device: rigaku3M_epics
         mode: EPICS
         acq_time: 1
-        num_frames: 3000
+        num_frames: 1500
         qmap_file: rigaku3m_qmap_Sq360_Dq36_NoStreak_lin.hdf
         analysis_type: Multitau
         select_device: yes        # this leg owns the Aerotech translation stage
@@ -390,14 +384,14 @@ protocols:
       - device: eiger4M
         mode: Internal Series
         acq_time: 1
-        num_frames: 3000
+        num_frames: 1500
         qmap_file: eiger4m_qmap_Sq360_Dq3_4m.hdf
         analysis_type: Multitau
         hdf_timeout: 600
       - device: lambda2M
         mode: Internal
         acq_time: 1
-        num_frames: 3000
+        num_frames: 1500
         qmap_file: lambda2m_qmap_Sq360_Dq36.hdf
         analysis_type: Multitau
         hdf_timeout: 600
@@ -459,37 +453,3 @@ protocols:
 # a different, shorter series -- not these.
 #
 ############################################################################
-
-  # Second att 1 at the end of the series: a repeat of att1 under its own name.
-  # The run block cannot list att1 twice -- check_duplicate_assignments() rejects a
-  # repeated (sample, protocol) pair outright -- so the repeat needs a distinct key.
-  att1b:
-    att_level: 1
-    num_repeats: 1
-    wait_time: 0
-    sample_move: yes
-    position_reset: yes
-    detectors:
-      - device: rigaku3M_epics
-        mode: EPICS
-        acq_time: 1
-        num_frames: 3000
-        qmap_file: rigaku3m_qmap_Sq360_Dq36_NoStreak_lin.hdf
-        analysis_type: Multitau
-        select_device: yes        # this leg owns the Aerotech translation stage
-        start_timeout: 30         # it stages for a few seconds before reporting
-        hdf_timeout: 600
-      - device: eiger4M
-        mode: Internal Series
-        acq_time: 1
-        num_frames: 3000
-        qmap_file: eiger4m_qmap_Sq360_Dq3_4m.hdf
-        analysis_type: Multitau
-        hdf_timeout: 600
-      - device: lambda2M
-        mode: Internal
-        acq_time: 1
-        num_frames: 3000
-        qmap_file: lambda2m_qmap_Sq360_Dq36.hdf
-        analysis_type: Multitau
-        hdf_timeout: 600

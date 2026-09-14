@@ -1,0 +1,18 @@
+#DETECTOR,
+#device,"rigaku3M_epics, eiger4M"
+#mode,"EPICS, Internal Series"
+#qmap_file,"rigaku3m_qmap_default.hdf, eiger4m_qmap_default.hdf"
+#analysis_type,"Multitau, Both"
+,
+#MEASUREMENT,
+wait_time,0
+sample_move,1
+position_reset,1
+acq_time,1
+num_frames,3000
+,
+#BATCH,
+att_level,num_repeat
+1,1
+2,1
+3,1
