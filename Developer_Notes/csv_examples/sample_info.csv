@@ -1,0 +1,12 @@
+# sample_name is REQUIRED by master_plan (validators.require_fields) and was
+# missing from the first draft of this file -- the dry run found it. Keep the
+# column.
+#DEFAULTS,,,,,,,,,,
+inner_motor,huber.x,,,,,,,,,
+outer_motor,huber.y,,,,,,,,,
+,,,,,,,,,,
+#SAMPLES,,,,,,,,,,
+index,sample_name,header,inner_center,outer_center,inner_pts,outer_pts,inner_range,outer_range,inner_motor,outer_motor
+1,Test,A,-0.1,0.1,21,31,0.2,0.4,,
+2,LMO,B,-0.1,0.1,21,31,0.2,0.4,sample.x,sample.y
+,,,,,,,,,,

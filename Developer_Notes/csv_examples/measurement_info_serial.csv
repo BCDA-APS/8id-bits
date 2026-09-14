@@ -1,0 +1,10 @@
+# Two #BATCH rows -> two run blocks. The second leaves `protocol` blank, which
+# forward-fills from the row above; every fill is printed so a stray blank shows
+# up in the terminal instead of quietly running the wrong protocol.
+#LOOP_ORDER,sample_major
+#REPEAT,1
+,
+#BATCH,
+sample,protocol
+1,serial_protocol
+2,

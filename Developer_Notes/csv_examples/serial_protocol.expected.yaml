@@ -1,0 +1,30 @@
+# Hand-written from the CSV by a human reading the format spec -- NOT dumped
+# from the converter.
+#
+# One detector, so the SERIAL shape: `detector` and `mode` are singular and sit
+# at protocol level, which is what master_plan.validate_detector_mode() reads.
+# `_level` is stripped from the batch column, so att_level 1 -> ..._att1.
+serial_protocol_att1:
+  wait_time: 0
+  sample_move: no
+  position_reset: no
+  acq_time: 1
+  num_frames: 100
+  detector: eiger4M
+  mode: Internal Series
+  qmap_file: eiger4m_qmap_default.hdf
+  analysis_type: Multitau
+  att_level: 1
+  num_repeats: 1
+serial_protocol_att2:
+  wait_time: 0
+  sample_move: no
+  position_reset: no
+  acq_time: 1
+  num_frames: 100
+  detector: eiger4M
+  mode: Internal Series
+  qmap_file: eiger4m_qmap_default.hdf
+  analysis_type: Multitau
+  att_level: 2
+  num_repeats: 1

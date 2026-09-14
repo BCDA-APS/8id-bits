@@ -1,0 +1,39 @@
+# Hand-written from the CSV by a human reading the format spec -- NOT dumped
+# from the converter.
+#
+# Three detectors, so the PARALLEL shape. acq_time / num_frames come from
+# #MEASUREMENT but are LEG_FIELDS, so they are copied into every leg rather than
+# left at protocol level -- dual_master_plan.REQUIRED_LEG_FIELDS demands them per
+# leg. analysis_type and hdf_timeout are single #DETECTOR values, so they
+# broadcast to all three.
+trio_protocol_att1:
+  wait_time: 0
+  sample_move: no
+  position_reset: no
+  att_level: 1
+  num_repeats: 1
+  detectors:
+    - device: rigaku3M_epics
+      mode: EPICS
+      qmap_file: rigaku3m_qmap_default.hdf
+      analysis_type: Multitau
+      shutter_owner: yes
+      hdf_timeout: 600
+      acq_time: 1
+      num_frames: 10
+    - device: eiger4M
+      mode: Internal Series
+      qmap_file: eiger4m_qmap_default.hdf
+      analysis_type: Multitau
+      shutter_owner: no
+      hdf_timeout: 600
+      acq_time: 1
+      num_frames: 10
+    - device: lambda2M
+      mode: Internal
+      qmap_file: lambda2m_qmap_default.hdf
+      analysis_type: Multitau
+      shutter_owner: no
+      hdf_timeout: 600
+      acq_time: 1
+      num_frames: 10

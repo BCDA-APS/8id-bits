@@ -1,0 +1,22 @@
+# Three detectors -> the PARALLEL shape dual_master_plan.py reads: a detectors:
+# list, one entry per leg. #DETECTOR values are comma-separated, one per leg; a
+# single value (analysis_type, acq_time...) broadcasts to all three.
+# Exactly one leg must set shutter_owner -- the Rigaku.
+#DETECTOR,
+device,"rigaku3M_epics, eiger4M, lambda2M"
+mode,"EPICS, Internal Series, Internal"
+qmap_file,"rigaku3m_qmap_default.hdf, eiger4m_qmap_default.hdf, lambda2m_qmap_default.hdf"
+analysis_type,Multitau
+shutter_owner,"1, 0, 0"
+hdf_timeout,600
+,
+#MEASUREMENT,
+wait_time,0
+sample_move,0
+position_reset,0
+acq_time,1
+num_frames,10
+,
+#BATCH,
+att_level,num_repeat
+1,1

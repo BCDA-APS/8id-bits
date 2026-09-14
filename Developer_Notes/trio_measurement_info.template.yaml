@@ -1,0 +1,131 @@
+################ Change here to run measurements ################
+
+loop_order: sample_major
+
+runs:
+  - name: trio_smoke
+    samples: [1]
+    protocols: [trio_att1]
+    repeats: 1
+
+###### Change here to change measurement conditions #######
+
+# THREE detectors in one beam window: rigaku3M_epics, eiger4M and lambda2M.
+# They are NOT frame-synced -- the acquisitions merely overlap, so a set of long
+# measurements costs roughly the slowest one rather than the sum of all three.
+#
+# SHUTTER OWNER. Exactly one leg must set shutter_owner: yes, and it must be the
+# Rigaku. This is the one place the trio differs from the version in ~/ophyd,
+# which removed the field: that tree also changed setup_rigaku_epics() to the
+# Rigaku's internally-timed 'Fixed Time' mode and left the softglue MUX at '0'.
+# This tree deliberately keeps the original acquisition behaviour --
+# setup_rigaku_epics() still sets softglue.enable_rigaku = '1' and trigger_mode
+# 'Start with Trigger', so the Rigaku gates the beam itself and everything else
+# has to be arranged around it. Per repeat:
+#
+#   1. Every leg is set up (no shutter involvement).
+#   2. Shutter opens.
+#   3. The owner is armed and we WAIT until it confirms it is acquiring.
+#   4. Only then are the other two armed, a second or two later. That offset is
+#      deliberate and is not corrected for.
+#   5. Wait for ALL cams, then close the shutter.
+#   6. Wait for ALL HDF plugins, then write metadata and submit one DM job per leg.
+#
+# MOTION. A trio run moves NO huber axis -- setup_huber_for_trio() reports the
+# position and moves nothing, because the three detectors have different presets
+# in device_position.yaml and at most one can be satisfied at a time. Position
+# all three yourself before running. The attenuator is the only thing a trio run
+# drives by itself. huber.delta / huber.nu are still rejected in a leg's motors:
+# block and as sample_info.yaml's inner/outer motors.
+#
+# QMAPS. Required, no default. Each must exist in the experiment data folder or
+# DM stalls at stage 02-WAIT-QMAP. These three are the defaults present in
+# comm202609; change them for a real measurement.
+#
+# BEAM-CENTRE METADATA. With no geometry: block a leg's metadata comes from
+# device_position.yaml, which was calibrated with each detector at its own
+# preset. In a trio run at most one detector is at its preset, so those numbers
+# probably do not describe the other two. Raw frames are unaffected; only the
+# _metadata.hdf is. Add a geometry: block to a leg to correct it.
+
+protocols:
+
+  trio_att1:
+    att_level: 1
+    num_repeats: 1
+    wait_time: 0
+    sample_move: no
+    position_reset: no
+    detectors:
+      - device: rigaku3M_epics
+        mode: EPICS
+        acq_time: 1
+        num_frames: 10
+        qmap_file: rigaku3m_qmap_default.hdf
+        analysis_type: Multitau
+        shutter_owner: yes
+        select_device: no
+        start_timeout: 30
+        hdf_timeout: 600
+      - device: eiger4M
+        mode: Internal Series
+        acq_time: 1
+        num_frames: 10
+        qmap_file: eiger4m_qmap_default.hdf
+        analysis_type: Multitau
+        hdf_timeout: 600
+      - device: lambda2M
+        mode: Internal
+        acq_time: 1
+        num_frames: 10
+        qmap_file: lambda2m_qmap_default.hdf
+        analysis_type: Multitau
+        hdf_timeout: 600
+
+###### Reference #######
+
+_instructions: |
+  To run:
+
+    dry_run_trio_measurement_info(check_hardware=True)   # validate + preview, moves nothing
+    run_trio_measurement_info()                          # go
+
+  Both are imported by startup.py, so they are in the session already.
+
+  Structure. runs / protocols / samples / repeats / loop_order behave exactly as
+  in measurement_info.yaml -- the expansion code is shared with master_plan.py.
+  What differs is the protocol body, which splits its settings in two:
+
+    Protocol level, shared, because there is one beam and one sample:
+      att_level, num_repeats, wait_time, sample_move, position_reset
+
+    detectors[] level, because these differ per detector:
+      device, mode, acq_time, num_frames, qmap_file, analysis_type,
+      shutter_owner, select_device, geometry, motors, label,
+      start_timeout, stop_timeout, hdf_timeout, workflow_name
+
+  num_repeats is shared. Repeats run in lockstep: every detector starts each
+  repeat together and the faster ones wait for the slowest before the next.
+
+  Supported (device, mode) pairs -- anything else is rejected:
+
+    rigaku3M_epics / EPICS              (must be the shutter owner)
+    eiger4M        / Internal Series
+    lambda2M       / Internal
+
+  lambda2M / External is deliberately NOT supported: it gates the shutter
+  through softglue, one pulse per frame, which cannot coexist with a
+  Rigaku-owned shutter window.
+
+  A detectors: list of length one is legal and becomes the shutter owner
+  automatically -- the right way to smoke-test each leg before running all three.
+
+  Folder naming. One run number is shared by all three legs, and the folder
+  suffix comes from the attenuator READBACK, not att_level, so expect a folder
+  named for the achieved attenuation:
+
+    data/A0258_TrioTest_a0001_f000010_rigaku3M/..._r00001.h5
+    data/A0258_TrioTest_a0001_f000010_eiger4M/..._r00001.h5
+    data/A0258_TrioTest_a0001_f000010_lambda2M/..._r00001.h5
+
+  Each gets its own _metadata.hdf and its own DM job.

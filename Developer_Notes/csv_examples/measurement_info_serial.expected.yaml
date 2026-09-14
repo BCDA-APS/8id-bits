@@ -1,0 +1,41 @@
+# Hand-written from the CSV by a human reading the format spec -- NOT dumped
+# from the converter.
+#
+# serial_protocol.csv has two #BATCH rows, so it defines two protocols; each run
+# block lists both, sorted. The second row's blank `protocol` forward-fills to
+# serial_protocol, so the two runs differ only in sample.
+loop_order: sample_major
+runs:
+  - name: serial_protocol_sample1
+    samples: [1]
+    protocols: [serial_protocol_att1, serial_protocol_att2]
+    repeats: 1
+  - name: serial_protocol_sample2
+    samples: [2]
+    protocols: [serial_protocol_att1, serial_protocol_att2]
+    repeats: 1
+protocols:
+  serial_protocol_att1:
+    wait_time: 0
+    sample_move: no
+    position_reset: no
+    acq_time: 1
+    num_frames: 100
+    detector: eiger4M
+    mode: Internal Series
+    qmap_file: eiger4m_qmap_default.hdf
+    analysis_type: Multitau
+    att_level: 1
+    num_repeats: 1
+  serial_protocol_att2:
+    wait_time: 0
+    sample_move: no
+    position_reset: no
+    acq_time: 1
+    num_frames: 100
+    detector: eiger4M
+    mode: Internal Series
+    qmap_file: eiger4m_qmap_default.hdf
+    analysis_type: Multitau
+    att_level: 2
+    num_repeats: 1

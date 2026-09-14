@@ -9,7 +9,9 @@ from apsbits.core.instrument_init import oregistry
 
 pv_registers = oregistry["pv_registers"]
 
-SAMPLE_INFO_PATH = Path("/home/beams10/8IDIUSER/bluesky/src/user_plans/sample_info.yaml")
+# See the note on USER_PLAN_DIR in plans/acquire/master_plan.py -- derived from
+# this file so a second checkout reads its own sample table.
+SAMPLE_INFO_PATH = Path(__file__).resolve().parents[3] / "user_plans" / "sample_info.yaml"
 
 
 def _resolve_motor(motor_str: str):

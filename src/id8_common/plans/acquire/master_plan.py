@@ -21,7 +21,11 @@ VALID_ANALYSIS_TYPES = ["Multitau", "Twotime", "Both"]
 
 pv_registers = oregistry["pv_registers"]
 
-USER_PLAN_DIR = Path("/home/beams10/8IDIUSER/bluesky/src/user_plans")
+# Derived from this file rather than hardcoded, so a second checkout of this repo
+# reads ITS OWN plan files. With the path hardcoded, ~/bluesky_trio ran but read
+# ~/bluesky/src/user_plans, which is a different (and now empty) directory.
+# parents[3] is the `src` root: acquire -> plans -> id8_common -> src.
+USER_PLAN_DIR = Path(__file__).resolve().parents[3] / "user_plans"
 SAMPLE_INFO_FILE = USER_PLAN_DIR / "sample_info.yaml"
 MEASUREMENT_INFO_FILE = USER_PLAN_DIR / "measurement_info.yaml"
 
@@ -31,6 +35,27 @@ MEASUREMENT_INFO_FILE = USER_PLAN_DIR / "measurement_info.yaml"
 # =============================================================================
 
 def read_yaml(file_path):
+    """Load a plan file. YAML as always; CSV through the converter.
+
+    The name is now a slight lie -- it reads the plan, whatever it is written in
+    -- but it is the single chokepoint that run_measurement_info(),
+    dry_run_measurement_info() and the dual/trio entry points in
+    dual_master_plan.py already go through, so hooking it here means the dry run
+    validates exactly the structure the run will use. Renaming it would touch
+    six call sites for no behaviour change; left alone deliberately.
+
+    A .yaml path takes byte-identical the path it always did. The plan_csv import
+    is deliberately INSIDE the branch: a syntax error or a bad import in that
+    module then cannot affect a YAML-driven session, which is every session at
+    the beamline today. Switch a run to CSV by passing a .csv path as
+    measurement_info_file / sample_info_file -- no code change, and reversible by
+    passing the .yaml back.
+    """
+    if Path(file_path).suffix.lower() == ".csv":
+        from id8_common.plans.acquire.plan_csv import read_plan_csv
+
+        return read_plan_csv(file_path)
+
     with open(file_path, "r") as f:
         return yaml.safe_load(f)
 

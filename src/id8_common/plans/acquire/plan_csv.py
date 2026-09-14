@@ -137,6 +137,10 @@ LEG_FIELDS = {
     "analysis_type",
     "label",
     "select_device",
+    # Per-leg in THIS tree. ~/ophyd removed shutter_owner entirely when it moved
+    # the Rigaku to 'Fixed Time'; here the Rigaku still gates the beam, so exactly
+    # one leg must carry it and it has to reach the leg, not protocol level.
+    "shutter_owner",
     "start_timeout",
     "stop_timeout",
     "hdf_timeout",
@@ -157,7 +161,7 @@ _TRUE = {"1", "yes", "y", "true", "on"}
 _FALSE = {"0", "no", "n", "false", "off"}
 
 #: Protocol-level fields that are genuinely boolean in the YAML.
-BOOL_FIELDS = {"sample_move", "position_reset", "select_device", "parallel"}
+BOOL_FIELDS = {"sample_move", "position_reset", "select_device", "parallel", "shutter_owner"}
 
 
 def _coerce(value, key=None):
@@ -259,13 +263,26 @@ def _sections(path):
     return sections
 
 
-def _pairs(rows, path):
-    """``key,value`` rows -> dict, with types coerced and blanks dropped."""
+def _pairs(rows, path, raw=False):
+    """``key,value`` rows -> dict, with types coerced and blanks dropped.
+
+    ``raw=True`` keeps the cell as its stripped string and skips _coerce. Used for
+    the ``#DETECTOR`` section, whose cells are comma-separated PER-LEG lists:
+    coercing `shutter_owner,"1, 0, 0"` as a single value raises "expected yes/no",
+    because "1, 0, 0" is not a boolean -- the three values it contains are. Those
+    cells are split by _split_list() and each element coerced individually in
+    read_protocol_csv(), which is where the per-leg type conversion belongs.
+    """
     out = {}
     for lineno, cells in rows:
         if len(cells) < 2:
             raise PlanCSVError(f"{path}:{lineno}: expected 'key,value', got {cells!r}")
         key = _key(cells[0])
+        if raw:
+            text = str(cells[1]).strip()
+            if text != "":
+                out[key] = text
+            continue
         value = _coerce(cells[1], key)
         if value is not None:
             out[key] = value
@@ -349,7 +366,8 @@ def read_protocol_csv(path, stem=None):
     stem = stem or path.stem
     sections = _sections(path)
 
-    detector = _pairs(sections.get("DETECTOR", []), path)
+    # raw: these cells are per-leg lists, split and coerced element-wise below.
+    detector = _pairs(sections.get("DETECTOR", []), path, raw=True)
     if "device" not in detector:
         raise PlanCSVError(f"{path}: #DETECTOR has no 'device' row")
     devices = [d.strip() for d in str(detector["device"]).split(",") if d.strip()]

@@ -1,0 +1,20 @@
+# Sample table, shared by the serial (master_plan.py), dual and trio paths.
+#
+# Only `header` and `sample_name` are required while every protocol sets
+# sample_move: no. A protocol with sample_move: yes additionally needs
+# inner_motor / outer_motor / inner_center / outer_center / inner_range /
+# outer_range / inner_pts / outer_pts -- validate_sample_motion() lists them.
+#
+# `header` becomes the first character of every folder name, e.g. A0258_...
+# huber.delta and huber.nu may NOT be used as inner_motor / outer_motor: a
+# parallel run positions the arm once, before acquisition, and nothing may drive
+# those axes afterwards.
+
+defaults:
+  header: A
+
+samples:
+
+  sample_1:
+    header: A
+    sample_name: TrioTest

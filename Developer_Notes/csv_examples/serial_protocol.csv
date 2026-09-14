@@ -1,0 +1,20 @@
+# One detector -> the SERIAL shape master_plan.py reads: detector/mode singular
+# at protocol level. Two #BATCH rows give two protocols, serial_protocol_att1
+# and serial_protocol_att2.
+#DETECTOR,
+device,eiger4M
+mode,Internal Series
+qmap_file,eiger4m_qmap_default.hdf
+analysis_type,Multitau
+,
+#MEASUREMENT,
+wait_time,0
+sample_move,0
+position_reset,0
+acq_time,1
+num_frames,100
+,
+#BATCH,
+att_level,num_repeat
+1,1
+2,1

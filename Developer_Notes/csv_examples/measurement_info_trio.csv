@@ -1,0 +1,8 @@
+# The trio plan as a spreadsheet. Each #BATCH row is one run block, in file
+# order, and `protocol` names the sibling trio_protocol.csv.
+#LOOP_ORDER,sample_major
+#REPEAT,1
+,
+#BATCH,
+sample,protocol
+1,trio_protocol
