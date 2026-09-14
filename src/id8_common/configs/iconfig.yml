@@ -71,4 +71,9 @@ OPHYD:
 
 XMODE_DEBUG_LEVEL: Plain
 
-ALLOW_AREA_DETECTOR_WARMUP: True 
+# Dead key since 2026-09-14: ad_setup() no longer primes the HDF plugin at all,
+# because AD_prime_plugin2() fires a real exposure on every session start (it
+# crashed measurement G0209 on 2026-09-12). All three detectors run hdf1
+# LazyOpen=Yes in Stream mode, so priming is unnecessary. Kept and set False so
+# nothing reads it as still live. See devices/area_detector.py.
+ALLOW_AREA_DETECTOR_WARMUP: False

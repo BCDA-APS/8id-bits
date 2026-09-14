@@ -44,6 +44,12 @@ pv_registers = oregistry["pv_registers"]
 
 DUAL_MEASUREMENT_INFO_FILE = USER_PLAN_DIR / "dual_measurement_info.yaml"
 
+# Three-detector runs (rigaku3M_epics + eiger4M + lambda2M in one beam window).
+# Same machinery, same schema, different plan file -- everything in this module
+# was already written against measurement["detectors"] as a list of any length,
+# so a trio needs no separate validation, leg-building or run loop.
+TRIO_MEASUREMENT_INFO_FILE = USER_PLAN_DIR / "trio_measurement_info.yaml"
+
 # Huber position a dual Eiger+Rigaku measurement acquires at.
 DUAL_HUBER_DELTA = 10.0
 DUAL_HUBER_NU = 0.0
@@ -414,13 +420,45 @@ def setup_huber_for_dual():
     huber.nu.move(DUAL_HUBER_NU, wait=True)
 
 
+def setup_huber_for_trio():
+    """Report the huber position for a trio run. MOVES NOTHING, deliberately.
+
+    A two-detector run can be driven to one calibrated geometry, which is what
+    setup_huber_for_dual() above does. A three-detector run cannot: the Rigaku, the
+    Eiger and the Lambda have different presets in device_position.yaml and at most
+    one of them can be satisfied at a time. So a trio acquires wherever the
+    operator has already put the arm -- position all three detectors yourself
+    before running, and add a geometry: block to any leg whose metadata would
+    otherwise be wrong.
+
+    huber.delta and huber.nu are still in dual_acq.FORBIDDEN_MOTORS, so a leg's
+    motors block and sample_info.yaml's inner/outer motors still cannot drive them
+    mid-acquisition. Not moving them here does not make them movable later.
+
+    The positions are printed rather than silently ignored so the value that
+    ends up in the metadata is visible in the run log.
+    """
+    huber = oregistry["huber"]
+
+    print(
+        f"Trio run: huber NOT moved. delta = {huber.delta.position:.4f}, "
+        f"nu = {huber.nu.position:.4f} (acquiring where the arm already is)"
+    )
+
+
 # =============================================================================
 # Run functions
 # =============================================================================
 
 
-def run_dual_measurement(measurement, sample_info):
-    """Validate one expanded measurement, set up the sample, and run both detectors."""
+def run_dual_measurement(measurement, sample_info, huber_setup=setup_huber_for_dual):
+    """Validate one expanded measurement, set up the sample, and run both detectors.
+
+    ``huber_setup`` is the one behavioural difference between a dual and a trio run:
+    the dual default drives the arm to its calibrated geometry, the trio passes
+    setup_huber_for_trio, which moves nothing. Defaulted so the dual path and every
+    existing caller behave exactly as before.
+    """
     sample_index = int(measurement["sample_index"])
     sample = get_sample(sample_info, sample_index)
 
@@ -434,7 +472,7 @@ def run_dual_measurement(measurement, sample_info):
 
     print_measurement_header(measurement, sample, sample_index)
 
-    setup_huber_for_dual()
+    huber_setup()
 
     dual_acq_series(
         leg_specs=build_leg_specs(measurement),
@@ -447,19 +485,31 @@ def run_dual_measurement(measurement, sample_info):
 def run_dual_measurement_info(
     measurement_info_file=DUAL_MEASUREMENT_INFO_FILE,
     sample_info_file=SAMPLE_INFO_FILE,
+    label="dual",
+    huber_setup=setup_huber_for_dual,
 ):
-    """Expand dual_measurement_info.yaml and run every measurement it describes."""
+    """Expand dual_measurement_info.yaml and run every measurement it describes.
+
+    ``label`` only changes the wording of the printed summary, and ``huber_setup``
+    selects the arm-positioning step, so the trio entry point below can reuse this
+    function without duplicating it. Both are defaulted to the existing dual
+    behaviour.
+    """
     sample_info = read_yaml(sample_info_file)
     measurement_info = read_yaml(measurement_info_file)
 
     measurements = expand_measurements(measurement_info)
 
     print("")
-    print(f"Loaded {len(measurements)} expanded dual-measurement blocks.")
+    print(f"Loaded {len(measurements)} expanded {label}-measurement blocks.")
     print("")
 
     for measurement in measurements:
-        run_dual_measurement(measurement=measurement, sample_info=sample_info)
+        run_dual_measurement(
+            measurement=measurement,
+            sample_info=sample_info,
+            huber_setup=huber_setup,
+        )
 
 
 # =============================================================================
@@ -471,6 +521,7 @@ def dry_run_dual_measurement_info(
     measurement_info_file=DUAL_MEASUREMENT_INFO_FILE,
     sample_info_file=SAMPLE_INFO_FILE,
     check_hardware=False,
+    label="dual",
 ):
     """Validate and preview without moving anything.
 
@@ -486,7 +537,7 @@ def dry_run_dual_measurement_info(
     measurements = expand_measurements(measurement_info)
 
     print("")
-    print(f"Total dual measurements planned: {len(measurements)}")
+    print(f"Total {label} measurements planned: {len(measurements)}")
     print("")
 
     total_parallel = 0.0
@@ -545,13 +596,66 @@ def dry_run_dual_measurement_info(
 #           measurement_info_file="/home/beams10/8IDIUSER/bluesky/src/user_plans/my_dual.yaml",
 #       )
 
+# =============================================================================
+# Trio entry points (three detectors in one beam window)
+# =============================================================================
+# Thin wrappers, deliberately. Everything above already treats
+# measurement["detectors"] as a list of arbitrary length -- validate_dual_measurement(),
+# build_leg_specs(), print_measurement_header() and dual_acq.dual_acq_series() all
+# iterate rather than assume two. The only thing a trio genuinely needs that a dual
+# did not is the ("lambda2M", "Internal") entry in dual_acq.DUAL_LEGS.
+#
+# The shutter contract is UNCHANGED: exactly one leg sets shutter_owner: yes (the
+# Rigaku, which gates the beam through softglue in 'Start with Trigger' mode), it is
+# armed first, and the other two are armed only once it confirms it is acquiring.
+
+
+def run_trio_measurement_info(
+    measurement_info_file=TRIO_MEASUREMENT_INFO_FILE,
+    sample_info_file=SAMPLE_INFO_FILE,
+):
+    """Expand trio_measurement_info.yaml and run every measurement it describes.
+
+    Moves no huber axis -- see setup_huber_for_trio(). The attenuator is the only
+    thing a trio run drives by itself.
+    """
+    return run_dual_measurement_info(
+        measurement_info_file=measurement_info_file,
+        sample_info_file=sample_info_file,
+        label="trio",
+        huber_setup=setup_huber_for_trio,
+    )
+
+
+def dry_run_trio_measurement_info(
+    measurement_info_file=TRIO_MEASUREMENT_INFO_FILE,
+    sample_info_file=SAMPLE_INFO_FILE,
+    check_hardware=False,
+):
+    """Validate and preview a trio run without moving anything.
+
+    check_hardware=True additionally checks every leg's device is connected and its
+    ophyd paths resolve; run that on a live session before the first real trio.
+    """
+    return dry_run_dual_measurement_info(
+        measurement_info_file=measurement_info_file,
+        sample_info_file=sample_info_file,
+        check_hardware=check_hardware,
+        label="trio",
+    )
+
+
 __all__ = [
     "DUAL_HUBER_DELTA",
     "DUAL_HUBER_NU",
     "DUAL_MEASUREMENT_INFO_FILE",
+    "TRIO_MEASUREMENT_INFO_FILE",
     "build_leg_specs",
     "dry_run_dual_measurement_info",
+    "dry_run_trio_measurement_info",
     "run_dual_measurement",
     "run_dual_measurement_info",
+    "run_trio_measurement_info",
     "setup_huber_for_dual",
+    "setup_huber_for_trio",
 ]

@@ -170,6 +170,21 @@ DUAL_LEGS = {
         "cam_busy": lambda d: d.cam.detector_state.get() != 0,
         "hdf_busy": lambda d: d.hdf1.capture.get() == 1,
     },
+    # Added 2026-09-14 for three-detector (trio) runs. The Lambda's arm and poll
+    # semantics are identical to the Eiger's -- compare acquire_lambda_internal()
+    # and acquire_eiger_internal() in ad_acq.py, which differ only in the defensive
+    # cam.acquire.put(0) the serial Lambda does before opening the shutter. That
+    # stop is deliberately NOT reproduced here: in the parallel path the shutter is
+    # already open by arm time, so stopping a cam here would be a write inside the
+    # beam window. lambda2M/Internal is an EXISTING serial mode (ACQ_MODES) whose
+    # setup half, setup_lambda_internal(), is reused verbatim -- no new acquisition
+    # mode is introduced by this entry.
+    ("lambda2M", "Internal"): {
+        "arm": lambda d: (d.hdf1.capture.put(1), d.cam.acquire.put(1)),
+        "started": lambda d: d.cam.acquire.get() == 1,
+        "cam_busy": lambda d: d.cam.acquire.get() == 1,
+        "hdf_busy": lambda d: d.hdf1.capture.get() == 1,
+    },
 }
 
 

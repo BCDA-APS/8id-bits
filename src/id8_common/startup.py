@@ -52,6 +52,17 @@ configure_logging(extra_logging_configs_path=extra_logging_configs_path)
 logger = logging.getLogger(__name__)
 logger.info("Starting Instrument with iconfig: %s", iconfig_path)
 
+# Starting a session must never disturb hardware -- a second session started
+# mid-acquisition used to fire an Eiger exposure and crashed measurement G0209 on
+# 2026-09-12. The cause (ad_setup() priming the HDF plugin) is gone; this is the
+# backstop that keeps it, or anything like it, from coming back in library code
+# where a grep of our own source would not find it. Blocked writes are reported
+# by report_startup_writes() at the bottom of this file. The guard never raises.
+from id8_common.utils.startup_guard import arm_startup_guard
+from id8_common.utils.startup_guard import report_startup_writes
+
+arm_startup_guard()
+
 # initialize instrument
 instrument, oregistry = init_instrument("guarneri")
 
@@ -147,6 +158,10 @@ from .plans.align.scan_8id import *
 from .plans.set.select_sample import select_sample
 from .plans.set.select_device import *
 from .plans.set.qnw_plans import *
+
+# Restore ophyd's own put/set and report anything the guard refused above.
+# Everything from here on is an ordinary session: writes reach hardware normally.
+report_startup_writes()
 
 # import calibrate plans
 
