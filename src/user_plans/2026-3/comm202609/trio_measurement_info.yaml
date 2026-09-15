@@ -36,7 +36,6 @@ protocols:
         num_frames: 3000
         qmap_file: rigaku3m_qmap_Sq360_Dq18_Sphi16_Dphi1_lin.hdf
         analysis_type: Both
-        select_device: yes
       - device: eiger4M
         mode: Internal Series
         acq_time: 1
@@ -57,7 +56,6 @@ protocols:
         num_frames: 3000
         qmap_file: rigaku3m_qmap_Sq360_Dq18_Sphi16_Dphi1_lin.hdf
         analysis_type: Both
-        select_device: yes
       - device: eiger4M
         mode: Internal Series
         acq_time: 1
@@ -78,7 +76,6 @@ protocols:
         num_frames: 3000
         qmap_file: rigaku3m_qmap_Sq360_Dq18_Sphi16_Dphi1_lin.hdf
         analysis_type: Both
-        select_device: yes
       - device: eiger4M
         mode: Internal Series
         acq_time: 1
@@ -99,7 +96,6 @@ protocols:
         num_frames: 3000
         qmap_file: rigaku3m_qmap_Sq360_Dq18_Sphi16_Dphi1_lin.hdf
         analysis_type: Both
-        select_device: yes
       - device: eiger4M
         mode: Internal Series
         acq_time: 1
@@ -120,7 +116,6 @@ protocols:
         num_frames: 3000
         qmap_file: rigaku3m_qmap_Sq360_Dq18_Sphi16_Dphi1_lin.hdf
         analysis_type: Both
-        select_device: yes
       - device: eiger4M
         mode: Internal Series
         acq_time: 1
@@ -178,9 +173,9 @@ _instructions: |
 
   Moves, in this order, once per measurement:
 
-    filter_8ide.attenuation   to att_level
-    detector.x  -> -250.0     via select_device("rigaku3M_epics")
-    detector.y  ->  170.0     same
+    filter_8ide.attenuation   to att_level -- and that is the whole list. A parallel
+                              run has no route to a detector since 2026-09-15: position
+                              them yourself first, with select_device() at the prompt.
 
   The huber is NOT positioned by a parallel run:
 
@@ -189,14 +184,14 @@ _instructions: |
     diffractometer -- put it where you want it before the run. Sample motion is now
     validated exactly as it is for a single-detector protocol: any axis, no special case.
 
-    A leg can no longer name motors and positions of its own either: measurement_info.yaml
-    holds no detector positions. Detector geometry lives in device_position.yaml, and a
-    leg reaches it only by asking for select_device.
+    A leg can no longer name motors and positions of its own either, nor ask for
+    select_device: measurement_info.yaml holds no detector motion at all. Detector
+    geometry lives in device_position.yaml and is applied by select_device() at the
+    prompt, before the run.
 
   Note detector.x / detector.y is the stage shared with the Eiger. If the Eiger is bolted to
   it, that move carries the Eiger too -- which is what the geometry comment above is about.
-  If both detectors are already positioned, set select_device: no on the Rigaku leg and
-  nothing but the attenuator will move. That is safe for the trigger
+  Nothing but the attenuator moves during a run. That is safe for the trigger
   path: setup_rigaku_epics() sets softglue.enable_rigaku = '1' itself.
 
   ---------------------------------------------------------------------------
@@ -266,11 +261,6 @@ _instructions: |
     label:
       Optional. Short name used in file paths. Defaults to the canonical detector name, so
       rigaku3M_epics becomes rigaku3M. Only needed if two legs would otherwise collide.
-
-    select_device:
-      Optional, default no. Whether to call select_device(), which moves the detector to its
-      device_position.yaml preset. Yes for the Rigaku, which owns the Aerotech translation
-      stage. Leave it off for the second detector -- both presets cannot be satisfied at once.
 
     workflow_name:
       Optional. Overrides the DM workflow for this leg. Defaults to the

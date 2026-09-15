@@ -65,7 +65,6 @@ from id8_common.plans.acquire.acq_wait import stop_acquiring
 from id8_common.plans.acquire.acq_wait import wait_until
 from id8_common.plans.acquire.ad_acq import ACQ_MODES
 from id8_common.plans.acquire.ad_acq import cleanup_acquisition
-from id8_common.plans.set.select_device import select_device
 from id8_common.plans.set.shutter_att import blockbeam
 from id8_common.plans.set.shutter_att import post_align
 from id8_common.plans.set.shutter_att import showbeam
@@ -698,13 +697,20 @@ def multi_acq_series(leg_specs, num_repeats=1, wait_time=0.0, cam_timeout=None):
         leg_specs: One dict per detector. Required keys: device, mode, label,
             acq_time, num_frames, qmap_file, analysis_type. Optional: geometry
             (only needed when the detector is not at the mount
-            device_position.yaml describes), select_device, stop_timeout,
-            workflow_name. The start and HDF-drain allowances are fixed:
-            START_TIMEOUT and HDF_TIMEOUT.
+            device_position.yaml describes), stop_timeout, workflow_name. The
+            start and HDF-drain allowances are fixed: START_TIMEOUT and
+            HDF_TIMEOUT.
         num_repeats: Repeats for the set. Every detector runs every repeat; the
             faster ones idle until the slowest finishes before the next starts.
         wait_time: Delay before each repeat.
         cam_timeout: Override the computed per-repeat cam allowance, in seconds.
+
+    THIS FUNCTION MOVES NO DETECTOR. It has no route to one: no motors, no
+    select_device, no huber hook. Position every detector before the run -- at
+    the prompt with select_device(), which reads device_position.yaml. A leg
+    could ask for select_device until 2026-09-15 and name its own motors and
+    positions until 2026-09-14; measurement_info.yaml holds no detector motion
+    now, in either protocol shape.
 
     Shutter contract -- the reason this exists rather than calling the serial
     acquire functions once per detector:
@@ -737,17 +743,6 @@ def multi_acq_series(leg_specs, num_repeats=1, wait_time=0.0, cam_timeout=None):
     try:
         post_align()
         shutteroff()
-
-        # The only motion this function does, and only for a leg that asks: the
-        # detector's own device_position.yaml preset, gated by that entry's
-        # allow_motion. It is the same call the serial path makes. A leg used to
-        # be able to name arbitrary motors and positions of its own, through a
-        # `motors:` block -- measurement_info.yaml has no business holding
-        # detector positions, so that went on 2026-09-14 along with the huber
-        # positioning hook that made it necessary.
-        for leg in legs:
-            if leg.get("select_device"):
-                select_device(leg["device"])
 
         workflow_proc_api, dmuser = dm_setup()
 

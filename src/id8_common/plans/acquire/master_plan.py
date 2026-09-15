@@ -10,7 +10,6 @@ from id8_common.plans.set.shutter_att import att
 from id8_common.plans.set.select_device import DETECTOR_ALIASES
 from id8_common.plans.set.select_device import select_device
 from id8_common.plans.acquire.validators import VALID_ANALYSIS_TYPES
-from id8_common.plans.acquire.validators import as_bool
 from id8_common.plans.acquire.validators import normalize_yes_no
 from id8_common.plans.acquire.validators import read_yaml
 from id8_common.plans.acquire.validators import require_fields
@@ -108,6 +107,10 @@ RETIRED_AXIS_FIELDS = ("horizontal", "vertical", "swing_angle_horizontal", "swin
 #: Per-leg keys that used to mean something, and what to tell anyone still
 #: setting one. Every one of these is rejected by validate_multi_protocol().
 RETIRED_LEG_FIELDS = {
+    "select_device": (
+        "Delete the line: a parallel acquisition moves no detector. Position them first, "
+        "at the prompt with select_device(), which reads device_position.yaml."
+    ),
     "shutter_owner": (
         "Every detector is now armed together inside one showbeam()/blockbeam() window, so "
         "there is no owner to nominate -- delete the line. Legs are armed in the order they "
@@ -720,7 +723,6 @@ def build_leg_specs(measurement):
             "qmap_file": str(leg["qmap_file"]),
             "analysis_type": leg.get("analysis_type", "Multitau"),
             "geometry": leg.get("geometry") or {},
-            "select_device": as_bool(leg.get("select_device", False), "select_device"),
         }
 
         if "stop_timeout" in leg:
