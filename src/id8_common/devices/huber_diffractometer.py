@@ -16,7 +16,7 @@ class Huber_Diffractometer(Device):
 
     `nu` and `delta` double as lambda2M's swing angles in
     plans/set/device_position.yaml. plans/set/select_device.py never drives
-    them; only an explicit move_detector_axes() call does.
+    them; only a position in device_position.yaml does.
     """
 
     nu = Component(EpicsMotor, "m4", name="nu")

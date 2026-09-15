@@ -4,22 +4,23 @@
 #   name: axis role (horizontal, vertical, swing_angle_horizontal, swing_angle_vertical, ...).
 #   device: dotted "registry_key.attribute" path, or null if the axis doesn't physically
 #     exist on this detector.
-#   position: direct-beam preset that select_device() moves horizontal/vertical to when
-#     this detector is selected. select_device() moves ONLY horizontal/vertical
-#     (TRANSLATION_AXES in select_device.py) — it never moves swing_angle_horizontal/
-#     vertical, even when a device is configured for them. This is why `position` is
-#     omitted entirely below wherever there's nothing for select_device() to do with it:
-#     null-device axes (nothing to move), and all of lambda2M's axes (no translation
-#     stage, and its swing motors are select-only-on-request, same as everyone else's).
+#   position: where select_device() drives this axis when the detector is selected.
+#     ONE RULE, every axis alike: it is driven when it has BOTH a real device and a
+#     position AND the entry's allow_motion is true. Leave `position` out and the axis is
+#     never driven — it stays wherever it is. No axis is excluded by name any more: until
+#     2026-09-14 select_device() moved horizontal/vertical only, and a swing angle needed
+#     a separate move_detector_axes() call fed by per-protocol overrides in
+#     measurement_info.yaml. Both are gone, and those protocol keys are now rejected.
 #
-#   Swing angles are only ever moved explicitly, via move_detector_axes() / a
-#   measurement_info.yaml protocol's horizontal/vertical/swing_angle_horizontal/
-#   swing_angle_vertical overrides (see id8_common/plans/acquire/master_plan.py:
-#   run_measurement). If a protocol doesn't specify a swing axis, it is left wherever it
-#   currently is — there is no default/reset position for it in this file. This is
-#   deliberate: the flight-path swing (eiger4M/rigaku3M's flight_path_8idi.swing) is a
-#   finicky motor shared across detectors, and should not be driven unless a measurement
-#   actually needs it moved.
+#     NO SWING AXIS HAS A POSITION BELOW, so in practice nothing about the swing angles
+#     has changed — but give one a position and it WILL be driven. Think first:
+#     flight_path_8idi.swing and the huber (delta/nu) are shared across detectors, and in
+#     a parallel measurement the huber axes belong to setup_huber_for_multi() for the
+#     whole run (a leg with select_device: yes is refused at validation if its entry
+#     would drive them).
+#
+#     A position on a null-device axis moves nothing and is metadata only: eiger4M's
+#     horizontal/vertical are read as beam_center_position_x/y by utils/nexus_runtime.py.
 #
 # db_x/db_y (detectors only): direct-beam pixel position. Measured with both swing angles
 #   at 0 for every detector — there is no separate beam-center-swing metadata field
@@ -36,10 +37,9 @@
 # allow_motion: whether this entry's motors may be driven at all. Defaults to true when
 #   the field is absent. Set it to false to make an entry selectable but stationary —
 #   select_device() still writes registers, beam-centre and det_name, it just skips the
-#   translation move, and move_detector_axes() raises instead of driving an axis. Intended
-#   for test/commissioning, where selecting a detector must not risk a collision. For a
-#   sample_env, false also leaves the valve closed, since the valve only exists to gate
-#   motion. Honoured by id8_common/plans/set/select_device.py.
+#   motion. Intended for test/commissioning, where selecting a detector must not risk a
+#   collision. For a sample_env, false also leaves the valve closed, since the valve only
+#   exists to gate motion. Honoured by id8_common/plans/set/select_device.py.
 # valve (sample_envs only): dotted path to a device whose .put(1/0) gates motion.
 # distance (detectors only): sample-to-detector distance, metres. Read by
 #   id8_common/utils/nexus_utils.py and written to /entry/instrument/detector_1/distance.

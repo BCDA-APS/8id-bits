@@ -8,12 +8,9 @@ from id8_common.plans.acquire.multi_acq import MULTI_LEGS
 from id8_common.plans.acquire.multi_acq import assert_parallel_safe
 from id8_common.plans.acquire.multi_acq import multi_acq_series
 from id8_common.plans.set.shutter_att import att
-from id8_common.plans.set.select_device import AXIS_NAMES
 from id8_common.plans.set.select_device import DETECTOR_ALIASES
 from id8_common.plans.set.select_device import _detector_config
-from id8_common.plans.set.select_device import _find_motor
 from id8_common.plans.set.select_device import _load_config
-from id8_common.plans.set.select_device import move_detector_axes
 from id8_common.plans.set.select_device import select_device
 from id8_common.plans.acquire.validators import VALID_ANALYSIS_TYPES
 from id8_common.plans.acquire.validators import as_bool
@@ -116,6 +113,12 @@ LEG_FILE_LABELS = {
     "rigaku3M_epics": "rigaku3M",
     "rigaku3M_ftf": "rigaku3M",
 }
+
+#: Protocol keys that used to name a detector axis to move, and are now rejected
+#: rather than ignored. device_position.yaml is the one place that says where an
+#: axis goes; these existed only because select_device() refused to drive a swing
+#: angle until 2026-09-14, and no protocol ever used them.
+RETIRED_AXIS_FIELDS = ("horizontal", "vertical", "swing_angle_horizontal", "swing_angle_vertical")
 
 #: Per-leg keys that used to mean something, and what to tell anyone still
 #: setting one. Every one of these is rejected by validate_multi_protocol().
@@ -451,33 +454,6 @@ def validate_timing(measurement):
         raise ValueError(f"{detector} {mode} does not use trigger_period.")
 
 
-def validate_detector_position_overrides(measurement):
-    """Refuse a protocol that asks to move a detector axis this detector does not have.
-
-    An override is any AXIS_NAMES key written straight into the protocol body --
-    `horizontal`, `vertical`, `swing_angle_horizontal`, `swing_angle_vertical`.
-    run_measurement() feeds those to move_detector_axes() after select_device(),
-    so they override the position device_position.yaml would have parked at.
-    """
-    overrides = {axis: measurement[axis] for axis in AXIS_NAMES if axis in measurement}
-
-    if not overrides:
-        return
-
-    config = _load_config()
-    cfg = _detector_config(config, measurement["detector"])
-    motors_cfg = cfg["motors"]
-
-    for axis_name in overrides:
-        motor = _find_motor(motors_cfg, axis_name)
-
-        if motor.get("device") is None:
-            raise ValueError(
-                f"Protocol '{measurement.get('protocol_name', '')}': "
-                f"'{measurement['detector']}' has no '{axis_name}' axis to move."
-            )
-
-
 def validate_analysis_type(measurement):
     validators.validate_analysis_type(measurement.get("analysis_type", "Multitau"))
 
@@ -500,6 +476,18 @@ def validate_counts(measurement):
         # Reject rather than ignore: a num_segments on a mode that never reads
         # it would silently do nothing.
         raise ValueError(f"{detector} {mode} does not use num_segments.")
+
+
+def reject_axis_overrides(measurement):
+    """Refuse a protocol that still carries a per-detector axis override."""
+    present = [axis for axis in RETIRED_AXIS_FIELDS if axis in measurement]
+
+    if present:
+        raise ValueError(
+            f"Protocol '{measurement.get('protocol_name', '')}' sets {present}, which no longer "
+            f"moves anything. Axis positions live in device_position.yaml: give the axis a "
+            f"`position` there, with allow_motion: true, and select_device() will drive it."
+        )
 
 
 def validate_sample_motion(measurement, sample):
@@ -550,7 +538,7 @@ def validate_single_measurement(measurement, sample):
     require_fields(sample, required_sample_fields, "sample")
 
     validate_detector_mode(measurement)
-    validate_detector_position_overrides(measurement)
+    reject_axis_overrides(measurement)
     validate_analysis_type(measurement)
     validate_required_devices_connected(measurement)
     validate_timing(measurement)
@@ -680,6 +668,22 @@ def validate_leg(leg):
                 f"setup_huber_for_multi() (delta {MULTI_HUBER_DELTA}, nu {MULTI_HUBER_NU})."
             )
         get_ophyd_object(dotted)
+
+    # select_device() drives every axis device_position.yaml gives a position to,
+    # swing angles included since 2026-09-14 -- so a leg that opts into it can now
+    # reach the huber. Both axes belong to setup_huber_for_multi() for the whole
+    # measurement, so refuse the combination instead of letting one leg re-point
+    # them mid-set. Nothing trips this today: no swing axis has a position.
+    if leg.get("select_device"):
+        for motor in _detector_config(_load_config(), device)["motors"]:
+            if motor.get("device") in FORBIDDEN_MOTORS and motor.get("position") is not None:
+                raise ValueError(
+                    f"Leg '{label}': select_device would drive '{motor['device']}' to "
+                    f"{motor['position']} ({device} {motor['name']} in device_position.yaml), but "
+                    f"both huber axes are positioned once before acquisition by "
+                    f"setup_huber_for_multi() (delta {MULTI_HUBER_DELTA}, nu {MULTI_HUBER_NU}). "
+                    f"Remove that axis's position, or drop select_device from this leg."
+                )
 
     # Checks required_devices too, not just the detector itself.
     require_mode_devices(device, mode, where=where)
@@ -963,7 +967,6 @@ def run_single_measurement(measurement, sample, sample_index):
     att(att_level)
 
     wait_time = float(measurement.get("wait_time", 0))
-    position_overrides = {axis: measurement[axis] for axis in AXIS_NAMES if axis in measurement}
 
     print("")
     print("==============================================")
@@ -988,16 +991,11 @@ def run_single_measurement(measurement, sample, sample_index):
     print(f"position_reset: {measurement.get('position_reset', 'No')}")
     print(f"qmap_file:      {expt.qmap_file}")
     print(f"Analysis type:  {expt.analysis_type}")
-    if position_overrides:
-        print(f"Position override: {position_overrides}")
     print("==============================================")
     print("")
 
     select_device(measurement["detector"])
     run_detector_placeholder(measurement["detector"])
-
-    if position_overrides:
-        move_detector_axes(measurement["detector"], position_overrides)
 
     det_acq_series(wait_time=wait_time, hooks=measurement.get("hooks"))
 
@@ -1130,7 +1128,7 @@ def dry_run_measurement_info(measurement_info_file=None, sample_info_file=None, 
 
         normalize_measurement(measurement)
         validate_detector_mode(measurement)
-        validate_detector_position_overrides(measurement)
+        reject_axis_overrides(measurement)
         validate_analysis_type(measurement)
         validate_timing(measurement)
         validate_counts(measurement)
@@ -1155,8 +1153,6 @@ def dry_run_measurement_info(measurement_info_file=None, sample_info_file=None, 
         # towards both totals and the closing comparison stays like-for-like.
         total_if_serial += est_time
 
-        position_overrides = {axis: measurement[axis] for axis in AXIS_NAMES if axis in measurement}
-
         print("")
         print("==============================================")
         print(f"Run name:       {measurement.get('run_name', '')}")
@@ -1179,8 +1175,6 @@ def dry_run_measurement_info(measurement_info_file=None, sample_info_file=None, 
         print(f"position_reset: {measurement.get('position_reset', 'no')}")
         print(f"qmap_file:      {measurement['qmap_file']}")
         print(f"Analysis type:  {measurement.get('analysis_type', 'Multitau')}")
-        if position_overrides:
-            print(f"Position override: {position_overrides}")
         print(f"Est. acq time:  {est_time:.1f} s")
         print("==============================================")
         print("")

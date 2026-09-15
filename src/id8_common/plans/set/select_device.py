@@ -14,7 +14,7 @@ reads (device_position.yaml's own header comment documents every field)::
             device: detector.x             # dotted "registry_key.attribute"
             position: -250.0               # where select_device() sends it
           - name: swing_angle_horizontal
-            device: flight_path_8idi.swing # never moved by select_device()
+            device: flight_path_8idi.swing # no position -> never moved
         allow_motion: false                # optional, defaults to true
     diagnostics:
       microscope:
@@ -31,8 +31,12 @@ reads (device_position.yaml's own header comment documents every field)::
 Reading that: ``select_device("qnw")`` opens ``granite_8idi_valve.enable``,
 drives ``granite.x`` to 923.0, then closes the valve again.
 ``select_device("rigaku3M")`` -- because allow_motion is false for that entry --
-records the detector and stops there; with allow_motion true it would also drive
-``detector.x`` to -250.0, still leaving the swing angle wherever it is.
+records the detector and stops there; with allow_motion true it would drive
+``detector.x`` to -250.0 and leave the swing angle alone, because that axis has
+no ``position``.
+
+One rule decides every axis: it is driven when it has BOTH a real device and a
+position, and the entry allows motion. Nothing is special-cased by axis name.
 
 A detector entry may also carry an optional ``registers:`` block (dotted path →
 value, .put() before any motion). None does today: its last user was
@@ -62,18 +66,6 @@ DETECTOR_ALIASES = {
     "rigaku3M_ftf": "rigaku3M",
     "rigaku3M_epics": "rigaku3M",
 }
-
-# Named axis roles every detector's `motors` list may define. Used by
-# move_detector_axes() and by master_plan.py to recognize per-protocol position
-# overrides in measurement_info.yaml.
-AXIS_NAMES = ["horizontal", "vertical", "swing_angle_horizontal", "swing_angle_vertical"]
-
-# Axes select_device() itself is allowed to move. Swing angles are deliberately excluded:
-# the flight-path swing (eiger4M/rigaku3M) and huber diffractometer (lambda2M) are shared/
-# finicky motors, so select_device() never drives them, even when device_position.yaml
-# configures a device for them. Only move_detector_axes() (called from
-# master_plan.run_measurement() for explicit per-protocol overrides) may move swing axes.
-TRANSLATION_AXES = ["horizontal", "vertical"]
 
 
 def _load_config():
@@ -114,9 +106,11 @@ def _motion_allowed(cfg: dict) -> bool:
 def _move_motors(motors_cfg: list, timeout: float = 300):
     """Drive every entry in a `motors:` list that has both a device and a position.
 
-    Entries missing either one are skipped silently on purpose: an axis with
-    ``device: null`` does not physically exist on that detector, and an axis
-    with no ``position`` (every swing angle) has no preset to go to.
+    Entries missing either one are skipped, and that is the whole motion policy:
+    an axis with ``device: null`` does not physically exist on that detector, and
+    an axis with no ``position`` has nowhere to be sent. No axis is excluded by
+    name -- give a swing angle a position in device_position.yaml and it will be
+    driven like any other.
     """
     for m in motors_cfg:
         if m.get("device") is None or m.get("position") is None:
@@ -132,46 +126,6 @@ def _find_motor(motors_cfg: list, name: str):
     raise KeyError(f"No motor named '{name}' in device_position.yaml config.")
 
 
-def move_detector_axes(name: str, overrides: dict, timeout: float = 300):
-    """Move a subset of a detector's axes to explicit positions.
-
-    Applied on top of whatever select_device() already set, so callers only need to
-    pass the axes they want to override (e.g. {"swing_angle_horizontal": 5.0}).
-
-    Args:
-        name: Detector name as used by select_device() (resolves DETECTOR_ALIASES).
-        overrides: {axis_name: position} for any subset of AXIS_NAMES.
-
-    Raises:
-        ValueError: if an axis has no real device (e.g. lambda2M's horizontal/vertical
-            translation, which doesn't physically exist).
-    """
-    config = _load_config()
-    cfg = _detector_config(config, name)
-    motors_cfg = cfg["motors"]
-
-    # Raise rather than skip: this is an explicit, targeted motion request (a
-    # measurement_info.yaml axis override), so silently ignoring it would run
-    # the measurement with the detector somewhere other than the protocol asked
-    # for. select_device() skips instead, because there the move is incidental.
-    if not _motion_allowed(cfg):
-        raise ValueError(
-            f"'{name}' has allow_motion: false in device_position.yaml, so "
-            f"move_detector_axes() will not drive {sorted(overrides)}. Set "
-            f"allow_motion: true for '{name}' to allow motion again."
-        )
-
-    for axis_name, position in overrides.items():
-        motor = _find_motor(motors_cfg, axis_name)
-
-        if motor.get("device") is None:
-            raise ValueError(
-                f"'{name}' has no '{axis_name}' axis to move (device is null in device_position.yaml)."
-            )
-
-        _resolve(motor["device"]).move(position, wait=True, timeout=timeout)
-
-
 def select_device(name: str):
     """Move a beamline device to a named pre-configured position.
 
@@ -179,11 +133,8 @@ def select_device(name: str):
     device_position.yaml in order. Section-specific behaviour:
 
     - detectors: applies the entry's optional `registers:` block (real ophyd signals
-      only; no detector uses one today), records det_name on `expt`, moves
-      horizontal/vertical translation only
-      (TRANSLATION_AXES) — never touches swing_angle_horizontal/vertical, even
-      if device_position.yaml configures a device for them. Use
-      move_detector_axes() to move swing axes explicitly.
+      only; no detector uses one today), records det_name on `expt`, and drives
+      every axis that has both a device and a position.
     - diagnostics: moves motors only.
     - sample_envs: opens a valve, moves motors, then closes the valve.
 
@@ -193,6 +144,12 @@ def select_device(name: str):
     defaults to true when absent. See _motion_allowed(). (Beam centre is not
     written here at all any more -- nexus_utils reads db_x/db_y straight from
     device_position.yaml; see the note further down this function.)
+
+    Until 2026-09-14 this moved horizontal/vertical only, and a swing angle could
+    be driven only through a separate move_detector_axes() call fed by per-protocol
+    overrides in measurement_info.yaml. Both are gone: device_position.yaml is the
+    one place that says where an axis goes, and `position` is the one thing that
+    says whether it goes there.
 
     Args:
         name: Position key in device_position.yaml
@@ -218,10 +175,9 @@ def select_device(name: str):
         # rest of the register retirement.
 
         if _motion_allowed(cfg):
-            translation_motors = [m for m in motors_cfg if m.get("name") in TRANSLATION_AXES]
-            _move_motors(translation_motors)
+            _move_motors(motors_cfg)
         else:
-            print(f"'{name}' has allow_motion: false -- selected without moving translation axes.")
+            print(f"'{name}' has allow_motion: false -- selected without moving anything.")
 
         # Run state is what det_acq_series() reads, so a standalone
         # select_device("eiger4M") at the prompt has to update it too --

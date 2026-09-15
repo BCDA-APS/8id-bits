@@ -18,7 +18,7 @@ class FlightPath(Device):
     `length` drives the flight-path length and `swing` the detector swing
     angle. Treat `swing` with care: it is shared by eiger4M and rigaku3M,
     and plans/set/select_device.py deliberately never drives it -- only an
-    explicit move_detector_axes() call does.
+    position in device_position.yaml does.
 
     ds_x/ds_y/us are the beam-stop motors, the same three EPICS motors that
     flight_tube.FlightTubeBeamStop also exposes.
