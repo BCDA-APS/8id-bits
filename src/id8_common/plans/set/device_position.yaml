@@ -25,13 +25,12 @@
 #   at 0 for every detector — there is no separate beam-center-swing metadata field
 #   (see id8_common/utils/nexus_utils.py) because that swing=0 assumption is baked into
 #   the db_x/db_y calibration itself.
-# registers (detectors only): dotted-path → value written via .put() before motion.
-#   These are real ophyd signals only. Until 2026-09-06 this block also carried
-#   pv_registers.det_pixel_size and pv_registers.workflow_name -- writes into the legacy
-#   EPICS registers that nothing reads any more, so the per-detector pixel size never
-#   reached the metadata and every file recorded the eiger value. Pixel size is now the
-#   `pixel_size` field below; workflow_name lives in configs/experiment.yml (a dual leg
-#   can still override it per leg).
+# registers (detectors only, optional): dotted-path → value written via .put() before
+#   motion. Real ophyd signals only. NO DETECTOR USES IT as of 2026-09-14 -- the block is
+#   kept because it lets a per-detector signal preset be added from YAML alone. Its last
+#   user was softglue.enable_rigaku, which moved into the acquisition modes
+#   (set_rigaku_mux() in plans/acquire/acq_helpers.py): the MUX state depends on the mode
+#   about to run, not on which detector is selected, and this block cannot express that.
 # pixel_size (detectors only): detector pixel size, metres. Read by
 #   id8_common/utils/nexus_utils.py and written to /entry/instrument/detector_1/x,y_pixel_size.
 # allow_motion: whether this entry's motors may be driven at all. Defaults to true when
@@ -45,17 +44,14 @@
 # distance (detectors only): sample-to-detector distance, metres. Read by
 #   id8_common/utils/nexus_utils.py and written to /entry/instrument/detector_1/distance.
 #
-# rigaku3M and rigaku3M_epics are the SAME physical detector, listed twice on purpose.
-# Every field is identical except registers.softglue.enable_rigaku, and that one field is
-# the whole reason for the split: in the ZDT and fast-transfer modes the Rigaku drives the
-# fast shutter itself through softglue ('1'), while in EPICS mode the plan drives the
-# shutter with showbeam()/blockbeam() and the MUX must be off ('0'). Selecting the detector
-# therefore has to write a different value depending on which mode is about to run, which an
-# alias cannot express. rigaku3M_ftf is still an alias of rigaku3M (see DETECTOR_ALIASES in
-# id8_common/plans/set/select_device.py) -- it is a fast-file mode, so it wants the same '1'.
+# rigaku3M_epics and rigaku3M_ftf are the same physical detector as rigaku3M and have no
+# entry of their own: both are DETECTOR_ALIASES of it (see
+# id8_common/plans/set/select_device.py). rigaku3M_epics had a duplicate entry here from
+# 2026-09-11 to 2026-09-14, identical but for registers.softglue.enable_rigaku; that value
+# now comes from the mode, so the duplicate is gone.
 #
 # Every detector below is selectable via select_device() and has a full motors/db_x/db_y/
-# distance/registers block, even where some axes don't physically exist (device: null) —
+# distance block, even where some axes don't physically exist (device: null) —
 # e.g. lambda2M has no horizontal/vertical translation stage, only swing angles.
 
 detectors:
@@ -77,8 +73,6 @@ detectors:
     distance: 4.0
     pixel_size: 75.0e-6          # metres, written to NeXus x/y_pixel_size
     allow_motion: false
-    registers:
-      softglue.enable_rigaku: '0'
 
   rigaku3M:
     motors:
@@ -97,34 +91,6 @@ detectors:
     distance: 22
     pixel_size: 76.0e-6          # metres, written to NeXus x/y_pixel_size
     allow_motion: false
-    registers:
-      softglue.enable_rigaku: '1'
-
-  # Same detector, same stage, same numbers as rigaku3M above -- only
-  # enable_rigaku differs. Keep the geometry fields in step with that entry: a
-  # measurement of db_x/db_y/distance/pixel_size applies to both. Paired with
-  # trigger_mode 'Fixed Time' in setup_rigaku_epics()
-  # (plans/acquire/rigaku3m_modes.py), which is the Rigaku's internally-timed
-  # mode and needs nothing from softglue.
-  rigaku3M_epics:
-    motors:
-      - name: horizontal
-        device: detector.x
-        position: -275.0
-      - name: vertical
-        device: detector.y
-        position: 170.0
-      - name: swing_angle_horizontal
-        device: flight_path_8idi.swing
-      - name: swing_angle_vertical
-        device: null
-    db_x: 1052
-    db_y: 852
-    distance: 22
-    pixel_size: 76.0e-6          # metres, written to NeXus x/y_pixel_size
-    allow_motion: false
-    registers:
-      softglue.enable_rigaku: '0'
 
   lambda2M:
     motors:
@@ -141,8 +107,6 @@ detectors:
     distance: 2.2
     pixel_size: 55.0e-6          # metres, written to NeXus x/y_pixel_size
     allow_motion: false
-    registers:
-      softglue.enable_rigaku: '0'
 
 diagnostics:
 

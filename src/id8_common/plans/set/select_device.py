@@ -16,8 +16,6 @@ reads (device_position.yaml's own header comment documents every field)::
           - name: swing_angle_horizontal
             device: flight_path_8idi.swing # never moved by select_device()
         allow_motion: false                # optional, defaults to true
-        registers:                         # optional, .put() before any motion
-          softglue.enable_rigaku: '1'
     diagnostics:
       microscope:
         motors:                            # no "name:" here -- all are moved
@@ -32,10 +30,14 @@ reads (device_position.yaml's own header comment documents every field)::
 
 Reading that: ``select_device("qnw")`` opens ``granite_8idi_valve.enable``,
 drives ``granite.x`` to 923.0, then closes the valve again.
-``select_device("rigaku3M")`` puts '1' into ``softglue.enable_rigaku`` and --
-because allow_motion is false for that entry -- stops there; with allow_motion
-true it would also drive ``detector.x`` to -250.0, still leaving the swing
-angle wherever it is.
+``select_device("rigaku3M")`` -- because allow_motion is false for that entry --
+records the detector and stops there; with allow_motion true it would also drive
+``detector.x`` to -250.0, still leaving the swing angle wherever it is.
+
+A detector entry may also carry an optional ``registers:`` block (dotted path →
+value, .put() before any motion). None does today: its last user was
+softglue.enable_rigaku, which moved into the acquisition modes because the MUX
+state follows the mode about to run, not the selected detector.
 """
 
 from pathlib import Path
@@ -48,18 +50,17 @@ from id8_common.registry import get_ophyd_object
 
 DEVICE_POSITION_PATH = Path(__file__).parent / "device_position.yaml"
 
-# rigaku3M_ftf is the same physical detector as rigaku3M run with a different
-# output format (see rigaku3m_modes.py). It has no entry of its own in
-# device_position.yaml; it shares rigaku3M's motors/db_x/db_y/distance/registers
-# via this alias, including softglue.enable_rigaku = '1', which its fast-file
-# trigger path needs.
+# rigaku3M_ftf and rigaku3M_epics are the same physical detector as rigaku3M,
+# run with a different output format (see rigaku3m_modes.py). Neither has an
+# entry of its own in device_position.yaml; both share rigaku3M's motors, beam
+# centre and distance through these aliases.
 #
-# rigaku3M_epics was aliased here too until 2026-09-11 and now has its own
-# device_position.yaml entry. It is the same detector and the same numbers, but
-# it wants softglue.enable_rigaku = '0' -- in EPICS mode the plan drives the
-# shutter itself and the Rigaku must not -- and an alias has no way to say that.
+# rigaku3M_epics had its own entry from 2026-09-11 to 2026-09-14, purely to hold
+# a different softglue.enable_rigaku value. That value now comes from the mode
+# (set_rigaku_mux() in plans/acquire/acq_helpers.py), so the split is gone.
 DETECTOR_ALIASES = {
     "rigaku3M_ftf": "rigaku3M",
+    "rigaku3M_epics": "rigaku3M",
 }
 
 # Named axis roles every detector's `motors` list may define. Used by
@@ -177,8 +178,9 @@ def select_device(name: str):
     Searches detectors, diagnostics, and sample_envs sections of
     device_position.yaml in order. Section-specific behaviour:
 
-    - detectors: applies the entry's `registers:` block (real ophyd signals only),
-      records det_name on `expt`, moves horizontal/vertical translation only
+    - detectors: applies the entry's optional `registers:` block (real ophyd signals
+      only; no detector uses one today), records det_name on `expt`, moves
+      horizontal/vertical translation only
       (TRANSLATION_AXES) — never touches swing_angle_horizontal/vertical, even
       if device_position.yaml configures a device for them. Use
       move_detector_axes() to move swing axes explicitly.

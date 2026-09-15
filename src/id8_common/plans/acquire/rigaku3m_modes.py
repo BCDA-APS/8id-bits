@@ -2,8 +2,8 @@
 Rigaku3M mode definitions: setup/acquire functions plus RIGAKU3M_BIN_MODES,
 RIGAKU3M_FTF_MODES and RIGAKU3M_EPICS_MODES, the tables ad_acq.py assembles
 into ACQ_MODES. Nothing here runs on its own: det_acq_series() in ad_acq.py
-calls these, and multi_acq_series() runs setup_rigaku_epics() for the
-("rigaku3M_epics", "EPICS") leg of a parallel measurement.
+calls these, and multi_acq_series() in multi_acq.py runs setup_rigaku_epics()
+for the ("rigaku3M_epics", "EPICS") leg of a parallel measurement.
 
 The three tables are separate ACQ_MODES *detector* keys rather than one table,
 because BIN and FTF offer the same three mode names (ZDT2bit / ZDT4bit /
@@ -30,7 +30,7 @@ measurement_info.yaml) is what picks the output format:
         'Fixed Time') and leaves softglue.enable_rigaku at '0', so it does not
         touch the fast shutter and can share a beam window with the Eiger and
         the Lambda -- see setup_rigaku_epics() and multi_acq_series() in
-        ad_acq.py.
+        multi_acq.py.
 
 Both fast-file families share acquire_rigaku_zdt(); only EPICS needs its own
 acquire, because it also has to arm and drain the HDF1 plugin.
@@ -41,6 +41,7 @@ import time as ttime
 
 from id8_common.plans.acquire.acq_helpers import get_connected_device
 from id8_common.plans.acquire.acq_helpers import get_rigaku_file_path
+from id8_common.plans.acquire.acq_helpers import set_rigaku_mux
 from id8_common.plans.set.shutter_att import blockbeam
 from id8_common.plans.set.shutter_att import showbeam
 
@@ -74,9 +75,8 @@ def _setup_rigaku_fast_file(acq_time, num_frames, file_header, file_name,
     land as ``<file_name>.<ext>.000`` .. ``.005``.
     """
     rigaku3M = get_connected_device("rigaku3M")
-    softglue = get_connected_device("softglue")
 
-    softglue.enable_rigaku.put('1')
+    set_rigaku_mux(True)
 
     rigaku3M.cam.trigger_mode.put('Start with Trigger')
 
@@ -176,15 +176,14 @@ def setup_rigaku_epics(acq_time, num_frames, file_header, file_name):
     acquisition path opens the shutter with showbeam() and closes it with
     blockbeam(), the same as every other internally-timed mode, which is what
     lets several detectors share one beam window (see multi_acq_series() in
-    ad_acq.py).
+    multi_acq.py).
 
     The MUX is written to '0' here rather than merely left alone: a preceding ZDT
     or fast-transfer run sets it to '1', and it stays set.
     """
     rigaku3M = get_connected_device("rigaku3M")
-    softglue = get_connected_device("softglue")
 
-    softglue.enable_rigaku.put('0')
+    set_rigaku_mux(False)
 
     rigaku3M.cam.trigger_mode.put('Fixed Time')
 

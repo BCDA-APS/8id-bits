@@ -213,6 +213,9 @@ if "rigaku3M" in shared_oregistry:
 # import acquire plans
 
 from .plans.acquire.ad_acq import *
+# The parallel acquisition loop. Split back out of ad_acq.py on 2026-09-14; it
+# reads the same measurement_info.yaml and sample_info.yaml as the serial one.
+from .plans.acquire.multi_acq import *
 from .plans.acquire.tetramm_acq import *
 # Both acquisition front ends. master_plan.py owns the serial path AND the
 # parallel one (several detectors in one beam window); they were separate modules

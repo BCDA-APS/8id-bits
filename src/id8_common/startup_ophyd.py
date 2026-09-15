@@ -249,8 +249,10 @@ print("[startup_ophyd] Importing plans ...")
 #
 # master_plan owns both acquisition front ends -- one detector at a time and
 # several in one beam window. The separate trio_master_plan_* module folded into
-# it on 2026-09-11.
+# it on 2026-09-11. The two acquisition loops themselves are ad_acq (serial) and
+# multi_acq (parallel), off the same measurement_info.yaml.
 from .plans.acquire.ad_acq import *  # noqa: F401, F403
+from .plans.acquire.multi_acq import *  # noqa: F401, F403
 from .plans.acquire.master_plan import *  # noqa: F401, F403
 from .plans.acquire.tetramm_acq import *  # noqa: F401, F403
 from .plans.acquire.tv_mode import *  # noqa: F401, F403

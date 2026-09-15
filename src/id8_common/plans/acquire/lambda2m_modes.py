@@ -1,8 +1,8 @@
 """
 Lambda2M mode definitions: setup/acquire functions plus LAMBDA2M_MODES, the
 table ad_acq.py assembles into ACQ_MODES. Nothing here runs on its own. The
-callers are det_acq_series() in ad_acq.py, and trio_acq_series() for the
-("lambda2M", "Internal") trio leg.
+callers are det_acq_series() in ad_acq.py, and multi_acq_series() in
+multi_acq.py for the ("lambda2M", "Internal") parallel leg.
 
 Modes:
 
@@ -23,6 +23,7 @@ import time as ttime
 from id8_common.plans.acquire import acq_helpers
 from id8_common.plans.acquire.acq_helpers import get_common_file_path
 from id8_common.plans.acquire.acq_helpers import get_connected_device
+from id8_common.plans.acquire.acq_helpers import set_rigaku_mux
 from id8_common.plans.acquire.acq_wait import cam_fault
 from id8_common.plans.acquire.acq_wait import hdf_frames_written
 from id8_common.plans.acquire.acq_wait import hdf_progress
@@ -69,6 +70,10 @@ def stop_lambda_live(lambda2M=None):
 # configure only -- nothing starts until the matching acquire_* function runs.
 # Each returns the NeXus metadata file path, which the caller (det_acq_series)
 # fills in once the run is over.
+#
+# Both also call set_rigaku_mux(False): the fast shutter must not be routed
+# through the Rigaku's MUX, which a preceding ZDT or fast-transfer run leaves
+# switched on. Every ACQ_MODES setup function states the MUX state it needs.
 # =============================================================================
 
 def setup_lambda_internal(acq_time, num_frames, file_header, file_name):
@@ -79,6 +84,8 @@ def setup_lambda_internal(acq_time, num_frames, file_header, file_name):
     # the only time it happened -- see stop_lambda_live().
     stop_lambda_live(lambda2M)
     file_path = get_common_file_path(file_header, file_name)
+
+    set_rigaku_mux(False)
 
     lambda2M.hdf1.enable.put(1)
     lambda2M.cam.trigger_mode.put("Internal")
@@ -109,6 +116,8 @@ def setup_lambda_external(acq_time, acq_period, num_frames, file_header, file_na
     softglue = get_connected_device("softglue")
 
     file_path = get_common_file_path(file_header, file_name)
+
+    set_rigaku_mux(False)
 
     lambda2M.hdf1.enable.put(1)
 
@@ -270,7 +279,7 @@ def acquire_lambda_external():
 # =============================================================================
 
 # Two flags on every entry decide whether a mode may share a beam window with
-# another detector (see parallel_objection() in ad_acq.py, which reads them):
+# another detector (see parallel_objection() in multi_acq.py, which reads them):
 #
 #   drives_shutter  the mode routes the fast shutter through softglue, so the
 #                   beam is gated by the detector's own trigger path instead of

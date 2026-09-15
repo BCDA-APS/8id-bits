@@ -1,9 +1,9 @@
 """
 Eiger4M mode definitions: setup/acquire functions plus EIGER4M_MODES, the
 table ad_acq.py assembles into ACQ_MODES. Nothing here runs on its own. The
-callers are det_acq_series() in ad_acq.py; trio_acq_series(), for the
-("eiger4M", "Internal Series") trio leg; and scan_8id.py / scan_8id_dev.py,
-which call setup_eiger_internal() directly.
+callers are det_acq_series() in ad_acq.py; multi_acq_series() in multi_acq.py,
+for the ("eiger4M", "Internal Series") parallel leg; and scan_8id.py /
+scan_8id_dev.py, which call setup_eiger_internal() directly.
 
 Modes (matching the TriggerMode enum on 8idEiger4M:cam1):
 
@@ -82,6 +82,7 @@ import time as ttime
 
 from id8_common.plans.acquire.acq_helpers import get_common_file_path
 from id8_common.plans.acquire.acq_helpers import get_connected_device
+from id8_common.plans.acquire.acq_helpers import set_rigaku_mux
 from id8_common.plans.acquire.acq_wait import STATE_FAILED
 from id8_common.plans.acquire.acq_wait import STATE_IDLE
 from id8_common.plans.acquire.acq_wait import DetectorWaitError
@@ -239,6 +240,10 @@ def recover_eiger_idle(eiger4M=None):
 # modes). They configure only -- nothing starts until the matching acquire_*
 # function runs. Each returns the NeXus metadata file path, which the caller
 # (det_acq_series) fills in once the run is over.
+#
+# All four also call set_rigaku_mux(False): the fast shutter must not be routed
+# through the Rigaku's MUX, which a preceding ZDT or fast-transfer run leaves
+# switched on. Every ACQ_MODES setup function states the MUX state it needs.
 # =============================================================================
 
 def setup_eiger_internal(acq_time, num_frames, file_header, file_name):
@@ -248,6 +253,8 @@ def setup_eiger_internal(acq_time, num_frames, file_header, file_name):
     # that hangs. See recover_eiger_idle().
     recover_eiger_idle(eiger4M)
     file_path = get_common_file_path(file_header, file_name)
+
+    set_rigaku_mux(False)
 
     # This mode has no separate acq_period (needs_acq_period is False in the
     # table below, so det_acq_series never passes one), so the period is the
@@ -281,6 +288,8 @@ def setup_eiger_internal_enable(acq_time, acq_period, num_frames, file_header, f
     # that hangs. See recover_eiger_idle().
     recover_eiger_idle(eiger4M)
     file_path = get_common_file_path(file_header, file_name)
+
+    set_rigaku_mux(False)
 
     eiger4M.cam.acquire_time.put(acq_time)
     eiger4M.cam.acquire_period.put(acq_period)
@@ -324,6 +333,8 @@ def setup_eiger_external_series(
     softglue_8id_mz2 = get_connected_device("softglue_8id_mz2")
 
     file_path = get_common_file_path(file_header, file_name)
+
+    set_rigaku_mux(False)
 
     eiger4M.cam.acquire_time.put(acq_time)
     eiger4M.cam.acquire_period.put(acq_period)
@@ -391,6 +402,8 @@ def setup_eiger_external(acq_time, acq_period, num_frames, file_header, file_nam
     softglue_8id_mz2 = get_connected_device("softglue_8id_mz2")
 
     file_path = get_common_file_path(file_header, file_name)
+
+    set_rigaku_mux(False)
 
     eiger4M.cam.acquire_time.put(acq_time)
     eiger4M.cam.acquire_period.put(acq_period)
@@ -589,7 +602,7 @@ def acquire_eiger_external():
 # =============================================================================
 
 # Two flags on every entry decide whether a mode may share a beam window with
-# another detector (see parallel_objection() in ad_acq.py, which reads them):
+# another detector (see parallel_objection() in multi_acq.py, which reads them):
 #
 #   drives_shutter  the mode routes the fast shutter through softglue, so the
 #                   beam is gated by the detector's own trigger path instead of

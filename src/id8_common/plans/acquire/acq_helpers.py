@@ -36,6 +36,7 @@ __all__ = [
     "load_hooks",
     "run_hooks",
     "get_ophyd_object",
+    "set_rigaku_mux",
     "get_sample_position",
     "gen_folder_prefix",
     "read_sample_identity",
@@ -43,6 +44,27 @@ __all__ = [
     "get_rigaku_file_path",
     "sample_mesh_move",
 ]
+
+
+# =============================================================================
+# Fast-shutter MUX
+# =============================================================================
+
+def set_rigaku_mux(enabled: bool):
+    """Route the fast shutter through the Rigaku's softglue MUX, or not.
+
+    '1' hands the shutter to the Rigaku's own trigger path, which is what the
+    ZDT and fast-transfer modes need; '0' leaves it to showbeam()/blockbeam(),
+    which is what every internally-timed mode needs -- including the Rigaku's
+    own EPICS mode.
+
+    Every ACQ_MODES setup function calls this, so the MUX state is decided by
+    the mode that is about to run. Until 2026-09-14 it came instead from the
+    selected detector's ``registers:`` block in device_position.yaml, which
+    could not tell two modes of the same detector apart -- that is why
+    rigaku3M_epics needed a duplicate entry there.
+    """
+    get_connected_device("softglue").enable_rigaku.put("1" if enabled else "0")
 
 
 # =============================================================================

@@ -17,8 +17,8 @@ owns the error prefix: the serial path raises ``acq_time must be > 0.`` and the
 trio path raises ``Leg 'eiger4M': acq_time must be > 0.`` from the same call.
 
 Import direction is one-way: this module imports ``ad_acq`` (for the ACQ_MODES
-table) and is imported by the two master-plan modules. Nothing in ``ad_acq`` or
-the per-detector mode modules may import it back.
+table) and is imported by ``master_plan``. Nothing in ``ad_acq``, ``multi_acq``
+or the per-detector mode modules may import it back.
 """
 
 from pathlib import Path

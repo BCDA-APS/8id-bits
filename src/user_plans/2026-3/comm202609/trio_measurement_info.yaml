@@ -37,15 +37,12 @@ protocols:
         qmap_file: rigaku3m_qmap_Sq360_Dq18_Sphi16_Dphi1_lin.hdf
         analysis_type: Both
         select_device: yes
-        start_timeout: 30
-        hdf_timeout: 600
       - device: eiger4M
         mode: Internal Series
         acq_time: 1
         num_frames: 3000
         qmap_file: eiger4m_qmap_Sq360_Sphi9_Dq3_Dphi1_WAXPCS_lin.hdf
         analysis_type: Both
-        hdf_timeout: 600
 
   trio_att10:
     att_level: 10
@@ -61,15 +58,12 @@ protocols:
         qmap_file: rigaku3m_qmap_Sq360_Dq18_Sphi16_Dphi1_lin.hdf
         analysis_type: Both
         select_device: yes
-        start_timeout: 30
-        hdf_timeout: 600
       - device: eiger4M
         mode: Internal Series
         acq_time: 1
         num_frames: 3000
         qmap_file: eiger4m_qmap_Sq360_Sphi9_Dq3_Dphi1_WAXPCS_lin.hdf
         analysis_type: Both
-        hdf_timeout: 600
 
   trio_att5:
     att_level: 5
@@ -85,15 +79,12 @@ protocols:
         qmap_file: rigaku3m_qmap_Sq360_Dq18_Sphi16_Dphi1_lin.hdf
         analysis_type: Both
         select_device: yes
-        start_timeout: 30
-        hdf_timeout: 600
       - device: eiger4M
         mode: Internal Series
         acq_time: 1
         num_frames: 3000
         qmap_file: eiger4m_qmap_Sq360_Sphi9_Dq3_Dphi1_WAXPCS_lin.hdf
         analysis_type: Both
-        hdf_timeout: 600
 
   trio_att2:
     att_level: 2
@@ -109,15 +100,12 @@ protocols:
         qmap_file: rigaku3m_qmap_Sq360_Dq18_Sphi16_Dphi1_lin.hdf
         analysis_type: Both
         select_device: yes
-        start_timeout: 30
-        hdf_timeout: 600
       - device: eiger4M
         mode: Internal Series
         acq_time: 1
         num_frames: 3000
         qmap_file: eiger4m_qmap_Sq360_Sphi9_Dq3_Dphi1_WAXPCS_lin.hdf
         analysis_type: Both
-        hdf_timeout: 600
 
   trio_att1:
     att_level: 1
@@ -133,15 +121,12 @@ protocols:
         qmap_file: rigaku3m_qmap_Sq360_Dq18_Sphi16_Dphi1_lin.hdf
         analysis_type: Both
         select_device: yes
-        start_timeout: 30
-        hdf_timeout: 600
       - device: eiger4M
         mode: Internal Series
         acq_time: 1
         num_frames: 3000
         qmap_file: eiger4m_qmap_Sq360_Sphi9_Dq3_Dphi1_WAXPCS_lin.hdf
         analysis_type: Both
-        hdf_timeout: 600
 
 ###### Change here to change measurement conditions #######
 
@@ -245,14 +230,14 @@ _instructions: |
     1. Every detector is taken out of live/TV mode, then set up.
     2. Shutter opens.
     3. Every detector is armed, in the order listed above. Each arm is a single EPICS put.
-    4. Wait until every detector confirms it has STARTED (start_timeout, default 30 s). The
+    4. Wait until every detector confirms it has STARTED (30 s, multi_acq.START_TIMEOUT). The
        Rigaku is the slow one here -- it stages internally for a few seconds before it
        reports anything, and this step is what stops the shutter closing on it.
     5. Wait for ALL cams to finish, then close the shutter.
     6. Wait for ALL HDF plugins to finish, then write metadata and submit DM for each leg.
 
   So the shutter is always open before any detector integrates, and never closes while one is
-  still going. If any detector fails to start within start_timeout the run aborts and the
+  still going. If any detector fails to start within that allowance the run aborts and the
   shutter closes.
 
   What made the owner unnecessary: setup_rigaku_epics() used to set
@@ -295,11 +280,9 @@ _instructions: |
       listed stay where they are. huber.delta and huber.nu are rejected here; see the motion
       section above.
 
-    start_timeout:
       Optional, default 30. Seconds to wait for THIS detector to confirm it has started
       after being armed. The largest value across the legs is the one used.
 
-    hdf_timeout:
       Optional, default 300. Seconds to wait for HDF plugins to finish writing after the cams
       stop. Set to 600 here because 3000 frames is a large dataset to flush.
 

@@ -2,11 +2,11 @@ import copy
 from pathlib import Path
 
 from id8_common.plans.acquire.ad_acq import ACQ_MODES
-from id8_common.plans.acquire.ad_acq import FORBIDDEN_MOTORS
-from id8_common.plans.acquire.ad_acq import MULTI_LEGS
-from id8_common.plans.acquire.ad_acq import assert_parallel_safe
 from id8_common.plans.acquire.ad_acq import det_acq_series
-from id8_common.plans.acquire.ad_acq import multi_acq_series
+from id8_common.plans.acquire.multi_acq import FORBIDDEN_MOTORS
+from id8_common.plans.acquire.multi_acq import MULTI_LEGS
+from id8_common.plans.acquire.multi_acq import assert_parallel_safe
+from id8_common.plans.acquire.multi_acq import multi_acq_series
 from id8_common.plans.set.shutter_att import att
 from id8_common.plans.set.select_device import AXIS_NAMES
 from id8_common.plans.set.select_device import DETECTOR_ALIASES
@@ -62,7 +62,7 @@ _TIME_EPS = 1e-9
 # of the acquisition -- run expansion, sample selection, attenuation, the mesh --
 # is the same, which is why the two live in one file. They were two files
 # (master_plan.py and trio_master_plan_rigaku3m_eiger4m_lambda2m.py) until
-# 2026-09-11; see the section header in ad_acq.py for what made merging them
+# 2026-09-11; see the module docstring in multi_acq.py for what made merging them
 # possible.
 
 #: Huber position a parallel measurement acquires at. Not applied --
@@ -107,15 +107,33 @@ KNOWN_GEOMETRY_FIELDS = [
 
 #: Detector key -> short name used in a leg's FILE PATHS.
 #:
-#: rigaku3M_epics stopped being an alias of rigaku3M in device_position.yaml on
-#: 2026-09-11 (it needs its own softglue.enable_rigaku value), but its output has
-#: always been filed under the plain detector name and renaming the folders
-#: mid-experiment would split one detector's data in two. The metadata is
-#: unaffected: detector_name records the full key, because that is what says which
-#: output format wrote the file. A protocol can override this per leg with `label:`.
+#: The two Rigaku alias keys file their output under the plain detector name --
+#: that is where it has always gone, and renaming the folders mid-experiment
+#: would split one detector's data in two. The metadata is unaffected:
+#: detector_name records the full key, because that is what says which output
+#: format wrote the file. A protocol can override this per leg with `label:`.
 LEG_FILE_LABELS = {
     "rigaku3M_epics": "rigaku3M",
     "rigaku3M_ftf": "rigaku3M",
+}
+
+#: Per-leg keys that used to mean something, and what to tell anyone still
+#: setting one. Every one of these is rejected by validate_multi_protocol().
+RETIRED_LEG_FIELDS = {
+    "shutter_owner": (
+        "Every detector is now armed together inside one showbeam()/blockbeam() window, so "
+        "there is no owner to nominate -- delete the line. Legs are armed in the order they "
+        "are listed. (Until 2026-09-11 one nominated leg owned the fast shutter, because the "
+        "Rigaku's EPICS mode gated the beam through softglue.)"
+    ),
+    "start_timeout": (
+        "Delete the line: the allowance is fixed at multi_acq.START_TIMEOUT (30 s), which is what "
+        "every protocol set it to anyway."
+    ),
+    "hdf_timeout": (
+        "Delete the line: the allowance is fixed at multi_acq.HDF_TIMEOUT (600 s), which is what "
+        "every protocol set it to anyway."
+    ),
 }
 
 
@@ -710,20 +728,12 @@ def validate_multi_measurement(measurement, sample, check_hardware=True):
             f"Duplicate detector labels in one protocol: {labels}. Give one of them an explicit label."
         )
 
-    # Rejected rather than ignored, so nobody keeps believing it still controls
-    # the arm order. Until 2026-09-11 one nominated leg owned the fast shutter --
-    # it had to, because the Rigaku's EPICS mode gated the beam through softglue --
-    # so it was armed first and every other leg waited for it to confirm. With
-    # setup_rigaku_epics() on 'Fixed Time' and the softglue MUX off, nothing gates
-    # the beam but showbeam()/blockbeam() and every leg is armed together.
+    # Rejected rather than ignored, so nobody keeps believing a deleted key still
+    # does something.
     for leg in legs:
-        if "shutter_owner" in leg:
-            raise ValueError(
-                f"Leg '{leg_label(leg)}' sets shutter_owner, which no longer exists. Every "
-                f"detector is now armed together inside one showbeam()/blockbeam() window, so "
-                f"there is no owner to nominate -- delete the line. Legs are armed in the order "
-                f"they are listed."
-            )
+        for key, why in RETIRED_LEG_FIELDS.items():
+            if key in leg:
+                raise ValueError(f"Leg '{leg_label(leg)}' sets {key}, which no longer exists. {why}")
 
     # Outside the check_hardware gate on purpose: a missing qmap is a file on
     # disk, not a device, and a dry run must catch it either way.
@@ -756,14 +766,8 @@ def build_leg_specs(measurement):
             "select_device": as_bool(leg.get("select_device", False), "select_device"),
         }
 
-        if "start_timeout" in leg:
-            spec["start_timeout"] = float(leg["start_timeout"])
-
         if "stop_timeout" in leg:
             spec["stop_timeout"] = float(leg["stop_timeout"])
-
-        if "hdf_timeout" in leg:
-            spec["hdf_timeout"] = float(leg["hdf_timeout"])
 
         if leg.get("workflow_name"):
             spec["workflow_name"] = str(leg["workflow_name"])
@@ -782,7 +786,7 @@ def setup_huber_for_multi():
 
     When the motion is re-enabled, these two axes are the only huber motion in a
     parallel run, and once this returns nothing in the acquisition may touch them
-    -- see FORBIDDEN_MOTORS in ad_acq.py, which refuses both a leg's motors block
+    -- see FORBIDDEN_MOTORS in multi_acq.py, which refuses both a leg's motors block
     and the sample mesh.
 
     Deliberately not the same function as placeholder_rigaku3M(). That hook
@@ -844,13 +848,9 @@ DETECTOR_PLACEHOLDERS = {
     "rigaku3M": placeholder_rigaku3M,
 }
 
-# rigaku3M_epics and rigaku3M_ftf are the same physical detector as rigaku3M, so
-# they get the same placeholder hook. rigaku3M_ftf is still a DETECTOR_ALIASES
-# entry in select_device.py and is picked up from there, along with any alias
-# added later; rigaku3M_epics has its own device_position.yaml entry now and so
-# has to be named here.
-DETECTOR_PLACEHOLDERS["rigaku3M_epics"] = DETECTOR_PLACEHOLDERS["rigaku3M"]
-
+# Every DETECTOR_ALIASES key (rigaku3M_ftf, rigaku3M_epics) is the same physical
+# detector as what it aliases, so it gets the same hook. Picked up from
+# select_device.py, along with any alias added later.
 for _alias, _canonical in DETECTOR_ALIASES.items():
     if _canonical in DETECTOR_PLACEHOLDERS:
         DETECTOR_PLACEHOLDERS[_alias] = DETECTOR_PLACEHOLDERS[_canonical]
@@ -888,7 +888,7 @@ def run_multi_measurement(measurement, sample, sample_index):
     """Run one already-validated `detectors:` protocol: every leg in one beam window."""
     # Populate the SAMPLE half of the run state only. The measurement half
     # (det_name, mode, acq_time, qmap_file, analysis_type) is PER LEG here and is
-    # applied one leg at a time by swapped_registers() in ad_acq -- setting it
+    # applied one leg at a time by swapped_registers() in multi_acq -- setting it
     # globally would stamp every leg with whichever was written last.
     expt.sample_index = sample_index
     expt.set_measurement(sample=sample)
