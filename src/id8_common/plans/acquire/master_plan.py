@@ -736,10 +736,6 @@ def build_leg_specs(measurement):
     return specs
 
 
-def reset_sample_position_register(measurement):
-    reset_sample_position(measurement)
-
-
 # =============================================================================
 # Detector placeholder hooks
 # =============================================================================
@@ -815,13 +811,13 @@ def run_multi_measurement(measurement, sample, sample_index):
     """Run one already-validated `detectors:` protocol: every leg in one beam window."""
     # Populate the SAMPLE half of the run state only. The measurement half
     # (det_name, mode, acq_time, qmap_file, analysis_type) is PER LEG here and is
-    # applied one leg at a time by swapped_registers() in multi_acq -- setting it
+    # applied one leg at a time by leg_run_state() in multi_acq -- setting it
     # globally would stamp every leg with whichever was written last.
     expt.sample_index = sample_index
     expt.set_measurement(sample=sample)
 
     expt.sample_move = measurement["sample_move"]
-    reset_sample_position_register(measurement)
+    reset_sample_position(measurement)
 
     att(int(measurement["att_level"]))
 
@@ -880,7 +876,7 @@ def run_single_measurement(measurement, sample, sample_index):
     expt.sample_index = sample_index
     expt.set_measurement(measurement=measurement, sample=sample)
 
-    reset_sample_position_register(measurement)
+    reset_sample_position(measurement)
 
     att_level = int(measurement["att_level"])
     att(att_level)

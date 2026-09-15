@@ -59,10 +59,10 @@ def set_rigaku_mux(enabled: bool):
     own EPICS mode.
 
     Every ACQ_MODES setup function calls this, so the MUX state is decided by
-    the mode that is about to run. Until 2026-09-14 it came instead from the
-    selected detector's ``registers:`` block in device_position.yaml, which
-    could not tell two modes of the same detector apart -- that is why
-    rigaku3M_epics needed a duplicate entry there.
+    the mode that is about to run. Until 2026-09-14 it came instead from a
+    per-detector ``registers:`` block in device_position.yaml, which could not
+    tell two modes of the same detector apart -- that is why rigaku3M_epics
+    needed a duplicate entry there. That block is gone entirely now.
     """
     get_connected_device("softglue").enable_rigaku.put("1" if enabled else "0")
 

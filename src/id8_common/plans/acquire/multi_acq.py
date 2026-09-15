@@ -552,7 +552,7 @@ def metadata_overrides(leg):
 
 
 @contextmanager
-def swapped_registers(leg):
+def leg_run_state(leg):
     """Point the shared run-state fields at one leg, then put them back.
 
     dm_run_job() reads det_name/qmap_file/analysis_type/workflow_name from `expt`
@@ -566,7 +566,8 @@ def swapped_registers(leg):
     EPICS registers, set on expt, and restored to the registers -- so the restore
     never touched what the readers actually read, and after a parallel run every
     later measurement in the session was stamped with the last leg's detector,
-    qmap and analysis type.
+    qmap and analysis type. It was still called swapped_registers() until
+    2026-09-15, long after it stopped touching a register.
     """
     names = ["det_name", "qmap_file", "analysis_type", "workflow_name"]
 
@@ -591,7 +592,7 @@ def swapped_registers(leg):
 def write_leg_metadata(leg):
     """Write one leg's NeXus metadata, then clear the path so it is written only once.
 
-    Self-contained on purpose -- it does its own swapped_registers(), so
+    Self-contained on purpose -- it does its own leg_run_state(), so
     cleanup_multi() can call it without the caller having set anything up first.
     The swap and the per-leg overrides are both required: without them the file is
     stamped with whatever detector expt.det_name happens to name, which in a
@@ -609,7 +610,7 @@ def write_leg_metadata(leg):
 
     print(f"{timestamp()}, Writing metadata, {leg['file_name']}")
 
-    with swapped_registers(leg):
+    with leg_run_state(leg):
         create_nexus_format_metadata(
             metadata_fname,
             det=leg["det"],
@@ -849,7 +850,7 @@ def multi_acq_series(leg_specs, num_repeats=1, wait_time=0.0, cam_timeout=None):
             for leg in legs:
                 write_leg_metadata(leg)
 
-                with swapped_registers(leg):
+                with leg_run_state(leg):
                     print(f"{timestamp()}, Submitting to DM, {leg['file_name']}")
                     dm_run_job(workflow_proc_api, dmuser, leg["file_name"])
 

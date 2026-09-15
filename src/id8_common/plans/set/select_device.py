@@ -37,11 +37,6 @@ no ``position``.
 
 One rule decides every axis: it is driven when it has BOTH a real device and a
 position, and the entry allows motion. Nothing is special-cased by axis name.
-
-A detector entry may also carry an optional ``registers:`` block (dotted path →
-value, .put() before any motion). None does today: its last user was
-softglue.enable_rigaku, which moved into the acquisition modes because the MUX
-state follows the mode about to run, not the selected detector.
 """
 
 from pathlib import Path
@@ -132,18 +127,18 @@ def select_device(name: str):
     Searches detectors, diagnostics, and sample_envs sections of
     device_position.yaml in order. Section-specific behaviour:
 
-    - detectors: applies the entry's optional `registers:` block (real ophyd signals
-      only; no detector uses one today), records det_name on `expt`, and drives
-      every axis that has both a device and a position.
+    - detectors: records det_name on `expt` and drives every axis that has both a
+      device and a position.
     - diagnostics: moves motors only.
     - sample_envs: opens a valve, moves motors, then closes the valve.
 
     An entry with ``allow_motion: false`` in device_position.yaml is selected
-    without being moved: a detector still gets its registers and det_name, a
-    sample_env leaves its valve shut, and nothing drives a motor. The field
-    defaults to true when absent. See _motion_allowed(). (Beam centre is not
-    written here at all any more -- nexus_utils reads db_x/db_y straight from
-    device_position.yaml; see the note further down this function.)
+    without being moved: a detector still records det_name, a sample_env leaves
+    its valve shut, and nothing drives a motor. The field defaults to true when
+    absent. See _motion_allowed(). With false on every detector, as today, the
+    detector branch does nothing but record det_name -- which the acquisition
+    path sets for itself, so the call there is inert until a detector is given
+    allow_motion: true.
 
     Until 2026-09-14 this moved horizontal/vertical only, and a swing angle could
     be driven only through a separate move_detector_axes() call fed by per-protocol
@@ -161,18 +156,15 @@ def select_device(name: str):
     if resolved_name in config["detectors"]:
         cfg = _detector_config(config, name)
 
-        # if pv_registers.det_name.get() == name:
-        #     return
-
         motors_cfg = cfg["motors"]
 
-        for reg_path, value in cfg.get("registers", {}).items():
-            _resolve(reg_path).put(value)
-
-        # The current_det_*/current_db_* EPICS registers were written here until
-        # 2026-09-06 and read by nothing -- nexus_utils takes beam centre and
-        # detector position straight from device_position.yaml. Removed with the
-        # rest of the register retirement.
+        # Nothing is written to EPICS here. A detector entry carried a
+        # `registers:` block (dotted path -> value, .put() before motion) until
+        # 2026-09-15; its last user was softglue.enable_rigaku, which belongs to
+        # the mode about to run rather than to the selected detector, and the
+        # current_det_*/current_db_* writes went on 2026-09-06 when nexus_utils
+        # started reading beam centre and distance straight from
+        # device_position.yaml.
 
         if _motion_allowed(cfg):
             _move_motors(motors_cfg)

@@ -26,18 +26,11 @@
 #   at 0 for every detector — there is no separate beam-center-swing metadata field
 #   (see id8_common/utils/nexus_utils.py) because that swing=0 assumption is baked into
 #   the db_x/db_y calibration itself.
-# registers (detectors only, optional): dotted-path → value written via .put() before
-#   motion. Real ophyd signals only. NO DETECTOR USES IT as of 2026-09-14 -- the block is
-#   kept because it lets a per-detector signal preset be added from YAML alone. Its last
-#   user was softglue.enable_rigaku, which moved into the acquisition modes
-#   (set_rigaku_mux() in plans/acquire/acq_helpers.py): the MUX state depends on the mode
-#   about to run, not on which detector is selected, and this block cannot express that.
 # pixel_size (detectors only): detector pixel size, metres. Read by
 #   id8_common/utils/nexus_utils.py and written to /entry/instrument/detector_1/x,y_pixel_size.
 # allow_motion: whether this entry's motors may be driven at all. Defaults to true when
 #   the field is absent. Set it to false to make an entry selectable but stationary —
-#   select_device() still writes registers, beam-centre and det_name, it just skips the
-#   motion. Intended for test/commissioning, where selecting a detector must not risk a
+#   select_device() still records det_name, it just skips the motion. Intended for test/commissioning, where selecting a detector must not risk a
 #   collision. For a sample_env, false also leaves the valve closed, since the valve only
 #   exists to gate motion. Honoured by id8_common/plans/set/select_device.py.
 # valve (sample_envs only): dotted path to a device whose .put(1/0) gates motion.
