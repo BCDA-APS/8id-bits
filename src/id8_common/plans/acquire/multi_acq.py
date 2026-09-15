@@ -105,15 +105,6 @@ HDF_TIMEOUT = 600.0
 #: at the same point.
 ARM_SETTLE = 0.5
 
-# huber axes that nothing inside a parallel acquisition may drive.
-#
-# Both are positioned exactly once per measurement, before acquisition starts, by
-# master_plan.setup_huber_for_multi(). From that point on nothing may touch them:
-# not a leg's `motors:` block, not the sample mesh. Both routes are refused at
-# validation time and again here at run time.
-FORBIDDEN_MOTORS = ("huber.delta", "huber.nu")
-
-
 # -----------------------------------------------------------------------------
 # NeXus metadata override paths
 # -----------------------------------------------------------------------------
@@ -598,26 +589,6 @@ def swapped_registers(leg):
         expt.restore_run(saved)
 
 
-def move_leg_motors(leg):
-    """Move whatever the leg's `motors` block names. Absent axes are left alone.
-
-    huber.delta and huber.nu are refused here even though master_plan already
-    rejects them at validation time -- multi_acq_series() can be driven directly,
-    bypassing that.
-    """
-    for dotted, position in (leg.get("motors") or {}).items():
-        if dotted in FORBIDDEN_MOTORS:
-            raise ValueError(
-                f"Leg '{leg['label']}': '{dotted}' cannot be moved by a parallel acquisition. "
-                f"Both huber axes are positioned once before acquisition by "
-                f"master_plan.setup_huber_for_multi()."
-            )
-
-        motor = get_ophyd_object(dotted)
-        print(f"Moving {dotted} to {position}")
-        motor.move(float(position), wait=True)
-
-
 def write_leg_metadata(leg):
     """Write one leg's NeXus metadata, then clear the path so it is written only once.
 
@@ -727,9 +698,9 @@ def multi_acq_series(leg_specs, num_repeats=1, wait_time=0.0, cam_timeout=None):
         leg_specs: One dict per detector. Required keys: device, mode, label,
             acq_time, num_frames, qmap_file, analysis_type. Optional: geometry
             (only needed when the detector is not at the mount
-            device_position.yaml describes), motors, select_device,
-            stop_timeout, workflow_name. The start and HDF-drain allowances are
-            fixed: START_TIMEOUT and HDF_TIMEOUT.
+            device_position.yaml describes), select_device, stop_timeout,
+            workflow_name. The start and HDF-drain allowances are fixed:
+            START_TIMEOUT and HDF_TIMEOUT.
         num_repeats: Repeats for the set. Every detector runs every repeat; the
             faster ones idle until the slowest finishes before the next starts.
         wait_time: Delay before each repeat.
@@ -767,15 +738,16 @@ def multi_acq_series(leg_specs, num_repeats=1, wait_time=0.0, cam_timeout=None):
         post_align()
         shutteroff()
 
+        # The only motion this function does, and only for a leg that asks: the
+        # detector's own device_position.yaml preset, gated by that entry's
+        # allow_motion. It is the same call the serial path makes. A leg used to
+        # be able to name arbitrary motors and positions of its own, through a
+        # `motors:` block -- measurement_info.yaml has no business holding
+        # detector positions, so that went on 2026-09-14 along with the huber
+        # positioning hook that made it necessary.
         for leg in legs:
             if leg.get("select_device"):
                 select_device(leg["device"])
-
-        # The huber was already positioned by master_plan.setup_huber_for_multi(),
-        # before this function was called. Nothing from here on may touch
-        # huber.delta or huber.nu.
-        for leg in legs:
-            move_leg_motors(leg)
 
         workflow_proc_api, dmuser = dm_setup()
 

@@ -3,14 +3,11 @@ from pathlib import Path
 
 from id8_common.plans.acquire.ad_acq import ACQ_MODES
 from id8_common.plans.acquire.ad_acq import det_acq_series
-from id8_common.plans.acquire.multi_acq import FORBIDDEN_MOTORS
 from id8_common.plans.acquire.multi_acq import MULTI_LEGS
 from id8_common.plans.acquire.multi_acq import assert_parallel_safe
 from id8_common.plans.acquire.multi_acq import multi_acq_series
 from id8_common.plans.set.shutter_att import att
 from id8_common.plans.set.select_device import DETECTOR_ALIASES
-from id8_common.plans.set.select_device import _detector_config
-from id8_common.plans.set.select_device import _load_config
 from id8_common.plans.set.select_device import select_device
 from id8_common.plans.acquire.validators import VALID_ANALYSIS_TYPES
 from id8_common.plans.acquire.validators import as_bool
@@ -26,17 +23,11 @@ from id8_common.plans.acquire.validators import yes_no
 from id8_common.plans.acquire import validators
 from id8_common.expt_config import expt
 
-# get_ophyd_object resolves a leg's `motors:` and `geometry:` dotted paths.
-# oregistry is used only by the commented-out motion in setup_huber_for_multi(),
-# and is kept imported so uncommenting those three lines is all it takes.
-#
-# Neither is in this module's __all__, so neither reaches the interactive prompt
-# through `import *` here any more. Each still gets there by its own route:
-# `get_ophyd_object` is in acq_helpers.__all__ and ad_acq star-imports
-# acq_helpers, and startup.py binds `oregistry` explicitly (startup_ophyd.py
-# imports it from registry.py directly).
+# get_ophyd_object resolves a leg's `geometry:` dotted paths. It is not in this
+# module's __all__, so it does not reach the prompt through `import *` here; it
+# gets there anyway because it is in acq_helpers.__all__ and ad_acq star-imports
+# acq_helpers.
 from id8_common.registry import get_ophyd_object
-from id8_common.registry import oregistry  # noqa: F401
 
 #: Seconds the fast shutter needs to move. In eiger4M External Series the one
 #: softglue pulse both starts a segment and holds the shutter open, so BOTH the
@@ -61,12 +52,6 @@ _TIME_EPS = 1e-9
 # (master_plan.py and trio_master_plan_rigaku3m_eiger4m_lambda2m.py) until
 # 2026-09-11; see the module docstring in multi_acq.py for what made merging them
 # possible.
-
-#: Huber position a parallel measurement acquires at. Not applied --
-#: setup_huber_for_multi() below has its motion commented out, so a run acquires
-#: wherever the diffractometer already is.
-MULTI_HUBER_DELTA = 10.0
-MULTI_HUBER_NU = 0.0
 
 #: Protocol-level fields a `detectors:` protocol must state. Everything that is
 #: per-detector lives inside the legs instead.
@@ -491,8 +476,14 @@ def reject_axis_overrides(measurement):
 
 
 def validate_sample_motion(measurement, sample):
-    # No forbidden_motors: the serial path may mesh on any axis. The trio path
-    # passes FORBIDDEN_MOTORS to the same check.
+    """Check the sample mesh. One rule for both protocol shapes.
+
+    The parallel path had its own wrapper until 2026-09-14, whose only job was to
+    forbid meshing on huber.delta / huber.nu -- those belonged to
+    setup_huber_for_multi(), which positioned them once per parallel measurement.
+    Nothing positions them now, so the mesh a parallel protocol may run is exactly
+    the mesh a serial one may run.
+    """
     validators.validate_sample_motion(measurement, sample)
 
 
@@ -656,45 +647,8 @@ def validate_leg(leg):
 
     validate_geometry(leg.get("geometry"), label)
 
-    # `or {}` covers both a leg with no motors block and one written as
-    # `motors:` with nothing under it, which YAML reads as None.
-    motors = leg.get("motors") or {}
-
-    for dotted in motors:
-        if dotted in FORBIDDEN_MOTORS:
-            raise ValueError(
-                f"Leg '{label}': '{dotted}' cannot appear in a protocol's motors block. "
-                f"Both huber axes are positioned once before acquisition by "
-                f"setup_huber_for_multi() (delta {MULTI_HUBER_DELTA}, nu {MULTI_HUBER_NU})."
-            )
-        get_ophyd_object(dotted)
-
-    # select_device() drives every axis device_position.yaml gives a position to,
-    # swing angles included since 2026-09-14 -- so a leg that opts into it can now
-    # reach the huber. Both axes belong to setup_huber_for_multi() for the whole
-    # measurement, so refuse the combination instead of letting one leg re-point
-    # them mid-set. Nothing trips this today: no swing axis has a position.
-    if leg.get("select_device"):
-        for motor in _detector_config(_load_config(), device)["motors"]:
-            if motor.get("device") in FORBIDDEN_MOTORS and motor.get("position") is not None:
-                raise ValueError(
-                    f"Leg '{label}': select_device would drive '{motor['device']}' to "
-                    f"{motor['position']} ({device} {motor['name']} in device_position.yaml), but "
-                    f"both huber axes are positioned once before acquisition by "
-                    f"setup_huber_for_multi() (delta {MULTI_HUBER_DELTA}, nu {MULTI_HUBER_NU}). "
-                    f"Remove that axis's position, or drop select_device from this leg."
-                )
-
     # Checks required_devices too, not just the detector itself.
     require_mode_devices(device, mode, where=where)
-
-
-def validate_multi_sample_motion(measurement, sample):
-    # FORBIDDEN_MOTORS is the parallel-only part: the mesh is the other way
-    # huber.delta / huber.nu could be driven, via sample_info.yaml's
-    # inner_motor / outer_motor. Refuse it for the same reason as a leg's
-    # motors block -- setup_huber_for_multi() owns both axes.
-    validators.validate_sample_motion(measurement, sample, forbidden_motors=FORBIDDEN_MOTORS)
 
 
 def validate_multi_measurement(measurement, sample, check_hardware=True):
@@ -749,7 +703,7 @@ def validate_multi_measurement(measurement, sample, check_hardware=True):
         for leg in legs:
             validate_leg(leg)
 
-    validate_multi_sample_motion(measurement, sample)
+    validate_sample_motion(measurement, sample)
 
 
 def build_leg_specs(measurement):
@@ -766,7 +720,6 @@ def build_leg_specs(measurement):
             "qmap_file": str(leg["qmap_file"]),
             "analysis_type": leg.get("analysis_type", "Multitau"),
             "geometry": leg.get("geometry") or {},
-            "motors": leg.get("motors") or {},
             "select_device": as_bool(leg.get("select_device", False), "select_device"),
         }
 
@@ -779,38 +732,6 @@ def build_leg_specs(measurement):
         specs.append(spec)
 
     return specs
-
-
-def setup_huber_for_multi():
-    """Huber positioning hook for a parallel run. Motion is DISABLED: this moves nothing.
-
-    As it stands the function only prints the delta 10 / nu 0 position it would
-    have moved to -- see the comment below. Position the diffractometer yourself
-    before the run.
-
-    When the motion is re-enabled, these two axes are the only huber motion in a
-    parallel run, and once this returns nothing in the acquisition may touch them
-    -- see FORBIDDEN_MOTORS in multi_acq.py, which refuses both a leg's motors block
-    and the sample mesh.
-
-    Deliberately not the same function as placeholder_rigaku3M(). That hook
-    belongs to the serial path and should stay free to change for it -- if the two
-    shared one function, editing it for a serial Rigaku run would silently move
-    the parallel geometry too.
-    """
-    # DISABLED 2026-09-06 for testing: no motor motion. The geometry is whatever
-    # the diffractometer is already at, so a leg's metadata may not describe the
-    # true beam path -- see the geometry: block in trio_measurement_info.yaml for
-    # how to override it per leg. Re-enable by uncommenting the three lines below.
-    #
-    # huber = oregistry["huber"]
-    # print(f"Moving huber.delta to {MULTI_HUBER_DELTA}, huber.nu to {MULTI_HUBER_NU}")
-    # huber.delta.move(MULTI_HUBER_DELTA, wait=True)
-    # huber.nu.move(MULTI_HUBER_NU, wait=True)
-    print(
-        f"setup_huber_for_multi: motion DISABLED -- leaving huber where it is "
-        f"(would have moved delta to {MULTI_HUBER_DELTA}, nu to {MULTI_HUBER_NU})"
-    )
 
 
 def reset_sample_position_register(measurement):
@@ -904,8 +825,6 @@ def run_multi_measurement(measurement, sample, sample_index):
 
     print_multi_header(measurement, sample, sample_index)
 
-    setup_huber_for_multi()
-
     multi_acq_series(
         leg_specs=build_leg_specs(measurement),
         num_repeats=int(measurement["num_repeats"]),
@@ -944,8 +863,6 @@ def print_multi_header(measurement, sample, sample_index, extra=None):
         print(f"      analysis_type: {leg.get('analysis_type', 'Multitau')}")
         print(f"      duration:      {leg_duration(leg):.1f} s per repeat")
 
-        if leg.get("motors"):
-            print(f"      motors:        {leg['motors']}")
 
     if extra:
         for line in extra:
@@ -1296,11 +1213,6 @@ __all__ = [
     # Per-detector hook run right after select_device(), for every detector.
     "DETECTOR_PLACEHOLDERS",
     "run_detector_placeholder",
-    # Where a parallel measurement would put the huber, and the hook that would
-    # do it -- both currently inert, see setup_huber_for_multi().
-    "MULTI_HUBER_DELTA",
-    "MULTI_HUBER_NU",
-    "setup_huber_for_multi",
     # Turns a validated `detectors:` protocol into multi_acq_series() leg specs.
     "build_leg_specs",
 ]

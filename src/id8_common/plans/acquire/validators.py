@@ -264,13 +264,13 @@ def validate_acq_time(acq_time, detector, mode, where=""):
 # =============================================================================
 
 
-def validate_sample_motion(measurement, sample, forbidden_motors=()):
+def validate_sample_motion(measurement, sample):
     """Prove the mesh is runnable before anything is allowed to move.
 
-    ``forbidden_motors`` is the trio path's lockout: ``huber.delta`` and
-    ``huber.nu`` are positioned once by ``setup_huber_for_trio()`` and must not
-    also be driven as mesh axes. The serial path passes nothing and allows any
-    axis.
+    One rule for both protocol shapes. A ``forbidden_motors`` argument used to
+    let the parallel path bar huber.delta / huber.nu, which its own huber
+    positioning hook owned; both are gone as of 2026-09-14, so a parallel
+    measurement may mesh on any axis a serial one may.
     """
     if measurement["sample_move"] != "yes":
         return

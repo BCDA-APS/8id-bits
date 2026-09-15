@@ -211,28 +211,25 @@ _instructions: |
 
   NO DETECTOR IS MOVED by this file as it stands. Position all three yourself before running.
 
-  What would move, if it were enabled:
+  Everything a run could drive:
 
-    huber.delta -> 10         setup_huber_for_multi() in master_plan.py --
-    huber.nu    ->  0         its motion is COMMENTED OUT, so neither axis moves today
     filter_8ide.attenuation   to att_level -- this one does happen, every measurement
     detector.x  -> -275.0     via select_device("rigaku3M_epics") -- but rigaku3M has
     detector.y  ->  170.0     allow_motion: false in device_position.yaml, so it does not move
 
   So the only thing a run actually drives is the attenuator. All three detectors have
-  allow_motion: false, and no leg below has a motors: block.
+  allow_motion: false.
 
-  Never moves during acquisition, and is refused if you ask:
+  The huber is NOT positioned by a parallel run:
 
-    Once setup_huber_for_multi() has run, huber.delta and huber.nu are off limits. They are
-    rejected in a leg's motors: block -- at validation time and again at run time -- and
-    rejected as sample_info.yaml's inner_motor / outer_motor. To change where a trio run
-    acquires, edit MULTI_HUBER_DELTA / MULTI_HUBER_NU in master_plan.py, not this file.
+    setup_huber_for_multi() is gone (2026-09-14), and with it the lockout that stopped a
+    leg or the sample mesh touching huber.delta / huber.nu. Nothing here positions the
+    diffractometer -- put it where you want it before the run. Sample motion is now
+    validated exactly as it is for a single-detector protocol: any axis, no special case.
 
-    Note setup_huber_for_multi() is independent of master_plan.py's placeholder_rigaku3M().
-    Changing the serial Rigaku placeholder does not move the trio geometry, and vice versa.
-
-    flight_path_8idi.swing is never touched: select_device() only drives horizontal/vertical.
+    A leg can no longer name motors and positions of its own either: measurement_info.yaml
+    holds no detector positions. Detector geometry lives in device_position.yaml, and a
+    leg reaches it only by asking for select_device.
 
   Note detector.x / detector.y is the stage shared with the Eiger. If the Eiger is bolted to
   it, that move carries the Eiger too -- which is what the geometry comment above is about.
@@ -321,20 +318,9 @@ _instructions: |
       (With allow_motion: false on all three entries it currently moves nothing either way; it
       still sets expt.det_name.)
 
-    motors:
-      Optional. Dotted ophyd paths moved before acquisition, e.g. detector.x: -250. Axes not
-      listed stay where they are. huber.delta and huber.nu are rejected here; see the motion
-      section above.
-
-      Optional, default 30. Seconds to wait for THIS detector to confirm it has started
-      after being armed. The largest value across the legs is the one used.
-
     stop_timeout:
       Optional, default 10. Seconds to wait for this detector to come OUT of live/TV mode
       before its parameters are written. See the live-mode note at the bottom of this file.
-
-      Optional, default 300. Seconds to wait for HDF plugins to finish writing after the cams
-      stop. Set to 600 here because 3000 frames is a large dataset to flush.
 
     workflow_name:
       Optional. Overrides the DM workflow for this leg. Defaults to the
@@ -350,8 +336,8 @@ _instructions: |
   calibrated preset.
 
   Every field takes a literal number or a dotted ophyd path. A path is read live at metadata
-  time, so 'huber.nu' records wherever setup_huber_for_multi() left it. (Reading nu is fine --
-  it is moving it from inside the acquisition that is forbidden.)
+  time, so 'huber.nu' records wherever the diffractometer happens to be. Nothing in the
+  acquisition moves it, so that is wherever you left it.
 
     db_x, db_y:              Direct-beam pixel position.
     distance:                Sample-to-detector distance, metres.
