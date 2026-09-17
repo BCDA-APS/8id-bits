@@ -6,11 +6,15 @@
 att 1, 3000 frames × 1 s, HEA sample decompressed to ~9 GPa
 **Outcome:** β = 0.0108 ± 0.0001, τ_c = 479 ± 24 s, γ = 1.52
 
-> **Note on the request.** The pysimplemask CLI instructions referred to in the
-> request did not arrive — no attachment or text was present in the message I
-> received. Rather than block, I read the CLI's own `--help` on `amber` and worked
-> from that. Every flag used is listed in §2; if the intended workflow differs,
-> the settings there are the thing to correct.
+> **On the CLI entry point.** The documented entry point is
+> `launch_simplemask_dev build` (on PATH at `/home/beams/8IDIUSER/bin/`), which
+> exposes two options the older `pysimplemask-build-qmap` lacks:
+> `--metadata-fname` and `--use-groupindex-for-subpartition`. The qmap below was
+> first built with the older command and then rebuilt with
+> `launch_simplemask_dev build --metadata-fname <meta>`: **both produced an
+> identical qmap** — 388,419 pixels, q 3.2642–3.3116 Å⁻¹, virtual centre 19199.0 —
+> so the result is unaffected. Neither extra flag was needed here; auto-discovery
+> already found the right metadata file.
 
 All work was read-only with respect to the beamline: file reads plus compute
 jobs. No motor, attenuator, shutter or PV was touched, and no ophyd session was
@@ -20,12 +24,14 @@ started.
 
 ## 1. Locating the tools
 
-Not on `PATH`. They live in Miaoqi Chu's XPCS environment:
+`launch_simplemask_dev` **is** on PATH; the underlying package lives in Miaoqi
+Chu's XPCS environment:
 
 ```
-/home/beams/MQICHU/.conda/envs/p2504_xpcs/bin/pysimplemask-build-qmap
-/home/beams/MQICHU/.conda/envs/p2504_xpcs/bin/pysimplemask-combine-qmaps
-/home/beams/8IDIUSER/bin/boost_corr_bin          # wrapper, activates the same env
+/home/beams/8IDIUSER/bin/launch_simplemask_dev         # documented entry point
+/home/beams/8IDIUSER/bin/launch_simplemask_dev_combine
+/home/beams/MQICHU/.conda/envs/{p,d}2504_xpcs/bin/pysimplemask[-build-qmap]
+/home/beams/8IDIUSER/bin/boost_corr_bin                # wrapper, same env
 ```
 
 Raw data root is `/gdata/dm/8ID/8IDE/<cycle>/<proposal>/` — note **`8ID/8IDE`**,
@@ -38,7 +44,8 @@ not `8IDE` or `8IDI` directly.
 ### 2.1 Primary — tight ROI on the sample peak
 
 ```bash
-pysimplemask-build-qmap "$RAW" \
+launch_simplemask_dev build "$RAW" \
+  --metadata-fname "$META" \
   --no-find-center \
   --beamstop-diameter 0 \
   --param-constraint q:AND:3.2632:3.3126 \
@@ -191,7 +198,14 @@ comparison. Scratch (qmaps, the sloppy control, PDF reports, diagnostics) is in
   flux-independent, which is the standard check that the contrast is real and
   not a detector artifact. Worth doing.
 - The **gold peak** was not analysed for XPCS — this was the sample peak only.
-- `pysimplemask-combine-qmaps` was not needed and not exercised.
+- `launch_simplemask_dev_combine` was not needed and not exercised.
+- `--use-groupindex-for-subpartition` was not needed here (one q region), but it
+  is the right tool if several disjoint peaks are ever partitioned at once.
+- Detector artifact masking: see
+  `PROPOSAL-2026-09-17-automatic-artifact-masking.md`. Note it identifies **1479
+  dead Lambda2M pixels missing from the blemish file**, which affects the qmaps
+  built here (they are inside the masked-out region for this particular tight ROI,
+  so this result is unaffected, but wider ROIs would include them).
 - β ≈ 0.010 remains coherence-limited rather than sample-limited: at 2θ = 24.65°
   the path-length spread across the sample far exceeds the longitudinal coherence
   length. See `Rigaku500k_Experimental_Design.md` §5.4.
