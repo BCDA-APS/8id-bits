@@ -139,41 +139,64 @@ the full 0–30 GPa range, every science feature sits at least 3.3° from an edg
 and the two outermost calibration rings being near the edges is acceptable — §4.2
 shows two rings suffice.
 
-### 3.2a A real bonus: Au 111 and Au 200 in the same frame
+### 3.2a Marker choice — switch from gold to tantalum
 
-This window also contains **Au 200 at 23.1°** alongside Au 111 at 19.9°. That is
-worth more than it first appears.
+An earlier draft of this note treated "Au 111 and Au 200 in the same frame" as a
+bonus, and proposed separating Au 200 from the sample lines azimuthally on the
+grounds that gold is textured and the sample is not. **Both claims are withdrawn.**
 
-For FCC the ratio q₂₀₀/q₁₁₁ = 2/√3 is exact and known a priori. With the distance
-already fixed by CeO2, having both lines in one exposure gives **two independent
-determinations of a_Au at the sample position, on every frame** — a redundant
-pressure readout and a continuous consistency check.
+**Gold texture disappears once pressure is applied** (observed on pope202609
+data). The ambient spottiness of 5.18 does not survive compression, so azimuthal
+discrimination is not available under experimental conditions. Au 200 must
+therefore be separated radially or not at all — and it cannot be:
 
-It does **not** remove the need for CeO2. The gold angles are not known a priori
-(a_Au is the unknown), and §4.0 shows the scale degeneracy is exact: gold alone
-determines neither the distance nor the lattice parameter. The pair is a check on
-the calibration, not a substitute for it.
+| P (GPa) | Au 200 | sample FCC 111 | separation |
+|---|---|---|---|
+| 0 | 23.06° | 22.68° | 0.39° |
+| 10 | 23.47° | 22.96° | 0.50° |
+| 20 | 23.79° | 23.22° | 0.57° |
+| 30 | 24.06° | 23.44° | 0.61° |
 
-The companion note (§3.2) identifies exactly this — Au 111 and Au 200 in a single
-frame — as the main prize of relocating Lambda2M to 1.0 m, a route of unconfirmed
-feasibility (§3.4). **The Rigaku500k at 350 mm delivers it without moving Lambda2M
-at all**, and continuously rather than in dedicated scans. For a 441-point mesh
-this turns one frame per point into a simultaneous phase map *and* pressure map —
-with the accuracy caveat in §4.0: read absolute pressure from Lambda2M, and use
-the Rigaku500k to map and track it.
+Against a sample-peak FWHM of 0.377°, the two overlap at half maximum across the
+entire pressure range and **never separate**. This is not a crossing to be worked
+around; it is a permanent blend. It corrupts the sample FCC 111 measurement, so it
+is a science problem, not merely a calibration one.
 
-> **Crowding warning.** Au 200 moves from 23.07° (ambient) to 24.03° (30 GPa),
-> straight through the region occupied by the vanished BCC line (23.45°) and close
-> to CeO2 220 (24.60°). At ambient, Au 200 and the BCC line are 0.38° apart —
-> comparable to the 0.377° sample-peak FWHM, so they will overlap. They remain
-> separable because gold is textured and the sample is not (spottiness 5.18 vs
-> ≤0.14): resolve them azimuthally, not radially.
+#### Marker screen
 
-> Caveat: the two strong observed peaks (22.0° and 25.0°) do **not** index cleanly
-> as FCC 111/200 — their q ratio is 1.134 against the required 1.1547, off by 1.8%.
-> That remains unresolved (companion note §1.3). The window covers both regardless,
-> and also covers where the paper's FCC cell (a = 3.456 Å at 30.6 GPa) puts 111
-> and 200, at 23.57° and 27.29°.
+Every in-window line of each candidate, tracked over 0–30 GPa against the sample
+band (22.68–27.14°, plus a 0.4° guard):
+
+| marker | clean line | interfering line | 5 GPa shift, worst case |
+|---|---|---|---|
+| Au gold | 111 (19.94–20.80°) | **200 fouls the sample** | 9.0 px |
+| Pt platinum | 111 (20.73–21.35°) | **200 fouls the sample** | 7.0 px |
+| **Ta tantalum** | **110 (20.08–20.94°)** | **none** | **9.9 px** |
+| W tungsten | 110 (20.99–21.58°) | none | 7.0 px |
+| Mo molybdenum | 110 (21.11–21.78°) | none | ~7 px |
+
+**Recommendation: tantalum.** It is better than gold on every axis that matters
+here:
+
+- **No interfering line.** Ta is BCC, so its second reflection (200) lands at
+  28.55–29.31° — inside the *upper* clean zone, not on the sample. Gold and
+  platinum, both FCC, put their 200 squarely in the sample band.
+- **Better pressure sensitivity than gold** at the demanding end: 9.9 px per
+  5 GPa at high pressure against gold's 9.0.
+- **A second clean line below ~15 GPa.** Ta 200 is visible over the low-pressure
+  part of the run, which restores the two-line calibration transfer of §4.4 —
+  precisely when that transfer would be established.
+- Ta 110 (20.1–20.9°) is far from the sample BCC 110 (~23.2°); no confusion there.
+
+W and Mo also avoid fouling but give one line only and ~30% less sensitivity.
+
+**Costs, which are real:** switching requires a fresh cell loading; the Ta
+pressure scale (Cynn & Yoo 1999, K₀ = 194 GPa, K₀′ = 3.5) is well established but
+less canonical than the gold scale, so pressures will not be directly comparable
+to Au-referenced literature without conversion; and Ta 200 leaves the window above
+~15 GPa, so the transfer must be done early in a run. Chemical compatibility of Ta
+with this alloy and pressure medium was **not** checked and should be, before
+committing.
 
 ### 3.3 Angular resolution: can it track the gold 111 shift?
 
@@ -249,15 +272,31 @@ This is the part the design lives or dies on. The detector cannot be positioned
 accurately and cannot be moved, so **every pixel's q comes from an in-place fit to
 a known standard**, taken once, at the science position.
 
-### 4.0 Can the gold pair replace CeO2? No.
+### 4.0 CeO2 is measured at ambient, on a separate mount
 
-Since Au 111 and Au 200 both land on this detector (§3.2a), it is natural to ask
-whether CeO2 is still needed. **It is.** The two are not interchangeable, and the
-reason is a hard degeneracy rather than a question of precision.
+Two facts set the shape of the whole calibration:
+
+1. **CeO2 can only be used at ambient.** It cannot be loaded into the cell and
+   pressurised — it would compress and stop being a standard. So the geometry
+   standard is measured on a different mount, at a different time, and **not at
+   the sample position**.
+2. **The marker cannot replace it** (below). The marker is at the sample position
+   but its lattice parameter is unknown; CeO2 has a known lattice parameter but is
+   in the wrong place. Neither alone is sufficient, and the calibration must be
+   built from both.
+
+This makes the sample-position offset of §4.4 unavoidable rather than merely
+likely, and it is the reason §4.4 recommends solving it in hardware.
+
+### 4.0a Can the marker replace CeO2? No.
+
+Since the marker sits at the sample position, it is natural to ask whether CeO2 is
+needed at all. **It is.** The two are not interchangeable, and the reason is a hard
+degeneracy rather than a question of precision.
 
 CeO2 ring angles are **known absolutely** — the lattice parameter is certified and
-fixed. Gold's are **not**: a_Au depends on the pressure, which is the unknown being
-measured. Only the ratio q₂₀₀/q₁₁₁ = 2/√3 is known a priori, and that ratio is
+fixed. The marker's are **not**: its lattice parameter depends on the pressure,
+which is the unknown being measured. Only the ratio q₂₀₀/q₁₁₁ = 2/√3 is known a priori, and that ratio is
 scale-invariant in exactly the wrong way. Scaling the distance and the lattice
 parameter together, (L, a) → (kL, ka), leaves the pattern on the detector
 unchanged to first order in 2θ.
@@ -273,16 +312,19 @@ far below the noise at these angles. **Gold alone cannot determine either the
 distance or the lattice parameter.** CeO2, with three rings of known angle,
 determines L to 0.002%.
 
-**What the gold pair is genuinely worth,** once L is fixed by CeO2:
+**What the marker is genuinely worth,** once L is fixed by CeO2:
 
 1. **Relative pressure tracking — excellent.** Peak *shifts* are geometry-free;
    this is the detector's main job and needs no absolute scale.
-2. **A coarse consistency check.** With L fixed, each gold line yields its own
-   a_Au; they agree only if the geometry is right. But the test is weak — a 1 mm
-   sample-position error produces a 111/200 split of just 0.00031 Å, about
-   **0.06 pixel**, which is below the grain-sampling bias on a spotty gold ring
-   (azimuthal spottiness 5.18). Treat it as an alarm for millimetre-scale
-   blunders, not as a precision transfer standard.
+2. **A two-line transfer that removes the CeO2 position error entirely** — but
+   only where two clean marker lines are visible. Simulated: calibrating with CeO2
+   displaced by up to 5 mm and then re-fitting `(L, centre)` against **both**
+   marker lines recovers the true geometry to **0.00004 Å⁻¹**, i.e. completely.
+   A **single** line cannot do this — a z-offset biases two parameters and one
+   line gives one constraint; single-line correction of a 1 mm offset only
+   improves the error from 0.0105 to 0.0085 Å⁻¹. This is the strongest argument
+   for tantalum: Ta 110 and Ta 200 are both clean below ~15 GPa, whereas gold's
+   second line is unusable at any pressure (§3.2a).
 
 **And a warning about using this detector for pressure.** Because δq/q = δz/L,
 the short 350 mm arm is unforgiving: a **1 mm sample-position error biases a_Au by
@@ -368,16 +410,18 @@ an undetected offset of this kind is the most likely explanation.
 
 Two defences, both recommended:
 
-1. **Co-locate the standard.** Mount CeO2 inside the DAC, or in a dummy cell of
-   the same geometry, and record the sample-stage z for both. This should hold the
-   offset inside 0.5 mm.
-2. **Use gold as a transfer standard — but cross-referenced to Lambda2M, not on
-   its own.** The gold is inside the cell at exactly the sample position, so it
-   carries the right z. It cannot supply an absolute angle by itself (§4.0), so
-   pin gold 111's 2θ with a Lambda2M delta scan — which the experiment does anyway
-   — and apply a single scalar correction to the fitted `L` so the Rigaku500k
-   agrees. This removes the z-offset, and it is the only check capable of catching
-   it at the precision that matters.
+1. **Solve it in hardware — this is a deliverable for the mechanical engineer.**
+   CeO2 cannot go in the cell (§4.0), so machine its holder so the powder sits at
+   the same stage-referenced z as the DAC sample. 0.1 mm is routine machining and
+   costs 0.0012 Å⁻¹ — negligible. Verify against the stage readback for both.
+   This is cheaper and far more reliable than correcting for the offset later.
+2. **Transfer on two marker lines, early in the run, at low pressure.** With Ta,
+   both 110 and 200 are clean below ~15 GPa; re-fit `(L, centre)` against both and
+   the CeO2 position error cancels completely (§4.0a) — verified to 0.00004 Å⁻¹
+   for offsets up to 5 mm. Do this once, at the start, and carry the result.
+   If only one clean line is available (gold, or Ta above 15 GPa), fall back to
+   pinning it against a Lambda2M delta scan and correcting `L` alone — weaker, but
+   better than nothing.
 
 Use CeO2 for the *shape* of the q map (centre, curvature, pixel→2θ) and gold for
 the *absolute scale*. Neither alone is sufficient.
@@ -385,13 +429,18 @@ the *absolute scale*. Neither alone is sufficient.
 ### 4.5 Procedure
 
 1. Mount and align the detector. Do not move it again for the rest of the beamtime.
-2. Insert the CeO2 standard at the sample position; record the stage coordinates.
+2. Insert the CeO2 standard on its matched-z holder (§4.4); record stage
+   coordinates. CeO2 is measured at ambient, outside the cell — the cell is not in
+   the beam for this step, so the rings are unattenuated and unvignetted. Note
+   where the cell shadow later cuts in.
 3. Collect a CeO2 pattern with all three rings well exposed.
 4. Find ring centroids azimuthally; fit `(L, c, v0)` against the known 2θ values.
    Inspect the residual — with three rings it is over-determined, so a
    structured residual means the model is wrong.
 5. Install the DAC. Record the stage coordinates and compare to step 2.
-6. Measure gold 111 on Lambda2M; scale `L` so the Rigaku500k agrees.
+6. **At low pressure, before compressing:** re-fit `(L, centre)` against both
+   marker lines (Ta 110 and Ta 200). This cancels any residual CeO2 position
+   error. With a single-line marker, pin it against a Lambda2M delta scan instead.
 7. Write the calibration out **with the run**, alongside the geometry it is valid
    at. A q map that does not record the geometry it was generated under is the
    exact failure that cost time during pope202609.
@@ -494,7 +543,8 @@ Readable directly in pyXpcsViewer.
 | sample peak, direct | q 3.288 Å⁻¹, 2θ 24.65°, FWHM 0.377° | G0256 average image |
 | sample peak, via delta scan | FWHM 0.473° / 0.612° | S00234 |
 | hot/dead pixels | 1405 of 803928 (0.175%) | G0256, 8σ MAD |
-| azimuthal spottiness | gold 5.18, sample ≤0.14 | pope202609 |
+| azimuthal spottiness, **ambient** | gold 5.18, sample ≤0.14 | pope202609 |
+| gold texture under pressure | **disappears** — no azimuthal discrimination | pope202609 |
 
 **Methodological note.** The delta-scan FWHM (0.473°) is *broader* than the
 detector-resolved width (0.377°) because the scan integrates a ROI while the arm
@@ -515,7 +565,13 @@ rocking-curve width to size a q ROI would over-wide it by ~25%.
 - **Where the cell shadow actually cuts in.** 30° is the nominal usable maximum
   with the beam on the cell axis; the real edge, after seat and gasket, was not
   measured. One wide CeO2 exposure would locate it and is worth taking early —
-  the outermost calibration ring (311 at 28.93°) sits only 1.1° inside it.
+  the outermost calibration ring (311 at 28.93°) sits only 1.1° inside it, and
+  Ta 200 sits closer still.
+- **Chemical compatibility of tantalum** with this alloy and pressure medium. Not
+  checked; must be confirmed before switching marker.
+- Whether tantalum texture also vanishes under pressure. Assumed irrelevant, since
+  the Ta recommendation does not rely on azimuthal discrimination — but the same
+  surprise that invalidated the gold argument could apply.
 
 ## Appendix C — reproduction
 
@@ -527,6 +583,9 @@ In this directory:
 | `rigaku500k_optimum.py` | distance optimisation, 5 GPa resolution |
 | `ceo2_calib_sim.py` | calibration fit precision vs ring count |
 | `ceo2_systematics.py` | tilt and z-offset error budget (§4.3) |
+| `gold_only_calib.py` | the (L, a) degeneracy proof (§4.0a) |
+| `ceo2_ambient_transfer.py` | one- vs two-line transfer from an off-position CeO2 |
+| `marker_screen.py` | marker collision screen and sensitivity (§3.2a) |
 
 On `amber`, in `~/xpcs_contrast_check/`: qmap builders, the three comparison
 `boost_corr` runs, and the fake-contrast diagnostic of §5.2.
