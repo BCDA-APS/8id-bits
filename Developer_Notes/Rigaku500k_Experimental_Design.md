@@ -183,9 +183,10 @@ here:
   platinum, both FCC, put their 200 squarely in the sample band.
 - **Better pressure sensitivity than gold** at the demanding end: 9.9 px per
   5 GPa at high pressure against gold's 9.0.
-- **A second clean line below ~15 GPa.** Ta 200 is visible over the low-pressure
-  part of the run, which restores the two-line calibration transfer of §4.4 —
-  precisely when that transfer would be established.
+- **A second clean line below 17.8 GPa.** Ta 200 gives an in-situ check on
+  detector drift (§4.0b) — the largest remaining error term, and one nothing else
+  can catch once the cell is installed. W and Mo have no second line in the window
+  at all.
 - Ta 110 (20.1–20.9°) is far from the sample BCC 110 (~23.2°); no confusion there.
 
 W and Mo also avoid fouling but give one line only and ~30% less sensitivity.
@@ -194,9 +195,10 @@ W and Mo also avoid fouling but give one line only and ~30% less sensitivity.
 pressure scale (Cynn & Yoo 1999, K₀ = 194 GPa, K₀′ = 3.5) is well established but
 less canonical than the gold scale, so pressures will not be directly comparable
 to Au-referenced literature without conversion; and Ta 200 leaves the window above
-~15 GPa, so the transfer must be done early in a run. Chemical compatibility of Ta
-with this alloy and pressure medium was **not** checked and should be, before
-committing.
+17.8 GPa, so the in-situ drift check of §4.0b is available only below that (Ta 110,
+and therefore pressure measurement, is unaffected at all pressures). Chemical
+compatibility with this alloy and with the helium medium is reasoned through in
+§4.0c but not confirmed against literature.
 
 ### 3.3 Angular resolution: can it track the gold 111 shift?
 
@@ -272,21 +274,120 @@ This is the part the design lives or dies on. The detector cannot be positioned
 accurately and cannot be moved, so **every pixel's q comes from an in-place fit to
 a known standard**, taken once, at the science position.
 
-### 4.0 CeO2 is measured at ambient, on a separate mount
+### 4.0 CeO2 is measured at ambient, in a DAC-like holder
 
-Two facts set the shape of the whole calibration:
+**CeO2 can only be used at ambient** — pressurised, it would compress and stop
+being a standard. It is therefore loaded into a **DAC-like holder containing no
+sample**, measured separately from the experiment.
 
-1. **CeO2 can only be used at ambient.** It cannot be loaded into the cell and
-   pressurised — it would compress and stop being a standard. So the geometry
-   standard is measured on a different mount, at a different time, and **not at
-   the sample position**.
-2. **The marker cannot replace it** (below). The marker is at the sample position
-   but its lattice parameter is unknown; CeO2 has a known lattice parameter but is
-   in the wrong place. Neither alone is sufficient, and the calibration must be
-   built from both.
+Two consequences, both favourable:
 
-This makes the sample-position offset of §4.4 unavoidable rather than merely
-likely, and it is the reason §4.4 recommends solving it in hardware.
+- **The anvils are in the beam during calibration.** Attenuation, aperture and
+  vignetting match the real experiment, so the cell shadow is characterised by the
+  calibration rather than being a surprise afterwards.
+- **The residual z-offset is small by construction**, and what remains is measured
+  directly — see below.
+
+**The marker still cannot replace CeO2** (§4.0a): the marker sits at the sample
+position but its lattice parameter is unknown, while CeO2 has a certified lattice
+parameter but is in a different holder. Neither alone suffices.
+
+#### The z-offset is solved procedurally, not left as an error
+
+Centre the object on the diffractometer rotation axis, then measure its apparent
+transverse position at ω = −5°, 0°, +5°. For a displacement (dx, dz) from the axis,
+x(ω) = x₀ + dx·cos ω + dz·sin ω, so
+
+```
+dz = [x(+5°) − x(−5°)] / (2 sin 5°)          lever = 5.74
+```
+
+The small angle works in your favour: **1 mm of dz shows up as a 174 µm transverse
+split**, which is easy to see. Iterate to convergence.
+
+| transverse centring | dz determined to | q error at 350 mm |
+|---|---|---|
+| 2 µm | 16 µm | 0.00015 Å⁻¹ |
+| 5 µm | 41 µm | 0.00038 Å⁻¹ |
+| 20 µm | 162 µm | 0.0015 Å⁻¹ |
+
+Even sloppy centring leaves the offset negligible. **This removes what §4.3 called
+the dominant systematic.** Applying the same procedure to the DAC and to the CeO2
+holder, and differencing, gives the offset between them directly.
+
+#### What is dominant now
+
+| source | error | as % of the 5 GPa signal |
+|---|---|---|
+| **detector creep, 0.1 mm after calibration** | **0.0164°** | **14.7%** |
+| sample moves 50 µm between pressure points | 0.0082° | 7.3% |
+| ring centroid, photon-limited | 0.0022° | 2.0% |
+| CeO2 z-offset, 10 µm residual | 0.0016° | 1.5% |
+
+**Mechanical stability is now the leading term**, which reinforces §2.3: spend the
+engineering on rigidity, not on angular tolerance. Note that once the cell is
+installed the CeO2 is gone, so **nothing can detect creep except a second marker
+line** — see §4.0b.
+
+### 4.0b Is the second marker line required? No.
+
+**Note on indices: tantalum is BCC, so there is no Ta 111** — body-centring
+forbids reflections with h+k+l odd. The available lines are **Ta 110** (strong,
+20.08–20.94° over 0–30 GPa) and **Ta 200** (28.55–29.31°).
+
+An earlier draft said to "transfer early, before Ta 200 leaves the window."
+**That instruction is withdrawn.** It assumed the two-line transfer was needed to
+cancel the CeO2 position error; the ±5° centring procedure (§4.0) removes that
+error directly, so **Ta 110 alone is sufficient** for pressure measurement and
+peak tracking across the whole range.
+
+What the second line is still worth:
+
+| | |
+|---|---|
+| Ta 200 in the detector window | up to **17.8 GPa** |
+| Ta 200 within the cell aperture | up to 36.2 GPa |
+
+Below 17.8 GPa, Ta 110 and Ta 200 must give the same lattice parameter. If they
+disagree, the geometry has moved. **That is the only in-situ check on detector
+creep** — now the largest error term (§4.0) — because CeO2 is unavailable once the
+cell is in. Above 17.8 GPa you keep full pressure sensitivity on Ta 110 but lose
+the drift check.
+
+So: not required, but worth having, and a reason to prefer Ta over W or Mo, whose
+second lines never enter the window at all.
+
+### 4.0c Helium pressure medium with tantalum
+
+**Assessment, not literature** — the search tools available here are blocked by
+policy, so this is reasoning from materials behaviour and should be confirmed
+before loading.
+
+**Helium itself is not a problem, and is arguably a positive.** It is a noble gas
+and forms no compound with tantalum at DAC pressures and room temperature. He
+penetration is documented for open-framework materials (silica, zeolites, ice),
+not for close-packed or body-centred metals. Porosity in a foil or powder is
+irrelevant to a diffraction marker in any case — the measurement is of the lattice,
+not the bulk density. And because He is the most hydrostatic medium available, it
+*reduces* the deviatoric stress that would otherwise bias a relatively ductile
+marker like Ta. He and Ta are a good pairing on that count.
+
+**The real risk is hydrogen, not helium.** Tantalum is a strong hydride former
+(with Nb, Ti, Zr, Pd). TaHx forms readily and expands the lattice substantially,
+which would destroy the pressure scale. Pure He will not do this; H₂ contamination
+in the gas or the loading line could.
+
+- Use high-purity He and a clean loading system.
+- The failure is self-announcing: a hydrided Ta lattice jumps anomalously and
+  returns a pressure grossly inconsistent with the membrane setting. Cross-check
+  Ta against the membrane calibration on first compression.
+
+**Conservative fallback: tungsten.** W is not a hydride former and is chemically
+inert under these conditions. The cost is sensitivity — 7.0 px per 5 GPa against
+Ta's 9.9 — which is still comfortably above the ~5 px needed, and W contributes no
+interfering line either (its 200 sits at 29.84°, outside the window at all
+pressures). Choose W if you would rather not think about gas purity; choose Ta for
+the better sensitivity and the drift check.
 
 ### 4.0a Can the marker replace CeO2? No.
 
@@ -410,18 +511,18 @@ an undetected offset of this kind is the most likely explanation.
 
 Two defences, both recommended:
 
-1. **Solve it in hardware — this is a deliverable for the mechanical engineer.**
-   CeO2 cannot go in the cell (§4.0), so machine its holder so the powder sits at
-   the same stage-referenced z as the DAC sample. 0.1 mm is routine machining and
-   costs 0.0012 Å⁻¹ — negligible. Verify against the stage readback for both.
-   This is cheaper and far more reliable than correcting for the offset later.
-2. **Transfer on two marker lines, early in the run, at low pressure.** With Ta,
-   both 110 and 200 are clean below ~15 GPa; re-fit `(L, centre)` against both and
-   the CeO2 position error cancels completely (§4.0a) — verified to 0.00004 Å⁻¹
-   for offsets up to 5 mm. Do this once, at the start, and carry the result.
-   If only one clean line is available (gold, or Ta above 15 GPa), fall back to
-   pinning it against a Lambda2M delta scan and correcting `L` alone — weaker, but
-   better than nothing.
+1. **Measure it with the ±5° rotation procedure (§4.0).** This is the primary
+   defence and it is procedural, not mechanical: it pins dz to tens of microns
+   even with sloppy centring, leaving ≤0.0015 Å⁻¹. Apply it to both the DAC and
+   the CeO2 holder and difference the results. The DAC-like holder keeps the raw
+   offset small to begin with, so the correction is small and the iteration
+   converges quickly.
+2. **Use the two marker lines as a cross-check, not as the primary fix.** Below
+   17.8 GPa, Ta 110 and Ta 200 must yield the same lattice parameter; disagreement
+   means the geometry moved. Simulation shows a two-line re-fit can absorb a CeO2
+   offset of up to 5 mm to 0.00004 Å⁻¹, so it is a strong backstop if the centring
+   is ever in doubt — and it is the only in-situ detector-creep check available
+   once the cell is installed (§4.0b).
 
 Use CeO2 for the *shape* of the q map (centre, curvature, pixel→2θ) and gold for
 the *absolute scale*. Neither alone is sufficient.
@@ -567,8 +668,11 @@ rocking-curve width to size a q ROI would over-wide it by ~25%.
   measured. One wide CeO2 exposure would locate it and is worth taking early —
   the outermost calibration ring (311 at 28.93°) sits only 1.1° inside it, and
   Ta 200 sits closer still.
-- **Chemical compatibility of tantalum** with this alloy and pressure medium. Not
-  checked; must be confirmed before switching marker.
+- **Chemical compatibility of tantalum** with this alloy, and Ta behaviour in a
+  helium medium. §4.0c reasons it through but could not consult literature —
+  search tools are blocked by policy here. Confirm before loading; the specific
+  thing to rule out is H₂ contamination in the He line, since Ta is a strong
+  hydride former.
 - Whether tantalum texture also vanishes under pressure. Assumed irrelevant, since
   the Ta recommendation does not rely on azimuthal discrimination — but the same
   surprise that invalidated the gold argument could apply.
