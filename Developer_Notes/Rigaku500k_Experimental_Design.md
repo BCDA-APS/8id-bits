@@ -199,8 +199,8 @@ less canonical than the gold scale, so pressures will not be directly comparable
 to Au-referenced literature without conversion; and Ta 200 leaves the window above
 17.8 GPa, so the in-situ drift check of §4.0b is available only below that (Ta 110,
 and therefore pressure measurement, is unaffected at all pressures). Chemical
-compatibility with this alloy and with the helium medium is reasoned through in
-§4.0c but not confirmed against literature.
+compatibility with the helium medium is settled in §4.0c — the sealed gasket
+volume cannot supply enough hydrogen to hydride Ta at any realistic gas purity.
 
 ### 3.3 Angular resolution: can it track the gold 111 shift?
 
@@ -379,37 +379,51 @@ lines never enter the window at all — but with creep off the table, the choice
 between the three now rests on sensitivity (Ta 9.9 px vs W/Mo ~7.0) and on the
 chemistry of §4.0c.
 
-### 4.0c Helium pressure medium with tantalum
+### 4.0c Helium pressure medium with tantalum — no objection
 
-**Assessment, not literature** — the search tools available here are blocked by
-policy, so this is reasoning from materials behaviour and should be confirmed
-before loading.
+**Helium is not a problem, and is a positive.** It is a noble gas and forms no
+compound with tantalum at DAC pressures and room temperature. He penetration is
+documented for open-framework materials (silica, zeolites, ice), not for
+close-packed or body-centred metals; and porosity is irrelevant to a diffraction
+marker in any case, since the measurement is of the lattice, not bulk density.
+Because He is the most hydrostatic medium available, it *reduces* the deviatoric
+stress that would otherwise bias a relatively ductile marker like Ta. He and Ta
+are a good pairing.
 
-**Helium itself is not a problem, and is arguably a positive.** It is a noble gas
-and forms no compound with tantalum at DAC pressures and room temperature. He
-penetration is documented for open-framework materials (silica, zeolites, ice),
-not for close-packed or body-centred metals. Porosity in a foil or powder is
-irrelevant to a diffraction marker in any case — the measurement is of the lattice,
-not the bulk density. And because He is the most hydrostatic medium available, it
-*reduces* the deviatoric stress that would otherwise bias a relatively ductile
-marker like Ta. He and Ta are a good pairing on that count.
+**The hydride concern is withdrawn.** Tantalum is a strong hydride former, so an
+earlier draft flagged H₂ contamination as a risk. Quantifying it settles the
+question: **the gasket hole is a sealed micro-volume, so the hydrogen inventory is
+bounded at loading regardless of gas purity.**
 
-**The real risk is hydrogen, not helium.** Tantalum is a strong hydride former
-(with Nb, Ti, Zr, Pd). TaHx forms readily and expands the lattice substantially,
-which would destroy the pressure scale. Pure He will not do this; H₂ contamination
-in the gas or the loading line could.
+A 100 µm × 35 µm hole is **0.275 nL** — about 1 × 10⁻¹¹ mol of gas. Against a
+20 × 20 × 5 µm Ta flake (1.1 × 10¹⁴ atoms):
 
-- Use high-purity He and a clean loading system.
-- The failure is self-announcing: a hydrided Ta lattice jumps anomalously and
-  returns a pressure grossly inconsistent with the membrane setting. Cross-check
-  Ta against the membrane calibration on first compression.
+| H₂ in the He | H atoms available | H/Ta | |
+|---|---|---|---|
+| 1 ppm | 9.9 × 10⁹ | 9 × 10⁻⁵ | safe |
+| 10 ppm | 9.9 × 10¹⁰ | 9 × 10⁻⁴ | safe |
+| 100 ppm | 9.9 × 10¹¹ | 9 × 10⁻³ | safe |
+| 1000 ppm | 9.9 × 10¹² | 9 × 10⁻² | marginal |
 
-**Conservative fallback: tungsten.** W is not a hydride former and is chemically
-inert under these conditions. The cost is sensitivity — 7.0 px per 5 GPa against
-Ta's 9.9 — which is still comfortably above the ~5 px needed, and W contributes no
-interfering line either (its 200 sits at 29.84°, outside the window at all
-pressures). Choose W if you would rather not think about gas purity; choose Ta for
-the better sensitivity and the drift check.
+TaHx shifts the lattice measurably at H/Ta ≈ 0.1–1.0. Research-grade He is 5N–6N,
+with H₂ a fraction of the ≤10 ppm total impurity, putting the ratio at ≤10⁻³ —
+**two orders of magnitude below the threshold**. Only implausibly dirty gas, around
+0.1% H₂, would approach it.
+
+The physical reason: a furnace or an H₂ atmosphere is an effectively infinite
+hydrogen reservoir and *can* hydride tantalum. A sealed sub-nanolitre bubble of
+clean helium cannot — there simply are not enough atoms in it.
+
+With a dedicated He gas-loading system, **use tantalum without reservation.**
+
+> Two second-order notes. A smaller marker raises the ratio proportionally — a
+> 10 × 10 × 3 µm flake at 100 ppm reaches 6 × 10⁻², marginal — so do not use a
+> vanishingly small flake with questionable gas. And Ta carries a thin native
+> Ta₂O₅ layer, which is amorphous and does not affect the diffraction lines.
+
+**Tungsten remains an alternative**, not a fallback: no hydride chemistry to think
+about at all, at the cost of sensitivity (7.0 vs 9.9 px per 5 GPa) and with no
+second line in the window. Choose it only if W is already on hand.
 
 ### 4.0a Can the marker replace CeO2? No.
 
@@ -690,11 +704,13 @@ rocking-curve width to size a q ROI would over-wide it by ~25%.
   measured. One wide CeO2 exposure would locate it and is worth taking early —
   the outermost calibration ring (311 at 28.93°) sits only 1.1° inside it, and
   Ta 200 sits closer still.
-- **Chemical compatibility of tantalum** with this alloy, and Ta behaviour in a
-  helium medium. §4.0c reasons it through but could not consult literature —
-  search tools are blocked by policy here. Confirm before loading; the specific
-  thing to rule out is H₂ contamination in the He line, since Ta is a strong
-  hydride former.
+- **Chemical compatibility of tantalum with the alloy itself.** The helium
+  question is settled quantitatively in §4.0c, but Ta-versus-HEA contact chemistry
+  was not examined. Low risk at room temperature, worth a moment's thought before
+  loading.
+- Literature confirmation of Ta as a pressure marker in He-loaded cells. The
+  reasoning in §4.0c is self-contained, but search tools are blocked by policy
+  here so no reference was consulted.
 - Whether tantalum texture also vanishes under pressure. Assumed irrelevant, since
   the Ta recommendation does not rely on azimuthal discrimination — but the same
   surprise that invalidated the gold argument could apply.
@@ -712,6 +728,7 @@ In this directory:
 | `gold_only_calib.py` | the (L, a) degeneracy proof (§4.0a) |
 | `ceo2_ambient_transfer.py` | one- vs two-line transfer from an off-position CeO2 |
 | `marker_screen.py` | marker collision screen and sensitivity (§3.2a) |
+| `ta_hydride_budget.py` | hydrogen inventory in the gasket hole (§4.0c) |
 
 On `amber`, in `~/xpcs_contrast_check/`: qmap builders, the three comparison
 `boost_corr` runs, and the fake-contrast diagnostic of §5.2.
