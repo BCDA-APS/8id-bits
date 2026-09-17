@@ -82,9 +82,11 @@ the fitted distance and centre angle: the calibration absorbs it. Simulation
 
 What the mount **does** need:
 
-- **Rigidity.** The calibration is taken once, in place. Any creep, thermal walk
-  or vibration after calibration is an uncorrectable error. This is where the
-  engineering effort belongs.
+- **Rigidity.** The calibration is taken once, in place, so any creep or thermal
+  walk afterwards is uncorrectable and invisible. The planned mount — **bolted to
+  a post** — is the right answer; this note assumes it and drops creep from the
+  error budget accordingly (§4.0). Keep it that way: do not add adjusters that
+  could drift or be nudged.
 - **A reproducible sample position.** See §4.4 — the dominant error in the whole
   scheme is not the detector at all, it is where the calibration standard sits
   relative to the sample.
@@ -315,19 +317,36 @@ Even sloppy centring leaves the offset negligible. **This removes what §4.3 cal
 the dominant systematic.** Applying the same procedure to the DAC and to the CeO2
 holder, and differencing, gives the offset between them directly.
 
-#### What is dominant now
+#### Error budget as built
 
-| source | error | as % of the 5 GPa signal |
+The Rigaku500k is **bolted to a post**, so the creep term an earlier draft called
+dominant does not apply. Diffractometer positioning is trusted: **0.03% precision
+has been demonstrated** in practice with z alignment and huber-delta scans on
+Lambda2M.
+
+| source | q error at q = 3.3 | % of the 5 GPa signal |
 |---|---|---|
-| **detector creep, 0.1 mm after calibration** | **0.0164°** | **14.7%** |
-| sample moves 50 µm between pressure points | 0.0082° | 7.3% |
-| ring centroid, photon-limited | 0.0022° | 2.0% |
-| CeO2 z-offset, 10 µm residual | 0.0016° | 1.5% |
+| sample moves 50 µm between pressure points | 0.00114 Å⁻¹ | 7.3% |
+| demonstrated alignment, 0.03% | 0.00099 Å⁻¹ | 6.4% |
+| ring centroid, photon-limited | 0.00031 Å⁻¹ | 2.0% |
+| CeO2 z-offset, 20 µm residual | 0.00019 Å⁻¹ | 1.2% |
+| **quadrature total** | **0.00155 Å⁻¹** | **10.0%** |
 
-**Mechanical stability is now the leading term**, which reinforces §2.3: spend the
-engineering on rigidity, not on angular tolerance. Note that once the cell is
-installed the CeO2 is gone, so **nothing can detect creep except a second marker
-line** — see §4.0b.
+**A 5 GPa step is measured at 10:1, and a 1 GPa step at 2:1.** The dominant term
+is no longer anything about the detector or its calibration — it is the sample
+moving when pressure changes, which is a property of the cell.
+
+> **One caveat on transferring the 0.03%.** Whether that figure carries over to a
+> 350 mm arm depends on what limits it. Energy and angular-readback errors are
+> L-independent and transfer unchanged. An *absolute distance or sample-position*
+> error scales as 1/L and would become **6.3× worse** — 0.03% at 2.2 m would
+> become 0.19%, or 0.0062 Å⁻¹.
+>
+> The arithmetic says this is not a concern: 0.03% at 2.2 m corresponds to a
+> 0.66 mm position error *if* it were distance-limited, and the ±5° procedure pins
+> dz 4–30× better than that. So the 0.03% was almost certainly limited by energy,
+> readback or peak fitting rather than by position, and should transfer intact.
+> Worth confirming once against CeO2 on the 500k itself rather than assumed.
 
 ### 4.0b Is the second marker line required? No.
 
@@ -349,13 +368,16 @@ What the second line is still worth:
 | Ta 200 within the cell aperture | up to 36.2 GPa |
 
 Below 17.8 GPa, Ta 110 and Ta 200 must give the same lattice parameter. If they
-disagree, the geometry has moved. **That is the only in-situ check on detector
-creep** — now the largest error term (§4.0) — because CeO2 is unavailable once the
-cell is in. Above 17.8 GPa you keep full pressure sensitivity on Ta 110 but lose
-the drift check.
+disagree, the geometry has moved — the only in-situ geometry check available once
+the cell is in and CeO2 is gone. With the detector bolted to a post this is a
+reassurance rather than a necessity, but it costs nothing and would catch a knock
+or a bumped cable. Above 17.8 GPa you keep full pressure sensitivity on Ta 110 and
+simply lose the check.
 
-So: not required, but worth having, and a reason to prefer Ta over W or Mo, whose
-second lines never enter the window at all.
+So: **not required.** It is a mild preference for Ta over W and Mo, whose second
+lines never enter the window at all — but with creep off the table, the choice
+between the three now rests on sensitivity (Ta 9.9 px vs W/Mo ~7.0) and on the
+chemistry of §4.0c.
 
 ### 4.0c Helium pressure medium with tantalum
 
