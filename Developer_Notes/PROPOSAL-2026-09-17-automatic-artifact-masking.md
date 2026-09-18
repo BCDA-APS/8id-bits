@@ -2,16 +2,15 @@
 
 **For:** Miaoqi Chu · **From:** Q. Zhang · **Date:** 2026-09-17
 
-Diamond-anvil-cell patterns at 8-ID-E carry narrow dark lines crossing the
-scattering, plus localised bright spots — neither detected automatically today.
-Example frame:
+Diamond-anvil-cell patterns at 8-ID-E carry narrow dark streaks crossing the
+scattering — neither detected nor masked automatically today. Reference frame:
 
 ```
-/gdata/dm/8ID/8IDE/2026-3/pope202609/data/E0157_EHEA-Mesh_a0001_f000010_eiger4M_r00006/E0157_EHEA-Mesh_a0001_f000010_eiger4M_r00006.h5
+/gdata/dm/8ID/8IDE/2026-3/pope202609/data/G0256_HEA-Dec9GPa_a0001_f003000_lambda2M_r00001/
 ```
 
-Below: a way to find them, what a prototype did on real data, and a confirmed
-example on Lambda2M to develop against.
+Lambda2M, where the q map is trustworthy. Below: a method that finds them, and
+what it recovers on that frame.
 
 ---
 
@@ -42,165 +41,90 @@ and stays valid across a translation mesh.
 
 ## 2. Proposed algorithm
 
-The assumption is that true I(q, φ) is smooth for a powder-like sample, so
-anything abrupt is an artifact. Build the mask from a **high-statistics sum**, not
-a single frame — the Eiger example averages 0.287 counts/pixel, and the lines are
-visible only because the eye integrates along them. Artifacts are static within an
-orientation, so summing a mesh is free and valid.
+Work in the **q-φ frame from pysimplemask itself**, never in a hand-rolled one.
+`compute_transmission_qmap()` returns per-pixel `q`, `TTH` and `phi`; the swing
+angles come from `flightpath_swing` (horizontal) and `flightpath_swing_vertical`
+(vertical), and the beam centre is the direct-beam pixel at **zero swing on both**.
+For the reference frame here that gives q ∈ 3.111–3.455 Å⁻¹ and φ ∈ 87.19–92.82°.
 
-Apply the blemish layer before thresholding, eroded a few pixels so gap and border
-neighbours go with it — pySimpleMask already loads one by default. The prototype
-skipped this and immediately tripped: five of its six strongest "line" detections
-were the detector's last column.
+Two facts make the rest easy, and both come straight out of those maps:
 
 ```
-1. reference    I_ref(q) = median over φ within fine q bins
-2. residual     R = I − I_ref(q)
-3. integrate    R_s = smooth(R)              # lines are EXTENDED
-4. threshold    σ = 1.4826 · MAD(R_s);  flag |R_s| > n·σ
-5. classify     connected components → aspect ratio: high = line, low = spot
+dq/drow = -1.88e-4 A-1/px     dq/dcol = 0
+dphi/dcol = -0.00344 deg/px   dphi/drow = 0
 ```
 
-Use the **median**, not the mean, at step 1 — it does not chase the outliers being
-hunted.
+**q depends only on row, φ only on column.** A narrow q bin is therefore a band of
+rows, and I-vs-φ within it is simply the intensity profile across columns.
 
-A note on using derivatives, which was the original suggestion: the instinct is
-right, but at ~0.3 counts/pixel a literal finite difference is pure shot noise.
-Steps 2–3 are the same idea implemented as a matched filter — difference from a
-smooth reference at the feature's own scale — which is noise-optimal.
-
-### Four things that break it
-
-All four were hit while prototyping; they are the useful part of this proposal.
-
-**(a) The reference must follow the true q contours.** A first attempt used
-"median along detector rows". On Lambda2M that is nearly right, because the
-virtual beam centre sits ~19,000 rows off-detector and rings are almost straight
-horizontal lines. **On Eiger4M it fails completely** — the q gradient runs across
-columns there, so a row-median averages straight across the signal and detects
-nothing. Use the real q map.
-
-So on Eiger, where the geometry is uncertain: the q map has to be *locally*
-correct, not absolutely correct — a wrong beam centre distorts ring shape and
-smears the reference. Where geometry is hopeless, see (d).
-
-**(b) Dead pixels and physical artifacts look identical to a threshold.** They are
-not the same thing and have different lifetimes:
+### The method
 
 ```
-depth / I_ref ≈ −100%        dead pixel      → permanent, belongs in blemish
-depth / I_ref ≈ −10…−60%     Kossel line     → per orientation
+0. restrict to the peak    only pixels inside the analysis ROI matter, and the
+                           high intensity there makes a fractional dip far easier
+                           to see than in the wings
+1. narrow q bins           ~4 rows (~0.00075 A-1)
+2. I versus phi per bin    powder scattering is flat in phi; a Kossel line is a
+                           localised DIP at one phi
+3. find the discontinuity  running median over phi as baseline, flag phi where
+                           I falls > 3.5 robust sigma below it
+4. LINK across q bins      a Kossel line is continuous, so its dip drifts smoothly
+                           in phi. Track bin-to-bin, predicting the next phi by
+                           extrapolating the slope so far
+5. rasterise               interpolate each track and paint its measured width
 ```
 
-This is the guard against a *stale* blemish map: dead pixels accumulate between
-updates, and whatever is not yet flagged will be the detector's first find — which
-is exactly what happened (§3).
+**Step 4 is what makes it work.** Kossel lines are conic sections, so they are
+curved and run at arbitrary angles. Tracking follows that curvature; anything that
+assumes a fixed orientation does not.
 
-**(c) The streaks are not vertical — the filter must scan orientation.** This is
-the single easiest way to get the detection wrong. A column- or row-profile is
-blind to a slanted line by construction, and on this data it returns a confident
-null. A Radon scan of the residual finds ridges at 20°, 50°, 55°, 70°, 75° and
-80°; the streaks run at whatever angle the anvil geometry dictates.
+### Three things that break it
 
-What works: **high-pass, then an orientation-scanned matched filter.** Average the
-residual along a line kernel (~60 px) at ~10° steps and keep the most negative
-response per pixel. The high-pass first is essential — without it the filter locks
-onto broad intensity structure and masked 8.3% of the detector in testing; with it,
-0.54%. Then require *long and narrow*: extent ≥100 px and mean transverse width
-≤ ~20 px, which separates a streak from a smooth gradient.
+**(a) Do not collapse a profile over the whole detector.** A column profile
+averaged over all rows smears a drifting dip into nothing and returns a confident
+null. The dip must be found *per narrow q bin*, then linked.
 
-**(d) Geometry-free fallback.** Where the q map cannot be trusted, a line is still
-a line: detect narrow extended features directly in pixel space with a
-Radon/Hough transform of the residual, or morphological opening with a line
-structuring element at several orientations. Less sensitive, but needs no
-geometry. Worth shipping alongside the q-φ path.
+**(b) Do not use a straight-line matched filter.** A prototype scanned straight
+kernels at 10° steps. Because the lines are curved a straight kernel only matches
+short chords, so it fragmented long lines and missed shallow ones entirely: 7
+fragments where there are 5 continuous streaks, and two never found at all.
 
----
+**(c) Dead pixels and Kossel lines look identical to a threshold.** A dead pixel
+reads *exactly zero*; a Kossel line is a fractional dip. Split on depth ratio —
+this also guards against a stale blemish map, since unflagged dead pixels are
+otherwise the detector's first find.
 
-## 3. What the prototype found
+## 3. Result on real data
 
-Two passes. A sparse first pass over the 1398 Lambda2M datasets found only
-detector defects. A second pass over the 28 long (3000-frame) Lambda2M
-acquisitions, this time with the blemish map applied, produced the confirmed case
-below. The Eiger example was handled separately.
+`G0256_HEA-Dec9GPa_a0001_f003000_lambda2M_r00001`, δ = 24.48°, 300-frame average,
+restricted to the analysis ROI q = 3.2632–3.3126 Å⁻¹ (rows 740–1019).
 
-### A confirmed Kossel line on Lambda2M — use this as the test case
+178 raw dips across 69 q bins, linked into 11 tracks, merged into **5 distinct
+streaks**:
 
-The first pass found none, because it did not apply the blemish map and dead
-pixels swamped everything. Re-run over the 28 long (3000-frame) Lambda2M
-acquisitions with the blemish applied, requiring the feature to sit in the
-detector interior:
+| # | q bins | rows | cols | angle | depth |
+|---|---|---|---|---|---|
+| 1 | 6 | 914–970 | 220–247 | +115.7° | −27.8% |
+| 2 | 5 | 806–854 | 278–304 | +118.4° | −27.2% |
+| 3 | 7 | 782–850 | 544–566 | +72.1° | −27.8% |
+| 4 | 66 | 742–1002 | 761–774 | +87.6° | −35.7% |
+| 5 | 58 | 802–1014 | 1481–1555 | +109.2° | −40.8% |
 
-```
-dataset   G0256_HEA-Dec9GPa_a0001_f003000_lambda2M_r00001   (also G0253/54/55)
-delta     24.48°
-streaks   seven, at a range of angles (70°, 80°, 90°, 110° to the rows)
-            depths −7% to −25% of local I_ref; widths 3–18 px
-            12625 px total, 0.54% of the live detector
-angle     strongest at 2θ = 24.61–24.96°  →  q = 3.283–3.330 Å⁻¹
-```
+**3949 px, 1.0% of the live pixels in the ROI.**
 
-![Kossel lines on Lambda2M, G0256](figures/kossel_G0256_slant.png)
+![Kossel lines on Lambda2M, G0256](figures/kossel_phi_final.png)
 
-*Full detector. Left: original. Middle: residual against I_ref(2θ) — the streaks
-are invisible in the raw frame and unmistakable here. Right: the masked pixels in
-magenta. Dark bands are module gaps and the five dead chip-gap columns, which are
-detector structure, not artifacts.*
+*Full detector; dashed lines mark the peak ROI. Left: original. Middle: residual
+against I_ref(q) — the streaks are invisible in the raw frame and unmistakable
+here. Right: masked pixels in magenta. Dark bands are module gaps and the five
+dead chip-gap columns, which are detector structure, not artifacts.*
 
-It passes the three discriminations that matter:
+Five angles spanning 72° to 118° confirms these are not detector structure — no
+detector artifact is slanted, and none is slanted five different ways.
 
-| test | result |
-|---|---|
-| dead pixel? | **No** — depths are −7% to −25%, not −100% |
-| reproducible? | **Yes** — four independent 3000-frame runs at this orientation |
-| detector defect? | **No** — see below |
-
-The last is decisive. A detector defect is fixed in *pixel* coordinates and reads
-the same at any detector angle; a Kossel line is fixed in the *lab* frame, so it
-moves across the detector as delta changes. Probing the identical pixels, against
-the row predicted for a fixed 2θ:
-
-| dataset | delta | depth at those pixels | predicted row if lab-fixed |
-|---|---|---|---|
-| G0256 | 24.48° | **−24.1%** | 793 — where it is |
-| G0246 | 24.91° | −9.9% | 1091 — moving off the template |
-| G0207 | 20.28° | −0.8% **gone** | −2145 — off the detector |
-| G0228 | 20.58° | −1.4% **gone** | −1935 — off the detector |
-
-The feature tracks the prediction: strong where a fixed-2θ line should sit,
-fading as the detector rotates away, absent once the predicted row leaves the
-detector entirely. That is a Kossel line, not hardware.
-
-One consequence worth noting: **q = 3.283–3.330 Å⁻¹ overlaps the sample peak at
-3.288** used for the XPCS analysis of this same dataset. The streaks are ~0.5% of the
-pixels in that ROI at about −20% depth, contributing roughly 3% of the measured
-static floor — small, but it is exactly the kind of contamination the masking
-removes.
-
-### Check the reference model before trusting it
-
-Whether the q map can be trusted is testable in a few lines: build two or three
-candidate references and compare residual RMS. On the two detectors here it comes
-out opposite ways.
-
-| reference model | Lambda2M | Eiger4M |
-|---|---|---|
-| I(row) | 0.0280 | 0.42934 |
-| I(2θ) from metadata geometry | **0.0278** | 0.42664 |
-| I(col) | 0.0454 | **0.05179** |
-
-On Lambda the metadata geometry wins — expected, since the virtual centre sits
-~19,000 rows off-detector so rings are nearly horizontal — and that is why the
-detection above can be believed. On Eiger the metadata 2θ map is **no better than
-assuming rings run along rows**, while an empirical I(col) reference fits 8×
-better: the geometry there is falsified by its own data (that detector is on a
-manual stage). A first attempt at Eiger detection found nothing for exactly this
-reason.
-
-Recommend running this test and selecting the reference by residual RMS, rather
-than assuming the metadata is right. Where no model fits, fall back to §2(c).
-
----
+The streaks overlap the sample peak at q = 3.288 Å⁻¹ used for the XPCS analysis of
+this same dataset, contributing a few percent of its measured static baseline.
+That is the concrete case for the feature.
 
 ## 4. Suggested interface
 
@@ -215,15 +139,17 @@ Three mask layers with different lifetimes, kept separate:
 A minimal CLI surface consistent with the existing `build` options:
 
 ```
---auto-artifact {off,lines,spots,both}   default off
---artifact-nsig N                        default ~6
---artifact-min-aspect N                  line vs spot, default ~5
---artifact-dead-frac F                   depth/ref beyond this = dead pixel,
-                                         routed to the blemish layer (default 0.9)
---artifact-from FILE [FILE ...]          build from a high-statistics sum,
-                                         apply to the target
---artifact-exclude-border N              default ~8 px
---output-artifact-mask FILE              write the layer separately
+--auto-artifact {off,streaks}     default off
+--artifact-qrange QLO:QHI         restrict to the ROI that matters; the high
+                                  intensity inside a peak is what makes a
+                                  fractional dip detectable
+--artifact-qbin N                 rows per narrow q bin (default ~4)
+--artifact-nsig N                 dip threshold in robust sigma (default ~3.5)
+--artifact-min-bins N             q bins a track must span to be kept (default ~5)
+--artifact-dead-frac F            depth/ref beyond this = dead pixel, routed to
+                                  the blemish layer (default 0.9)
+--artifact-from FILE [FILE ...]   build from a high-statistics sum, apply to target
+--output-artifact-mask FILE       write the layer separately
 ```
 
 Two points of principle:
@@ -237,12 +163,12 @@ Two points of principle:
 
 ## 5. Suggested order
 
-1. Implement the q-φ detector with the dead-pixel split. **Validate against
-   G0256 on Lambda2M** (§3) — known answer, trustworthy geometry, three
-   streaks spanning −7% to −25% at four distinct angles. The Eiger frame is the harder case and should come after.
-2. Add the reference-model selection test (§3). It is a few lines, and it is what
-   tells you whether the q map can be trusted on a given detector.
-3. Add the geometry-free fallback for detectors where it cannot.
+1. Add the per-pixel q/φ accessor if one is not already public —
+   `compute_transmission_qmap()` already returns everything needed.
+2. Implement narrow-q-bin dip detection with φ linking. **Validate against G0256**
+   (§3): known answer, trustworthy geometry, five streaks from −27% to −41%.
+3. Expose `--artifact-nsig` and a q-range restriction, and report detections
+   rather than applying them silently.
 4. Spot detection last — compact bright features are easier, and
    `--threshold-high` already covers part of it.
 
@@ -255,32 +181,27 @@ Prototype scripts, on `amber`, all under
 
 | file | does |
 |---|---|
-| `artifact_detect.py` | core detector: reference, residual, classify |
-| `hunt_kossel.py` | Lambda2M search — blemish applied, model selection |
-| `hunt2.py` | interior-only scan over all 28 long runs (finds the §3 line) |
-| `test_788.py` | fixed-pixel probe and the detector-angle test |
-| `slanted.py` | Radon angle scan — shows the streaks are not vertical |
-| `slant_mask2.py` | high-pass + orientation-scanned matched filter (the detector) |
-| `fig_final.py` | writes the figure above |
-| `eiger_clean.py` | reference-model comparison |
+| `phi_track2.py` | narrow-q-bin dip detection + φ linking (the detector) |
+| `phi_final.py` | merges tracks, rasterises the mask, writes the figure |
+| `hunt_kossel.py` | earlier full-detector search (superseded) |
 | `sum_list.py` | high-statistics sum over a scan |
+| `psm_maps.npy` | per-pixel q / TTH / phi from pysimplemask |
 
 Products, same directory:
 
 | file | contents |
 |---|---|
-| `kossel_G0256_full.png` | the figure above |
-| `k2_img.npy` | 200-frame average of G0256 (1813×1558) |
-| `k2_resid.npy` | residual I − I_ref(2θ) |
-| `k2_mask_final.npy` | the seven detected streaks, bool (12625 px) |
-| `k2_good.npy` | valid-pixel mask, blemish applied |
+| `kossel_phi_final.png` | the figure above |
+| `k2_img.npy` | 300-frame average of G0256 (1813×1558) |
+| `phi_mask_final.npy` | the five detected streaks, bool (3949 px) |
+| `phi_dips.npy` | raw per-bin dips before linking |
+| `k2_good2.npy` | valid-pixel mask, blemish applied |
 
 Data referenced:
 
 ```
 /gdata/dm/8ID/8IDE/2026-3/pope202609/data/G0256_HEA-Dec9GPa_a0001_f003000_lambda2M_r00001/
 /gdata/dm/8ID/8IDE/2026-3/pope202609/data/G025{3,4,5}_HEA-Dec9GPa_*_f003000_lambda2M_r00001/
-/gdata/dm/8ID/8IDE/2026-3/pope202609/data/E0157_EHEA-Mesh_a0001_f000010_eiger4M_r00006/
 /home/beams/8IDIUSER/Documents/areaDetectorBlemish/8idLambda2m/latest_blemish.tif
 ```
 
