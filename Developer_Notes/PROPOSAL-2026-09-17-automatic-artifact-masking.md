@@ -60,25 +60,45 @@ rows, and I-vs-φ within it is simply the intensity profile across columns.
 ### The method
 
 ```
-0. restrict to the peak    only pixels inside the analysis ROI matter, and the
-                           high intensity there makes a fractional dip far easier
-                           to see than in the wings
-1. narrow q bins           ~4 rows (~0.00075 A-1)
-2. I versus phi per bin    powder scattering is flat in phi; a Kossel line is a
+0. apply the standard blemish FIRST   lambda2m_qmap_default.hdf  (see note below)
+1. restrict to the peak    only pixels in the analysis ROI matter, and the high
+                           intensity there is what makes a fractional dip visible
+2. narrow q bins           ~4 rows (~0.00075 A-1)
+3. I versus phi per bin    powder scattering is flat in phi; a Kossel line is a
                            localised DIP at one phi
-3. find the discontinuity  running median over phi as baseline, flag phi where
-                           I falls > 3.5 robust sigma below it
-4. LINK across q bins      a Kossel line is continuous, so its dip drifts smoothly
-                           in phi. Track bin-to-bin, predicting the next phi by
-                           extrapolating the slope so far
-5. rasterise               interpolate each track and paint its measured width
+4. find the discontinuity  running median over phi as baseline; flag phi where I
+                           falls > 2.5 robust sigma below it
+5. LINK across q bins      the dip drifts smoothly in phi. Track bin-to-bin,
+                           predicting the next phi from the slope so far
+6. EXTEND the full ROI     fit phi(q) linearly and extrapolate across the WHOLE
+                           ROI - see below
+7. VERIFY the extension    measure the dip depth on a narrow core along the
+                           extrapolated part; keep it only if still dark
+8. rasterise WIDE          paint the measured width plus ~7 px each side
 ```
+
+**Use the standard blemish, not the raw TIFF.** `lambda2m_qmap_default.hdf`
+carries a `mask` that removes **43,861 more pixels** than
+`latest_blemish.tif` and is a strict superset of it. Applying it first removes
+dead regions and hot pixels before any Kossel logic runs, and it eliminates a
+whole class of false detections.
+
+**Extend every line across the full ROI (steps 6-7).** Kossel lines are set by
+the anvil and do not stop mid-peak. A track that ends early means *detection*
+faded, not the line. So fit and extrapolate, then verify the extrapolated part
+really is dark before keeping it. Decide on a **narrow core** (±3 px, where the
+contrast is undiluted) but **mask wide** (±7 px beyond the measured width) — the
+two must not use the same width or the accept/reject test loses sensitivity.
+
+**Masking generously is nearly free.** XPCS SNR scales as √N_pixels, and these
+lines are narrow. Masking 6.0% of the ROI costs **3.05%** in SNR — far less than
+leaving a −27% intensity deficit inside the correlation.
 
 **Step 4 is what makes it work.** Kossel lines are conic sections, so they are
 curved and run at arbitrary angles. Tracking follows that curvature; anything that
 assumes a fixed orientation does not.
 
-### Three things that break it
+### Four things that break it
 
 **(a) Do not collapse a profile over the whole detector.** A column profile
 averaged over all rows smears a drifting dip into nothing and returns a confident
@@ -89,42 +109,49 @@ kernels at 10° steps. Because the lines are curved a straight kernel only match
 short chords, so it fragmented long lines and missed shallow ones entirely: 7
 fragments where there are 5 continuous streaks, and two never found at all.
 
-**(c) Dead pixels and Kossel lines look identical to a threshold.** A dead pixel
+**(c) A track that reaches the end of its detected span is not finished.** Four
+of the five streaks here were detected over only part of the ROI and had to be
+extrapolated to full length. Verify the extension rather than trusting it: two
+further candidates were rejected outright because their core depth came out
+*positive* (+2.7%, +4.2%) — they were never dark lines.
+
+**(d) Dead pixels and Kossel lines look identical to a threshold.** A dead pixel
 reads *exactly zero*; a Kossel line is a fractional dip. Split on depth ratio —
 this also guards against a stale blemish map, since unflagged dead pixels are
 otherwise the detector's first find.
 
 ## 3. Result on real data
 
-`G0256_HEA-Dec9GPa_a0001_f003000_lambda2M_r00001`, δ = 24.48°, 300-frame average,
-restricted to the analysis ROI q = 3.2632–3.3126 Å⁻¹ (rows 740–1019).
+`G0256_HEA-Dec9GPa_a0001_f003000_lambda2M_r00001`, δ = 24.48°, 300-frame average.
+Standard blemish applied first; ROI q = 3.2632–3.3126 Å⁻¹ (rows 740–1019,
+388,419 live px). 658 raw dips over 69 q bins → 30 tracks → **5 streaks**:
 
-178 raw dips across 69 q bins, linked into 11 tracks, merged into **5 distinct
-streaks**:
+| # | bins | detected rows | cols across ROI | angle | core depth | extension depth |
+|---|---|---|---|---|---|---|
+| 1 | 114 | 750–1010 | 324 → 205 | +113.1° | −5.1% | −4.4% |
+| 2 | 14 | 746–1006 | 418 → 408 | +92.2° | −5.3% | −3.8% |
+| 3 | 83 | 746–1002 | 529 → 612 | +73.4° | −13.1% | −11.8% |
+| 4 | 82 | 742–1002 | 761 → 773 | +87.5° | −27.5% | −21.5% |
+| 5 | 68 | 774–1014 | 1566 → 1487 | +105.8° | −13.6% | −5.8% |
 
-| # | q bins | rows | cols | angle | depth |
-|---|---|---|---|---|---|
-| 1 | 6 | 914–970 | 220–247 | +115.7° | −27.8% |
-| 2 | 5 | 806–854 | 278–304 | +118.4° | −27.2% |
-| 3 | 7 | 782–850 | 544–566 | +72.1° | −27.8% |
-| 4 | 66 | 742–1002 | 761–774 | +87.6° | −35.7% |
-| 5 | 58 | 802–1014 | 1481–1555 | +109.2° | −40.8% |
+All five extended across the full ROI, each extension confirmed dark.
+Two further candidates rejected (core depth +2.7%, +4.2%).
 
-**3949 px, 1.0% of the live pixels in the ROI.**
+**23,319 px = 6.00% of the ROI; XPCS SNR cost 3.05%.**
 
-![Kossel lines on Lambda2M, G0256](figures/kossel_phi_final.png)
+![Kossel lines on Lambda2M, G0256](figures/kossel_v5.png)
 
 *Full detector; dashed lines mark the peak ROI. Left: original. Middle: residual
-against I_ref(q) — the streaks are invisible in the raw frame and unmistakable
-here. Right: masked pixels in magenta. Dark bands are module gaps and the five
-dead chip-gap columns, which are detector structure, not artifacts.*
+against I_ref(q). Right: masked pixels in magenta, extended across the full ROI
+span. Dark bands are module gaps and dead chip columns.*
 
-Five angles spanning 72° to 118° confirms these are not detector structure — no
-detector artifact is slanted, and none is slanted five different ways.
+Five angles from +73° to +113° is itself proof these are not detector structure —
+nothing in the hardware is slanted, let alone slanted five different ways.
 
-The streaks overlap the sample peak at q = 3.288 Å⁻¹ used for the XPCS analysis of
-this same dataset, contributing a few percent of its measured static baseline.
-That is the concrete case for the feature.
+**Thresholds are meant to be tuned.** These come from `--artifact-nsig 2.5` with a
+6-bin minimum. More aggressive settings will find more; the core-depth test is
+what keeps false positives out as the threshold drops, so lower the threshold and
+let the verification stage do the rejecting.
 
 ## 4. Suggested interface
 
@@ -144,7 +171,10 @@ A minimal CLI surface consistent with the existing `build` options:
                                   intensity inside a peak is what makes a
                                   fractional dip detectable
 --artifact-qbin N                 rows per narrow q bin (default ~4)
---artifact-nsig N                 dip threshold in robust sigma (default ~3.5)
+--artifact-nsig N                 dip threshold in robust sigma (default ~2.5)
+--artifact-extend {off,verified}  extrapolate tracks across the ROI and keep
+                                  only extensions that measure dark (default verified)
+--artifact-pad N                  extra px each side of the measured width (default ~7)
 --artifact-min-bins N             q bins a track must span to be kept (default ~5)
 --artifact-dead-frac F            depth/ref beyond this = dead pixel, routed to
                                   the blemish layer (default 0.9)
@@ -181,19 +211,20 @@ Prototype scripts, on `amber`, all under
 
 | file | does |
 |---|---|
-| `phi_track2.py` | narrow-q-bin dip detection + φ linking (the detector) |
-| `phi_final.py` | merges tracks, rasterises the mask, writes the figure |
+| `phi_v5.py` | the detector: blemish, dip finding, linking, extension, verification |
+| `fig_v5.py` | writes the figure above |
 | `hunt_kossel.py` | earlier full-detector search (superseded) |
 | `sum_list.py` | high-statistics sum over a scan |
 | `psm_maps.npy` | per-pixel q / TTH / phi from pysimplemask |
+| `std_mask.npy` | standard blemish from lambda2m_qmap_default.hdf |
 
 Products, same directory:
 
 | file | contents |
 |---|---|
-| `kossel_phi_final.png` | the figure above |
+| `kossel_v5.png` | the figure above |
 | `k2_img.npy` | 300-frame average of G0256 (1813×1558) |
-| `phi_mask_final.npy` | the five detected streaks, bool (3949 px) |
+| `phi_mask_v5.npy` | the five extended streaks, bool (23319 px) |
 | `phi_dips.npy` | raw per-bin dips before linking |
 | `k2_good2.npy` | valid-pixel mask, blemish applied |
 
