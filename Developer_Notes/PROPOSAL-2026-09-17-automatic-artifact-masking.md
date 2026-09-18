@@ -127,6 +127,36 @@ beamline responsibility and will be established separately, from a flat-scatteri
 standard such as NIST glassy carbon measured in transmission geometry. Nothing is
 being asked of pySimpleMask on that front.
 
+### A model-selection step worth adding
+
+On the Eiger frame the recorded geometry is **falsified by the data**. Comparing
+residual RMS under three reference models on the 1500-frame sum:
+
+| reference model | residual RMS |
+|---|---|
+| I(row) | 0.42934 |
+| I(2θ) from metadata geometry | 0.42664 |
+| **I(col)** | **0.05179** |
+
+The 2θ map built from the recorded centre, distance and delta is no better than
+assuming rings run along rows — while an empirical I(col) reference fits 8× better.
+The Eiger sits on a manual stage here, so its geometry is known to be unreliable;
+the point is that **this test detects that condition cheaply**, before the
+reference model silently ruins the detection. Recommend trying a small set of
+reference models and picking by residual RMS rather than trusting the metadata.
+
+### Current state of the prototype on Eiger
+
+With the empirical I(col) reference at 4σ it finds **2 dark lines** (589 px at
+row 507/col 816, 370 px at row 1495/col 895) and masks 0.040% of the live area.
+That is a sane mask but an incomplete result — roughly four lines are visible by
+eye in the frame. Raising the threshold to 7σ loses both.
+
+**No validated artifact-removed dataset exists yet.** The limitation is that the
+residual still contains real structure, so the MAD threshold has no clean
+separation between artifact and signal. A better reference model — a 2-D smooth
+surface fit rather than a 1-D profile — is the obvious next thing to try.
+
 ---
 
 ## 4. Suggested interface
@@ -183,6 +213,21 @@ Prototype scripts, on `amber`:
 | `/home/beams10/8IDIUSER/xpcs_contrast_check/line_persist.py` | tracks a detected line across mesh points |
 | `/home/beams10/8IDIUSER/xpcs_contrast_check/line_fixed_probe.py` | probes fixed pixels across mesh points (the §3 test) |
 | `/home/beams10/8IDIUSER/xpcs_contrast_check/sum_list.py` | high-statistics sum over a scan |
+| `/home/beams10/8IDIUSER/xpcs_contrast_check/eiger_clean.py` | reference-model comparison (the table above) |
+| `/home/beams10/8IDIUSER/xpcs_contrast_check/eiger_mask_out.py` | detection + writes the products below |
+
+Products, for inspection — **diagnostics, not validated output**:
+
+| file | contents |
+|---|---|
+| `/home/beams10/8IDIUSER/xpcs_contrast_check/e0157_before_after.png` | 3 panels: before / residual / after. **Start here** |
+| `/home/beams10/8IDIUSER/xpcs_contrast_check/e0157_sum.npy` | 1500-frame sum, float64 (2162×2068) |
+| `/home/beams10/8IDIUSER/xpcs_contrast_check/e0157_sum_bad.npy` | detector sentinel/gap mask, bool |
+| `/home/beams10/8IDIUSER/xpcs_contrast_check/e0157_ref.npy` | fitted reference I(col) |
+| `/home/beams10/8IDIUSER/xpcs_contrast_check/e0157_artifact_mask.npy` | detected artifacts, bool (1681 px) |
+| `/home/beams10/8IDIUSER/xpcs_contrast_check/e0157_artifact_mask.tif` | same, 8-bit TIFF |
+| `/home/beams10/8IDIUSER/xpcs_contrast_check/e0157_cleaned.npy` | sum with artifacts + dead pixels set to NaN |
+| `/home/beams10/8IDIUSER/xpcs_contrast_check/e0157_tth.npy` | 2θ map from metadata (the one the test rejects) |
 
 Data referenced:
 
