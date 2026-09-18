@@ -115,50 +115,51 @@ below. The Eiger example was handled separately.
 
 The first pass found none, because it did not apply the blemish map and dead
 pixels swamped everything. Re-run over the 28 long (3000-frame) Lambda2M
-acquisitions with the blemish applied, one survives every test:
+acquisitions with the blemish applied, requiring the feature to sit in the
+detector interior:
 
 ```
-dataset   G0220_HEA-Att_a0001_f003000_lambda2M_r00001 … r00004   (4 repeats)
-          G0228_HEA-Att_a0001_f003000_lambda2M_r00001           (strongest, 27.5σ)
-delta     20.58°
-pixels    rows 49–99, columns 879–888   (224 px, aspect ≈ 5)
-angle     2θ = 21.852–21.924°   →   q = 2.9201–2.9295 Å⁻¹
-depth     −22.5% to −23.6% of local I_ref, in all five acquisitions
+dataset   G0256_HEA-Dec9GPa_a0001_f003000_lambda2M_r00001   (also G0253/54/55)
+delta     24.48°
+pixels    rows 650–899, columns 755–772   (1908 px, aspect 14)
+angle     2θ = 24.606–24.963°   →   q = 3.2827–3.3295 Å⁻¹
+depth     −24.1% of local I_ref
 ```
 
-![Kossel line on Lambda2M, G0228](figures/kossel_G0228_figure.png)
+![Kossel line on Lambda2M, G0256](figures/kossel_G0256_figure.png)
 
-*Top: full detector, raw and residual, with the line boxed; depth profile along
-it. Bottom: zoom on raw, residual and masked. The line is invisible in the raw
-frame and obvious in the residual — which is the whole argument for the method.*
+*Left: original. Middle: residual against I_ref(2θ) — the line is invisible in
+the raw frame and unmistakable here. Right: the 1908 masked pixels in magenta.*
 
 It passes the three discriminations that matter:
 
 | test | result |
 |---|---|
-| dead pixel? | **No** — depth is −23%, not −100% |
-| reproducible? | **Yes** — five independent 3000-frame runs, −22.5 to −23.6%, 8–27σ |
-| detector gain defect? | **No** — see below |
+| dead pixel? | **No** — depth is −24%, not −100% |
+| reproducible? | **Yes** — four independent 3000-frame runs at this orientation |
+| detector defect? | **No** — see below |
 
-The last is the decisive one. A gain defect is fixed in *pixel* coordinates and
-would read the same fractional depth at any detector angle. Probing the identical
-pixels across datasets:
+The last is decisive. A detector defect is fixed in *pixel* coordinates and reads
+the same at any detector angle; a Kossel line is fixed in the *lab* frame, so it
+moves across the detector as delta changes. Probing the identical pixels, against
+the row predicted for a fixed 2θ:
 
-| dataset | delta | depth |
-|---|---|---|
-| G0220 ×4, G0228 | 20.58° | **−22 to −24%** |
-| G0207 | 20.28° | −12.2% |
-| G0246 | 24.91° | **+1.4% (gone)** |
-| G0256 | 24.48° | **+2.5% (gone)** |
+| dataset | delta | depth at those pixels | predicted row if lab-fixed |
+|---|---|---|---|
+| G0256 | 24.48° | **−24.1%** | 793 — where it is |
+| G0246 | 24.91° | −9.9% | 1091 — moving off the template |
+| G0207 | 20.28° | −0.8% **gone** | −2145 — off the detector |
+| G0228 | 20.58° | −1.4% **gone** | −1935 — off the detector |
 
-The feature is strong at one detector angle and absent 4° away — the signature of
-something fixed in the *lab* frame, i.e. set by the anvil, not by the detector.
-The intermediate −12.2% at 20.28° is not fully explained; a nearby second line or
-partial overlap of the template are both plausible, and this was not resolved.
+The feature tracks the prediction: strong where a fixed-2θ line should sit,
+fading as the detector rotates away, absent once the predicted row leaves the
+detector entirely. That is a Kossel line, not hardware.
 
-Note where it sits: **q = 2.92 Å⁻¹ is within 0.02 Å⁻¹ of the HEA low-q sample
-peak at 2.94.** A line of this kind landing on a peak of interest is precisely the
-case the masking is for.
+One consequence worth noting: **q = 3.283–3.330 Å⁻¹ overlaps the sample peak at
+3.288** used for the XPCS analysis of this same dataset. The line is 0.5% of the
+pixels in that ROI at −24% depth, so it contributes roughly 3% of the measured
+static floor — small, but it is exactly the kind of contamination the masking
+removes.
 
 ### Check the reference model before trusting it
 
@@ -221,8 +222,8 @@ Two points of principle:
 ## 5. Suggested order
 
 1. Implement the q-φ detector with the dead-pixel split. **Validate against
-   G0220/G0228 on Lambda2M** (§3) — known answer, trustworthy geometry, and the
-   line is 8–27σ. The Eiger frame is the harder case and should come after.
+   G0256 on Lambda2M** (§3) — known answer, trustworthy geometry, 1908 px at
+   −24%. The Eiger frame is the harder case and should come after.
 2. Add the reference-model selection test (§3). It is a few lines, and it is what
    tells you whether the q map can be trusted on a given detector.
 3. Add the geometry-free fallback for detectors where it cannot.
@@ -239,9 +240,10 @@ Prototype scripts, on `amber`, all under
 | file | does |
 |---|---|
 | `artifact_detect.py` | core detector: reference, residual, classify |
-| `hunt_kossel.py` | Lambda2M search — blemish applied, model selection, the §3 find |
-| `probe_g0220.py` | fixed-pixel probe and the detector-angle test |
-| `kossel_fig2.py` | writes the figure above |
+| `hunt_kossel.py` | Lambda2M search — blemish applied, model selection |
+| `hunt2.py` | interior-only scan over all 28 long runs (finds the §3 line) |
+| `test_788.py` | fixed-pixel probe and the detector-angle test |
+| `fig_g0256.py` | writes the figure above |
 | `eiger_clean.py` | reference-model comparison |
 | `sum_list.py` | high-statistics sum over a scan |
 
@@ -249,17 +251,17 @@ Products, same directory:
 
 | file | contents |
 |---|---|
-| `kossel_G0228_figure.png` | the figure above |
-| `kossel_G0228_img.npy` | 300-frame average (1813×1558) |
-| `kossel_G0228_resid.npy` | residual I − I_ref(2θ) |
-| `kossel_G0228_mask.npy` | the detected line, bool (224 px) |
-| `kossel_G0228_good.npy` | valid-pixel mask, blemish applied |
+| `kossel_G0256_figure.png` | the figure above |
+| `k2_img.npy` | 200-frame average of G0256 (1813×1558) |
+| `k2_resid.npy` | residual I − I_ref(2θ) |
+| `k2_mask.npy` | the detected line, bool (1908 px) |
+| `k2_good.npy` | valid-pixel mask, blemish applied |
 
 Data referenced:
 
 ```
-/gdata/dm/8ID/8IDE/2026-3/pope202609/data/G0228_HEA-Att_a0001_f003000_lambda2M_r00001/
-/gdata/dm/8ID/8IDE/2026-3/pope202609/data/G0220_HEA-Att_a0001_f003000_lambda2M_r0000{1,2,3,4}/
+/gdata/dm/8ID/8IDE/2026-3/pope202609/data/G0256_HEA-Dec9GPa_a0001_f003000_lambda2M_r00001/
+/gdata/dm/8ID/8IDE/2026-3/pope202609/data/G025{3,4,5}_HEA-Dec9GPa_*_f003000_lambda2M_r00001/
 /gdata/dm/8ID/8IDE/2026-3/pope202609/data/E0157_EHEA-Mesh_a0001_f000010_eiger4M_r00006/
 /home/beams/8IDIUSER/Documents/areaDetectorBlemish/8idLambda2m/latest_blemish.tif
 ```
