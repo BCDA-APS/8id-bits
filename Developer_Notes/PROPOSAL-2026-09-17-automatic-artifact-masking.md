@@ -4,8 +4,13 @@
 
 Diamond-anvil-cell patterns at 8-ID-E carry narrow dark lines crossing the
 scattering, plus localised bright spots — neither detected automatically today.
-Example frame: `E0157_EHEA-Mesh_10001_f00010_eiger4M_r00006`. Below: a way to find
-them, what a prototype did on real data, and one bug worth fixing regardless.
+Example frame:
+
+```
+/gdata/dm/8ID/8IDE/2026-3/pope202609/data/E0157_EHEA-Mesh_a0001_f000010_eiger4M_r00006/E0157_EHEA-Mesh_a0001_f000010_eiger4M_r00006.h5
+```
+
+Below: a way to find them, and what a prototype did on real data.
 
 ---
 
@@ -35,7 +40,10 @@ and stays valid across a translation mesh.
 ## 2. Proposed algorithm
 
 The assumption is that true I(q, φ) is smooth for a powder-like sample, so
-anything abrupt is an artifact.
+anything abrupt is an artifact. Build the mask from a **high-statistics sum**, not
+a single frame — the Eiger example averages 0.287 counts/pixel, and the lines are
+visible only because the eye integrates along them. Artifacts are static within an
+orientation, so summing a whole mesh is free and valid.
 
 ```
 1. reference    I_ref(q) = median over φ within fine q bins
@@ -55,7 +63,7 @@ smooth reference at the feature's own scale — which is noise-optimal.
 
 ### Four things that break it
 
-All four were hit while prototyping; they are the useful part of this proposal.
+All were hit while prototyping; they are the useful part of this proposal.
 
 **(a) The reference must follow the true q contours.** A first attempt used
 "median along detector rows". On Lambda2M that is nearly right, because the
@@ -66,19 +74,14 @@ nothing. Use the real q map.
 
 So on Eiger, where the geometry is uncertain: the q map has to be *locally*
 correct, not absolutely correct — a wrong beam centre distorts ring shape and
-smears the reference. Where geometry is hopeless, see (e).
+smears the reference. Where geometry is hopeless, see (d).
 
 **(b) Exclude detector borders and module-gap edges first.** Without this they
 dominate: in a six-dataset trial, five of the six strongest "line" detections were
 at column 1556–1557 of a 1558-wide detector. Erode the valid-pixel mask a few
 pixels before thresholding.
 
-**(c) Single frames lack the statistics.** The Eiger example averages **0.287
-counts/pixel**, maximum 9 counts anywhere; the lines are visible only because the
-eye integrates along them. Build the mask from a high-statistics sum — artifacts
-are static within an orientation, so summing a whole mesh is free and valid.
-
-**(d) Dead pixels and physical artifacts look identical to a threshold.** They are
+**(c) Dead pixels and physical artifacts look identical to a threshold.** They are
 not the same thing and have different lifetimes:
 
 ```
@@ -86,10 +89,10 @@ depth / I_ref ≈ −100%        dead pixel      → permanent, belongs in blemi
 depth / I_ref ≈ −10…−60%     Kossel line     → per orientation
 ```
 
-Without this split the detector's first find is unflagged dead pixels — which is
-exactly what happened (§3).
+Without this split, the detector's first find is dead pixels — which is exactly
+what happened (§3).
 
-**(e) Geometry-free fallback.** Where the q map cannot be trusted, a line is still
+**(d) Geometry-free fallback.** Where the q map cannot be trusted, a line is still
 a line: detect narrow extended features directly in pixel space with a
 Radon/Hough transform of the residual, or morphological opening with a line
 structuring element at several orientations. Less sensitive, but needs no
@@ -102,40 +105,26 @@ geometry. Worth shipping alongside the q-φ path.
 Run over a sample of the 1398 Lambda2M datasets from pope202609, plus the Eiger
 example.
 
-### A gap in the Lambda2M bad-pixel map
-
-The strongest, most repeatable detection was a band at **rows 112–125, columns
-712–828** on Lambda2M:
-
-```
-raw mean in the band            0.0045 counts   (detector mean 1.5833)
-pixels reading exactly zero     1564 of 1638  (95.5%)
-blemish map says GOOD (b == 1)  1553
-read zero AND flagged good      1479 pixels
-```
-
-Probed at fixed pixel coordinates across eight mesh points, depth/reference was
-**−97% to −100% every time** — dead pixels, not a Kossel line. Those 1479 pixels
-are absent from
-
-```
-/home/beams/8IDIUSER/Documents/areaDetectorBlemish/8idLambda2m/latest_blemish.tif
-```
-
-and therefore enter every qmap built on this detector today. There are also
-all-zero row bands at **902–907** and **1552–1557**, beyond the two known module
-gaps (516–646, 1163–1296).
-
-**Worth fixing on its own**, independently of whether the masking feature is built.
-
-### What was not established
-
-**Kossel lines were not confirmed on Lambda2M.** After excluding dead pixels and
-detector edges, no convincing physical line survived in the 16 datasets sampled.
+**Kossel lines were not confirmed on Lambda2M.** After excluding detector edges
+and dead pixels, no convincing physical line survived in the 16 datasets sampled.
 Possible reasons, not distinguished: Lambda2M subtends only ~2.2° per frame at
 2.2 m so intercepts few anvil cones; the sampling was sparse; sensitivity scales
-with local intensity. So the algorithm is so far validated on *detector* defects
-rather than on the anvil lines it targets.
+with local intensity. The algorithm is therefore validated so far on *detector*
+defects rather than on the anvil lines it targets, and the Eiger frame remains the
+reference case.
+
+**What it did find was dead pixels** — a band at rows 112–125, columns 712–828 on
+Lambda2M reading 0.0045 counts against a detector mean of 1.5833, with 1479 pixels
+reading exactly zero while flagged good in the current blemish TIFF. Probed at
+fixed coordinates across eight mesh points, depth/reference was −97% to −100%
+every time.
+
+That is useful here only as evidence, in two directions: the detector works, and
+**the dead-pixel split in §2(c) is not optional** — without it, defects swamp the
+physical artifacts you are trying to find. The Lambda2M bad-pixel map itself is a
+beamline responsibility and will be established separately, from a flat-scattering
+standard such as NIST glassy carbon measured in transmission geometry. Nothing is
+being asked of pySimpleMask on that front.
 
 ---
 
@@ -145,7 +134,7 @@ Three mask layers with different lifetimes, kept separate:
 
 | layer | lifetime | source |
 |---|---|---|
-| blemish | permanent, per detector | site TIFF (needs the §3 correction) |
+| blemish | permanent, per detector | site TIFF (maintained by the beamline) |
 | **artifact** | per cell orientation | proposed auto-detection |
 | user | per analysis | manual ROI |
 
@@ -174,12 +163,10 @@ Two points of principle:
 
 ## 5. Suggested order
 
-1. **Correct the blemish file** (§3) — independent of the feature, affects every
-   analysis on Lambda2M.
-2. Implement the q-φ detector with border exclusion and the dead-pixel split.
+1. Implement the q-φ detector with border exclusion and the dead-pixel split.
    Validate against the Eiger frame, where the lines are visible by eye.
-3. Add the geometry-free fallback for detectors with poor q calibration.
-4. Spot detection last — compact bright features are easier, and
+2. Add the geometry-free fallback for detectors with poor q calibration.
+3. Spot detection last — compact bright features are easier, and
    `--threshold-high` already covers part of it.
 
 ---
