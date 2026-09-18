@@ -10,7 +10,8 @@ Example frame:
 /gdata/dm/8ID/8IDE/2026-3/pope202609/data/E0157_EHEA-Mesh_a0001_f000010_eiger4M_r00006/E0157_EHEA-Mesh_a0001_f000010_eiger4M_r00006.h5
 ```
 
-Below: a way to find them, and what a prototype did on real data.
+Below: a way to find them, what a prototype did on real data, and a confirmed
+example on Lambda2M to develop against.
 
 ---
 
@@ -25,9 +26,11 @@ Two properties matter for the software:
 
 - **They are dark, not bright** — subtractive. Every line found in this study was
   dark.
-- **They are fixed by the cell orientation.** They move drastically when the cell
-  is rotated and barely at all when the sample is translated (established from
-  operator experience, not from a dedicated measurement).
+- **They are fixed in the lab frame, by the cell orientation**, not in detector
+  pixels. They move drastically when the cell is rotated and barely at all when
+  the sample is translated (operator experience). The confirmed case in §3 backs
+  this from the data: the same pixels show a −23% line at one detector angle and
+  nothing 4° away.
 
 The bright spots are the complementary case: an anvil or coarse-grain reflection
 landing *on* the detector.
@@ -103,8 +106,10 @@ geometry. Worth shipping alongside the q-φ path.
 
 ## 3. What the prototype found
 
-Run over a sample of the 1398 Lambda2M datasets from pope202609, plus the Eiger
-example.
+Two passes. A sparse first pass over the 1398 Lambda2M datasets found only
+detector defects. A second pass over the 28 long (3000-frame) Lambda2M
+acquisitions, this time with the blemish map applied, produced the confirmed case
+below. The Eiger example was handled separately.
 
 ### A confirmed Kossel line on Lambda2M — use this as the test case
 
@@ -120,6 +125,12 @@ pixels    rows 49–99, columns 879–888   (224 px, aspect ≈ 5)
 angle     2θ = 21.852–21.924°   →   q = 2.9201–2.9295 Å⁻¹
 depth     −22.5% to −23.6% of local I_ref, in all five acquisitions
 ```
+
+![Kossel line on Lambda2M, G0228](figures/kossel_G0228_figure.png)
+
+*Top: full detector, raw and residual, with the line boxed; depth profile along
+it. Bottom: zoom on raw, residual and masked. The line is invisible in the raw
+frame and obvious in the residual — which is the whole argument for the method.*
 
 It passes the three discriminations that matter:
 
@@ -149,38 +160,28 @@ Note where it sits: **q = 2.92 Å⁻¹ is within 0.02 Å⁻¹ of the HEA low-q s
 peak at 2.94.** A line of this kind landing on a peak of interest is precisely the
 case the masking is for.
 
-### A model-selection step worth adding
+### Check the reference model before trusting it
 
-The same residual-RMS comparison distinguishes the two detectors cleanly, and is
-how the Lambda case above was trusted while the Eiger case was not.
+Whether the q map can be trusted is testable in a few lines: build two or three
+candidate references and compare residual RMS. On the two detectors here it comes
+out opposite ways.
 
-On **Eiger** the recorded geometry is **falsified by the data**, on the
-1500-frame sum:
+| reference model | Lambda2M | Eiger4M |
+|---|---|---|
+| I(row) | 0.0280 | 0.42934 |
+| I(2θ) from metadata geometry | **0.0278** | 0.42664 |
+| I(col) | 0.0454 | **0.05179** |
 
-| reference model | residual RMS |
-|---|---|
-| I(row) | 0.42934 |
-| I(2θ) from metadata geometry | 0.42664 |
-| **I(col)** | **0.05179** |
+On Lambda the metadata geometry wins — expected, since the virtual centre sits
+~19,000 rows off-detector so rings are nearly horizontal — and that is why the
+detection above can be believed. On Eiger the metadata 2θ map is **no better than
+assuming rings run along rows**, while an empirical I(col) reference fits 8×
+better: the geometry there is falsified by its own data (that detector is on a
+manual stage). A first attempt at Eiger detection found nothing for exactly this
+reason.
 
-The 2θ map built from the recorded centre, distance and delta is no better than
-assuming rings run along rows — while an empirical I(col) reference fits 8× better.
-The Eiger sits on a manual stage here, so its geometry is known to be unreliable;
-the point is that **this test detects that condition cheaply**, before the
-reference model silently ruins the detection. Recommend trying a small set of
-reference models and picking by residual RMS rather than trusting the metadata.
-
-### Current state of the prototype on Eiger
-
-With the empirical I(col) reference at 4σ it finds **2 dark lines** (589 px at
-row 507/col 816, 370 px at row 1495/col 895) and masks 0.040% of the live area.
-That is a sane mask but an incomplete result — roughly four lines are visible by
-eye in the frame. Raising the threshold to 7σ loses both.
-
-**No validated artifact-removed dataset exists yet.** The limitation is that the
-residual still contains real structure, so the MAD threshold has no clean
-separation between artifact and signal. A better reference model — a 2-D smooth
-surface fit rather than a 1-D profile — is the obvious next thing to try.
+Recommend running this test and selecting the reference by residual RMS, rather
+than assuming the metadata is right. Where no model fits, fall back to §2(c).
 
 ---
 
@@ -219,59 +220,47 @@ Two points of principle:
 
 ## 5. Suggested order
 
-1. Implement the q-φ detector with border exclusion and the dead-pixel split.
-   Validate against the Eiger frame, where the lines are visible by eye.
-2. Add the geometry-free fallback for detectors with poor q calibration.
-3. Spot detection last — compact bright features are easier, and
+1. Implement the q-φ detector with the dead-pixel split. **Validate against
+   G0220/G0228 on Lambda2M** (§3) — known answer, trustworthy geometry, and the
+   line is 8–27σ. The Eiger frame is the harder case and should come after.
+2. Add the reference-model selection test (§3). It is a few lines, and it is what
+   tells you whether the q map can be trusted on a given detector.
+3. Add the geometry-free fallback for detectors where it cannot.
+4. Spot detection last — compact bright features are easier, and
    `--threshold-high` already covers part of it.
 
 ---
 
 ## Appendix — reproduction
 
-Prototype scripts, on `amber`:
+Prototype scripts, on `amber`, all under
+`/home/beams10/8IDIUSER/xpcs_contrast_check/`:
 
 | file | does |
 |---|---|
-| `/home/beams10/8IDIUSER/xpcs_contrast_check/artifact_detect.py` | core detector: reference, residual, classify |
-| `/home/beams10/8IDIUSER/xpcs_contrast_check/fish_lambda.py` | q-binned reference from metadata; scans many datasets |
-| `/home/beams10/8IDIUSER/xpcs_contrast_check/line_persist.py` | tracks a detected line across mesh points |
-| `/home/beams10/8IDIUSER/xpcs_contrast_check/line_fixed_probe.py` | probes fixed pixels across mesh points (the §3 test) |
-| `/home/beams10/8IDIUSER/xpcs_contrast_check/sum_list.py` | high-statistics sum over a scan |
-| `/home/beams10/8IDIUSER/xpcs_contrast_check/eiger_clean.py` | reference-model comparison (the table above) |
-| `/home/beams10/8IDIUSER/xpcs_contrast_check/eiger_mask_out.py` | detection + writes the Eiger products |
-| `/home/beams10/8IDIUSER/xpcs_contrast_check/hunt_kossel.py` | Lambda2M search with blemish + model selection |
-| `/home/beams10/8IDIUSER/xpcs_contrast_check/probe_g0220.py` | fixed-pixel probe and the delta test |
-| `/home/beams10/8IDIUSER/xpcs_contrast_check/kossel_figure.py` | writes the Lambda figure below |
+| `artifact_detect.py` | core detector: reference, residual, classify |
+| `hunt_kossel.py` | Lambda2M search — blemish applied, model selection, the §3 find |
+| `probe_g0220.py` | fixed-pixel probe and the detector-angle test |
+| `kossel_fig2.py` | writes the figure above |
+| `eiger_clean.py` | reference-model comparison |
+| `sum_list.py` | high-statistics sum over a scan |
 
-Products, for inspection — **diagnostics, not validated output**:
+Products, same directory:
 
 | file | contents |
 |---|---|
-| `/home/beams10/8IDIUSER/xpcs_contrast_check/e0157_before_after.png` | 3 panels: before / residual / after. **Start here** |
-| `/home/beams10/8IDIUSER/xpcs_contrast_check/e0157_sum.npy` | 1500-frame sum, float64 (2162×2068) |
-| `/home/beams10/8IDIUSER/xpcs_contrast_check/e0157_sum_bad.npy` | detector sentinel/gap mask, bool |
-| `/home/beams10/8IDIUSER/xpcs_contrast_check/e0157_ref.npy` | fitted reference I(col) |
-| `/home/beams10/8IDIUSER/xpcs_contrast_check/e0157_artifact_mask.npy` | detected artifacts, bool (1681 px) |
-| `/home/beams10/8IDIUSER/xpcs_contrast_check/e0157_artifact_mask.tif` | same, 8-bit TIFF |
-| `/home/beams10/8IDIUSER/xpcs_contrast_check/e0157_cleaned.npy` | sum with artifacts + dead pixels set to NaN |
-| `/home/beams10/8IDIUSER/xpcs_contrast_check/e0157_tth.npy` | 2θ map from metadata (the one the test rejects) |
-
-**Lambda2M — the confirmed Kossel line**, geometry trustworthy:
-
-| file | contents |
-|---|---|
-| `/home/beams10/8IDIUSER/xpcs_contrast_check/kossel_G0228_zoom.png` | raw / residual / masked, zoomed on the line. **Start here** |
-| `/home/beams10/8IDIUSER/xpcs_contrast_check/kossel_G0228_img.npy` | 300-frame average (1813×1558) |
-| `/home/beams10/8IDIUSER/xpcs_contrast_check/kossel_G0228_resid.npy` | residual I − I_ref(2θ) |
-| `/home/beams10/8IDIUSER/xpcs_contrast_check/kossel_G0228_mask.npy` | the detected line, bool (224 px) |
-| `/home/beams10/8IDIUSER/xpcs_contrast_check/kossel_G0228_good.npy` | valid-pixel mask (blemish applied) |
+| `kossel_G0228_figure.png` | the figure above |
+| `kossel_G0228_img.npy` | 300-frame average (1813×1558) |
+| `kossel_G0228_resid.npy` | residual I − I_ref(2θ) |
+| `kossel_G0228_mask.npy` | the detected line, bool (224 px) |
+| `kossel_G0228_good.npy` | valid-pixel mask, blemish applied |
 
 Data referenced:
 
 ```
+/gdata/dm/8ID/8IDE/2026-3/pope202609/data/G0228_HEA-Att_a0001_f003000_lambda2M_r00001/
+/gdata/dm/8ID/8IDE/2026-3/pope202609/data/G0220_HEA-Att_a0001_f003000_lambda2M_r0000{1,2,3,4}/
 /gdata/dm/8ID/8IDE/2026-3/pope202609/data/E0157_EHEA-Mesh_a0001_f000010_eiger4M_r00006/
-/gdata/dm/8ID/8IDE/2026-3/pope202609/data/G0242_HEA-Mesh30_a0001_f000010_lambda2M_r00227/
 /home/beams/8IDIUSER/Documents/areaDetectorBlemish/8idLambda2m/latest_blemish.tif
 ```
 
