@@ -77,11 +77,41 @@ rows, and I-vs-φ within it is simply the intensity profile across columns.
 8. rasterise WIDE          paint the measured width plus ~7 px each side
 ```
 
+**The first pass is already a `build` call.** Steps 0–1 need no new code — the
+existing CLI produces exactly the ROI the Kossel stage should run inside:
+
+```bash
+launch_simplemask_dev build "$RAW" --metadata-fname "$META" \
+  --no-find-center --beamstop-diameter 0 \
+  --param-constraint q:AND:3.2632:3.3126 \
+  --blemish lambda2m_qmap_default.hdf --blemish-key /qmap/mask \
+  --mode q-phi --output-qmap roi.hdf --output-mask roi_mask.tif
+```
+
+That command was run against the reference frame and reproduces the ROI used
+below exactly: 388,419 pixels, 100% agreement.
+
+`--param-constraint q:AND:QLO:QHI` is the peak ROI; `--no-find-center` and
+`--beamstop-diameter 0` are required at wide angle, where there is no direct beam
+on the detector for `find_center` to lock onto. The resulting `qmap/mask` is the
+pixel set to search, and `compute_transmission_qmap()` supplies the per-pixel q
+and φ. So the artifact stage slots in as a second pass over a qmap that `build`
+has already made — it does not need its own geometry or masking path.
+
+Size the q range from the **scattering pattern**, not a rocking curve: the
+detector-resolved FWHM here is 0.377° against 0.473° from the delta scan, which
+is ROI-broadened.
+
 **Use the standard blemish, not the raw TIFF.** `lambda2m_qmap_default.hdf`
-carries a `mask` that removes **43,861 more pixels** than
-`latest_blemish.tif` and is a strict superset of it. Applying it first removes
-dead regions and hot pixels before any Kossel logic runs, and it eliminates a
-whole class of false detections.
+carries a `mask` that removes **43,861 more pixels** than `latest_blemish.tif`
+and is a strict superset of it, so dead regions and hot pixels are gone before
+any Kossel logic runs.
+
+*Scope note, measured:* for **this** ROI the two give an identical pixel set —
+the extra 43,861 lie elsewhere on the detector, so the standard mask did not
+change the result below. It matters for ROIs that overlap those regions, and
+costs nothing to use, so use it by default rather than relying on it having been
+irrelevant here.
 
 **Extend every line across the full ROI (steps 6-7).** Kossel lines are set by
 the anvil and do not stop mid-peak. A track that ends early means *detection*
@@ -193,8 +223,9 @@ Two points of principle:
 
 ## 5. Suggested order
 
-1. Add the per-pixel q/φ accessor if one is not already public —
-   `compute_transmission_qmap()` already returns everything needed.
+1. Nothing new is needed for the first pass — `build` with
+   `--param-constraint q:AND:QLO:QHI` already yields the peak ROI, and
+   `compute_transmission_qmap()` already returns per-pixel q and φ.
 2. Implement narrow-q-bin dip detection with φ linking. **Validate against G0256**
    (§3): known answer, trustworthy geometry, five streaks from −27% to −41%.
 3. Expose `--artifact-nsig` and a q-range restriction, and report detections
