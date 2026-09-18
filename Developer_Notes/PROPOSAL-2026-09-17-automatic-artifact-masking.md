@@ -69,9 +69,9 @@ right, but at ~0.3 counts/pixel a literal finite difference is pure shot noise.
 Steps 2–3 are the same idea implemented as a matched filter — difference from a
 smooth reference at the feature's own scale — which is noise-optimal.
 
-### Three things that break it
+### Four things that break it
 
-All three were hit while prototyping; they are the useful part of this proposal.
+All four were hit while prototyping; they are the useful part of this proposal.
 
 **(a) The reference must follow the true q contours.** A first attempt used
 "median along detector rows". On Lambda2M that is nearly right, because the
@@ -82,7 +82,7 @@ nothing. Use the real q map.
 
 So on Eiger, where the geometry is uncertain: the q map has to be *locally*
 correct, not absolutely correct — a wrong beam centre distorts ring shape and
-smears the reference. Where geometry is hopeless, see (c).
+smears the reference. Where geometry is hopeless, see (d).
 
 **(b) Dead pixels and physical artifacts look identical to a threshold.** They are
 not the same thing and have different lifetimes:
@@ -96,7 +96,20 @@ This is the guard against a *stale* blemish map: dead pixels accumulate between
 updates, and whatever is not yet flagged will be the detector's first find — which
 is exactly what happened (§3).
 
-**(c) Geometry-free fallback.** Where the q map cannot be trusted, a line is still
+**(c) The streaks are not vertical — the filter must scan orientation.** This is
+the single easiest way to get the detection wrong. A column- or row-profile is
+blind to a slanted line by construction, and on this data it returns a confident
+null. A Radon scan of the residual finds ridges at 20°, 50°, 55°, 70°, 75° and
+80°; the streaks run at whatever angle the anvil geometry dictates.
+
+What works: **high-pass, then an orientation-scanned matched filter.** Average the
+residual along a line kernel (~60 px) at ~10° steps and keep the most negative
+response per pixel. The high-pass first is essential — without it the filter locks
+onto broad intensity structure and masked 8.3% of the detector in testing; with it,
+0.54%. Then require *long and narrow*: extent ≥100 px and mean transverse width
+≤ ~20 px, which separates a streak from a smooth gradient.
+
+**(d) Geometry-free fallback.** Where the q map cannot be trusted, a line is still
 a line: detect narrow extended features directly in pixel space with a
 Radon/Hough transform of the residual, or morphological opening with a line
 structuring element at several orientations. Less sensitive, but needs no
@@ -121,31 +134,24 @@ detector interior:
 ```
 dataset   G0256_HEA-Dec9GPa_a0001_f003000_lambda2M_r00001   (also G0253/54/55)
 delta     24.48°
-streaks   three, all lab-frame fixed:
-            col 762, row 781   2618 px   depth −20.7%   (the strong one)
-            col 768, row 947    624 px   depth −16.8%
-            col 507, row 716    138 px   depth −11.9%   (faint; needs 3.5σ)
-angle     strong streak at 2θ = 24.61–24.96°  →  q = 3.283–3.330 Å⁻¹
-total     4580 px masked, 0.16% of the live detector
+streaks   seven, at a range of angles (70°, 80°, 90°, 110° to the rows)
+            depths −7% to −25% of local I_ref; widths 3–18 px
+            12625 px total, 0.54% of the live detector
+angle     strongest at 2θ = 24.61–24.96°  →  q = 3.283–3.330 Å⁻¹
 ```
 
-![Kossel lines on Lambda2M, G0256](figures/kossel_G0256_full.png)
+![Kossel lines on Lambda2M, G0256](figures/kossel_G0256_slant.png)
 
 *Full detector. Left: original. Middle: residual against I_ref(2θ) — the streaks
-are invisible in the raw frame and unmistakable here. Right: the 4580 masked
-pixels in magenta. Module gaps and dead pixels are dark.*
-
-A detection threshold note: at 5σ only the two strong streaks are found. The
-faint one at column 507 needs **3.5σ**, and at 3.0σ it merges with its
-neighbours and the aspect-ratio test drops it. There is no single threshold that
-cleanly separates all three, which is an argument for making `--artifact-nsig`
-adjustable and for reporting what was found rather than silently applying it.
+are invisible in the raw frame and unmistakable here. Right: the masked pixels in
+magenta. Dark bands are module gaps and the five dead chip-gap columns, which are
+detector structure, not artifacts.*
 
 It passes the three discriminations that matter:
 
 | test | result |
 |---|---|
-| dead pixel? | **No** — depths are −12% to −21%, not −100% |
+| dead pixel? | **No** — depths are −7% to −25%, not −100% |
 | reproducible? | **Yes** — four independent 3000-frame runs at this orientation |
 | detector defect? | **No** — see below |
 
@@ -233,7 +239,7 @@ Two points of principle:
 
 1. Implement the q-φ detector with the dead-pixel split. **Validate against
    G0256 on Lambda2M** (§3) — known answer, trustworthy geometry, three
-   streaks spanning −12% to −21%. The Eiger frame is the harder case and should come after.
+   streaks spanning −7% to −25% at four distinct angles. The Eiger frame is the harder case and should come after.
 2. Add the reference-model selection test (§3). It is a few lines, and it is what
    tells you whether the q map can be trusted on a given detector.
 3. Add the geometry-free fallback for detectors where it cannot.
@@ -253,7 +259,9 @@ Prototype scripts, on `amber`, all under
 | `hunt_kossel.py` | Lambda2M search — blemish applied, model selection |
 | `hunt2.py` | interior-only scan over all 28 long runs (finds the §3 line) |
 | `test_788.py` | fixed-pixel probe and the detector-angle test |
-| `fig_full.py` | detects all streaks and writes the figure above |
+| `slanted.py` | Radon angle scan — shows the streaks are not vertical |
+| `slant_mask2.py` | high-pass + orientation-scanned matched filter (the detector) |
+| `fig_final.py` | writes the figure above |
 | `eiger_clean.py` | reference-model comparison |
 | `sum_list.py` | high-statistics sum over a scan |
 
@@ -264,7 +272,7 @@ Products, same directory:
 | `kossel_G0256_full.png` | the figure above |
 | `k2_img.npy` | 200-frame average of G0256 (1813×1558) |
 | `k2_resid.npy` | residual I − I_ref(2θ) |
-| `k2_mask_all.npy` | the three detected streaks, bool (4580 px) |
+| `k2_mask_final.npy` | the seven detected streaks, bool (12625 px) |
 | `k2_good.npy` | valid-pixel mask, blemish applied |
 
 Data referenced:
