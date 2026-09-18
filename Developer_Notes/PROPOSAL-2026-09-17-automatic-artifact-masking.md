@@ -124,9 +124,18 @@ two must not use the same width or the accept/reject test loses sensitivity.
 lines are narrow. Masking 6.0% of the ROI costs **3.05%** in SNR — far less than
 leaving a −27% intensity deficit inside the correlation.
 
-**Step 4 is what makes it work.** Kossel lines are conic sections, so they are
-curved and run at arbitrary angles. Tracking follows that curvature; anything that
-assumes a fixed orientation does not.
+**Step 5 is what makes it work — but not for the reason you might expect.**
+Kossel lines are conic sections, so curvature is the obvious suspect. Measured, it
+is negligible: over the ROI the sagitta is **1–11 px across 260-row spans**, and a
+quadratic fit improves on a straight line by under 2%. The extension in step 6
+uses a plain linear fit for exactly this reason.
+
+The linking wins because it **accumulates evidence globally**. A local filter
+responds over its own kernel length; linking chains a 2.5σ dip across 60+
+consecutive q bins, so a line far too shallow to survive any per-pixel threshold
+becomes unambiguous once its dips line up. Two of the five streaks here have core
+depths of only −5%, near the noise floor of a single bin, and are recovered
+entirely by that consistency.
 
 ### Four things that break it
 
@@ -134,10 +143,14 @@ assumes a fixed orientation does not.
 averaged over all rows smears a drifting dip into nothing and returns a confident
 null. The dip must be found *per narrow q bin*, then linked.
 
-**(b) Do not use a straight-line matched filter.** A prototype scanned straight
-kernels at 10° steps. Because the lines are curved a straight kernel only matches
-short chords, so it fragmented long lines and missed shallow ones entirely: 7
-fragments where there are 5 continuous streaks, and two never found at all.
+**(b) A local matched filter is the wrong tool, though not because of curvature.**
+A prototype scanned straight kernels at 10° steps over the whole detector and
+produced 7 fragments where there are 5 continuous lines, missing two entirely. An
+independent audit established the lines are straight enough that a straight kernel
+was never the problem; the real causes were a kernel far shorter than the lines,
+10° angle quantisation, and — most of all — running over the whole detector
+instead of inside the bright peak, where a fractional dip is several times more
+significant. Prefer global association over local filter response.
 
 **(c) A track that reaches the end of its detected span is not finished.** Four
 of the five streaks here were detected over only part of the ROI and had to be
@@ -176,7 +189,15 @@ against I_ref(q). Right: masked pixels in magenta, extended across the full ROI
 span. Dark bands are module gaps and dead chip columns.*
 
 Five angles from +73° to +113° is itself proof these are not detector structure —
-nothing in the hardware is slanted, let alone slanted five different ways.
+nothing in the hardware is slanted, let alone slanted five different ways. An
+independent check confirms they cross 2θ contours: each spans the full 2θ range of
+its band while spanning only 0.08–0.55° in φ, where an iso-2θ artifact would span
+~0.005°. So the radial baseline is not manufacturing them.
+
+**Known blind spot.** A Kossel line running nearly parallel to a 2θ contour would
+be partly absorbed into the I_ref(q) baseline and could be missed. Nothing here
+appears to be in that orientation, but the method inherits the limitation and a
+detector at a different δ could expose it.
 
 **Thresholds are meant to be tuned.** These come from `--artifact-nsig 2.5` with a
 6-bin minimum. More aggressive settings will find more; the core-depth test is
